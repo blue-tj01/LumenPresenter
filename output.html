@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audience Output</title>
+<link rel="stylesheet" href="render.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  #screen { position: fixed; inset: 0; }
+  #hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(30,34,44,.9); color: #cfd6e4;
+    font: 13px "Segoe UI", sans-serif; padding: 6px 14px; border-radius: 6px; transition: opacity .6s; cursor: default; }
+</style>
+</head>
+<body>
+<div id="screen"></div>
+<div id="hint">Double-click or press F to go full screen</div>
+<script src="render.js"></script>
+<script>
+  const screen = PP.createScreen(document.getElementById('screen'));
+  const chan = new BroadcastChannel('lumen-live');
+  chan.onmessage = e => { if (e.data?.type === 'state') PP.update(screen, e.data.live, { fade: true }); };
+  chan.postMessage({ type: 'hello' });
+  const fs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  document.ondblclick = fs;
+  document.onkeydown = e => { if (e.key === 'f' || e.key === 'F') fs(); };
+  setTimeout(() => document.getElementById('hint').style.opacity = 0, 3500);
+</script>
+</body>
+</html>

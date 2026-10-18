@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stage Display</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #fff; font-family: "Segoe UI", system-ui, sans-serif; overflow: hidden; }
+  .wrap { display: grid; grid-template-rows: auto 1fr auto auto; height: 100%; padding: 2vh 3vw; box-sizing: border-box; gap: 2vh; }
+  .top { display: flex; justify-content: space-between; align-items: baseline; font: 600 6vh/1 ui-monospace, Consolas, monospace; }
+  .lbl { font: 700 1.8vh/1 "Segoe UI", sans-serif; letter-spacing: .15em; color: #8b92a3; text-transform: uppercase; margin-bottom: 1vh; }
+  #timer.neg { color: #ff3b4e; } #timer.warn { color: #ffb347; }
+  .cur { border: 2px solid #2b3550; border-radius: 1.5vh; padding: 2vh 2vw; display: flex; flex-direction: column; min-height: 0; }
+  #cur { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; white-space: pre-wrap; font-size: 7vh; line-height: 1.2; font-weight: 600; overflow: hidden; }
+  #group { color: #ffcf7a; }
+  .next { border-radius: 1.5vh; padding: 1.5vh 2vw; background: #12151c; }
+  #next { white-space: pre-wrap; font-size: 4vh; color: #9ec1ff; line-height: 1.2; min-height: 5vh; }
+  #msg { background: #ff3b4e; color: #fff; font-size: 4.5vh; font-weight: 700; text-align: center; padding: 1.2vh; border-radius: 1vh; animation: blink 1.2s infinite; }
+  #msg:empty { display: none; }
+  @keyframes blink { 50% { opacity: .55; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><div><div class="lbl">Clock</div><span id="clock"></span></div><div style="text-align:right"><div class="lbl">Timer</div><span id="timer"></span></div></div>
+  <div class="cur"><div class="lbl">Current <span id="group"></span></div><div id="cur"></div></div>
+  <div class="next"><div class="lbl">Next</div><div id="next"></div></div>
+  <div id="msg"></div>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  let live = null;
+  const chan = new BroadcastChannel('lumen-live');
+  chan.onmessage = e => {
+    if (e.data?.type !== 'state') return;
+    live = e.data.live;
+    $('cur').textContent = live.slide ? live.slide.text : '';
+    $('group').textContent = live.slide ? '· ' + live.slide.label : '';
+    $('next').textContent = live.next || '—';
+    $('msg').textContent = live.stageMsg || '';
+    fitCur();
+  };
+  chan.postMessage({ type: 'hello' });
+  function fitCur() {
+    const el = $('cur'); let s = 7; el.style.fontSize = s + 'vh';
+    while (s > 2 && el.scrollHeight > el.clientHeight) { s -= .5; el.style.fontSize = s + 'vh'; }
+  }
+  window.onresize = fitCur;
+  const fmt = sec => { const neg = sec < 0; sec = Math.abs(Math.round(sec)); return (neg ? '-' : '') + String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0'); };
+  setInterval(() => {
+    $('clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    if (!live) return;
+    const t = live.timer, r = t.endAt ? (t.endAt - Date.now()) / 1000 : t.remaining;
+    $('timer').textContent = fmt(r);
+    $('timer').className = r < 0 ? 'neg' : r < 60 ? 'warn' : '';
+  }, 250);
+  document.ondblclick = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+</script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumen Presenter</title>
+<link rel="stylesheet" href="render.css">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="dot"></span>Lumen Presenter</div>
+  <div class="tb-group">
+    <button id="btnOutput" class="btn">▣ Audience Output</button>
+    <button id="btnStage" class="btn">▤ Stage Display</button>
+  </div>
+  <div class="tb-group">
+    <button id="btnImport" class="btn ghost">Import</button>
+    <button id="btnExport" class="btn ghost">Export</button>
+    <button id="btnReset" class="btn ghost">Reset</button>
+  </div>
+  <div class="spacer"></div>
+  <div id="clock" class="clock">--:--</div>
+</header>
+
+<main class="layout">
+  <!-- Library + Playlist -->
+  <aside class="side">
+    <section class="panel grow">
+      <div class="panel-h">Library <button id="btnNewPres" class="icon" title="New presentation">＋</button></div>
+      <input id="libSearch" class="search" placeholder="Search library…">
+      <ul id="libList" class="list"></ul>
+    </section>
+    <section class="panel grow">
+      <div class="panel-h">Playlist <span class="muted small">drag to reorder</span></div>
+      <ul id="playList" class="list"></ul>
+    </section>
+  </aside>
+
+  <!-- Slides -->
+  <section class="center">
+    <div class="center-h">
+      <div>
+        <div id="presTitle" class="pres-title">—</div>
+        <div id="presMeta" class="muted small"></div>
+      </div>
+      <div class="spacer"></div>
+      <label class="small muted">Size <input id="thumbSize" type="range" min="160" max="380" value="240"></label>
+      <button id="btnAddPlaylist" class="btn">＋ Playlist</button>
+      <button id="btnEdit" class="btn">✎ Edit</button>
+      <button id="btnDelete" class="btn ghost danger">Delete</button>
+    </div>
+    <div id="slideGrid" class="grid"></div>
+    <div class="media-h">Media <span class="muted small">click to set background · drop images/videos to add</span>
+      <span class="spacer"></span><button id="btnAddMedia" class="btn small-btn">＋ Add file</button>
+      <input id="mediaFile" type="file" accept="image/*,video/*" multiple hidden>
+    </div>
+    <div id="mediaBin" class="media"></div>
+  </section>
+
+  <!-- Live -->
+  <aside class="live">
+    <div class="live-h"><span class="live-dot"></span>LIVE <span class="spacer"></span><span id="liveLabel" class="muted small"></span></div>
+    <div id="preview" class="preview"></div>
+    <div class="clears">
+      <button data-clear="all" class="clr all" title="F1">Clear All<kbd>F1</kbd></button>
+      <button data-clear="slide" class="clr" title="F2">Slide<kbd>F2</kbd></button>
+      <button data-clear="bg" class="clr" title="F3">Media<kbd>F3</kbd></button>
+      <button data-clear="msg" class="clr" title="F4">Message<kbd>F4</kbd></button>
+      <button data-clear="logo" class="clr" id="btnLogo" title="F6">Logo<kbd>F6</kbd></button>
+    </div>
+    <div class="nav">
+      <button id="btnPrev" class="btn">◀ Prev</button>
+      <button id="btnNext" class="btn primary">Next ▶</button>
+    </div>
+    <nav class="tabs">
+      <button data-tab="theme" class="on">Theme</button>
+      <button data-tab="msg">Messages</button>
+      <button data-tab="timer">Timer</button>
+      <button data-tab="stage">Stage</button>
+    </nav>
+    <div class="tabbody">
+      <div data-pane="theme" class="pane on">
+        <label>Font <select id="thFont">
+          <option value="'Segoe UI', system-ui, sans-serif">Segoe UI</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="'Trebuchet MS', sans-serif">Trebuchet</option>
+          <option value="Impact, 'Arial Black', sans-serif">Impact</option>
+          <option value="'Palatino Linotype', Palatino, serif">Palatino</option>
+          <option value="Verdana, sans-serif">Verdana</option>
+        </select></label>
+        <label>Size <input id="thSize" type="range" min="40" max="160"><span id="thSizeV" class="muted small"></span></label>
+        <label>Color <input id="thColor" type="color"></label>
+        <div class="row">
+          <label class="chk"><input id="thBold" type="checkbox"> Bold</label>
+          <label class="chk"><input id="thShadow" type="checkbox"> Shadow</label>
+          <label class="chk"><input id="thUpper" type="checkbox"> CAPS</label>
+        </div>
+        <div class="seg" id="thAlign"><button data-v="left">Left</button><button data-v="center">Center</button><button data-v="right">Right</button></div>
+        <div class="seg" id="thVAlign"><button data-v="top">Top</button><button data-v="middle">Middle</button><button data-v="bottom">Lower</button></div>
+        <label>Logo text <input id="logoText" type="text"></label>
+      </div>
+      <div data-pane="msg" class="pane">
+        <div class="row"><input id="msgInput" type="text" placeholder="Lower-third message…"><button id="msgShow" class="btn primary">Show</button></div>
+        <ul id="msgList" class="list compact"></ul>
+        <div class="sub-h">Quick slide</div>
+        <textarea id="quickText" rows="3" placeholder="Type any text and send it live…"></textarea>
+        <button id="quickGo" class="btn primary wide">Go Live</button>
+      </div>
+      <div data-pane="timer" class="pane">
+        <div id="timerBig" class="timer-big">05:00</div>
+        <div class="row"><input id="timerMin" type="number" min="0" max="600" value="5"> min
+          <button id="timerSet" class="btn">Set</button></div>
+        <div class="row"><button id="timerStart" class="btn primary">Start</button><button id="timerPause" class="btn">Pause</button><button id="timerReset" class="btn">Reset</button></div>
+        <p class="muted small">The countdown appears on the Stage Display.</p>
+      </div>
+      <div data-pane="stage" class="pane">
+        <div class="row"><input id="stageInput" type="text" placeholder="Message to the stage only…"><button id="stageSend" class="btn primary">Send</button></div>
+        <button id="stageClear" class="btn wide">Clear stage message</button>
+        <p class="muted small">Stage Display shows current &amp; next slide, clock, timer and this message.</p>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- Editor -->
+<div id="editor" class="modal" hidden>
+  <div class="modal-card">
+    <div class="modal-h"><input id="edName" class="ed-name" placeholder="Presentation name"><span class="spacer"></span>
+      <button id="edCancel" class="btn ghost">Cancel</button><button id="edSave" class="btn primary">Save</button></div>
+    <div class="ed-body">
+      <textarea id="edText" spellcheck="false"></textarea>
+      <div class="ed-help">
+        <b>How to write slides</b>
+        <p><code>[Verse 1]</code> on its own line starts a group.</p>
+        <p>A blank line starts a new slide inside the group.</p>
+        <p>Groups named Verse, Chorus, Bridge, Pre-Chorus, Tag, Intro or Ending get colour-coded automatically.</p>
+        <p>Optional first line <code>@bg: #hex</code> or an image URL sets the presentation's default background.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<input id="importFile" type="file" accept="application/json" hidden>
+<div id="toast" class="toast"></div>
+
+<script src="render.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
