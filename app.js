@@ -231,7 +231,13 @@ Have a great week!`]
     live.next = nt ? flat(getPres(nt[0]))[nt[1]].text : '';
     if (selectedId !== presId) { selectedId = presId; renderAll(); }
     broadcast();
-    const el = $(`.slide[data-idx="${idx}"]`); if (el) el.scrollIntoView({ block: 'nearest' });
+    const el = $(`.slide[data-idx="${idx}"]`); if (el) revealSlide(el);
+  }
+  // Scroll only the slide grid, never the page, so the live controls stay where the operator left them.
+  function revealSlide(el) {
+    const grid = $('#slideGrid'), g = grid.getBoundingClientRect(), r = el.getBoundingClientRect();
+    if (r.top < g.top) grid.scrollTop += r.top - g.top - 8;
+    else if (r.bottom > g.bottom) grid.scrollTop += r.bottom - g.bottom + 8;
   }
   function step(dir) {
     if (!live.presId) { if (selectedId && flat(getPres(selectedId)).length) goLive(selectedId, 0); return; }
@@ -260,7 +266,7 @@ Have a great week!`]
         const li = document.createElement('li');
         li.dataset.id = p.id;
         li.innerHTML = '<span class="ico">♪</span><span class="nm"></span>';
-        li.querySelector('.nm').textContent = p.name;
+        li.querySelector('.nm').textContent = li.title = p.name;
         li.onclick = () => { selectedId = p.id; renderAll(); };
         li.ondblclick = () => { if (!db.playlist.includes(p.id)) { db.playlist.push(p.id); save(); renderPlaylist(); } };
         ul.appendChild(li);
@@ -277,7 +283,7 @@ Have a great week!`]
       const li = document.createElement('li');
       li.dataset.id = id; li.draggable = true;
       li.innerHTML = `<span class="ico">${i + 1}</span><span class="nm"></span><button class="x" title="Remove">✕</button>`;
-      li.querySelector('.nm').textContent = p.name;
+      li.querySelector('.nm').textContent = li.title = p.name;
       li.onclick = e => { if (e.target.classList.contains('x')) { db.playlist.splice(i, 1); save(); renderPlaylist(); return; } selectedId = id; renderAll(); };
       li.ondragstart = () => { dragFrom = i; };
       li.ondragover = e => { e.preventDefault(); li.classList.add('drag-over'); };
