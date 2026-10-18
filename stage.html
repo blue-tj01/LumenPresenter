@@ -27,20 +27,19 @@
   <div class="next"><div class="lbl">Next</div><div id="next"></div></div>
   <div id="msg"></div>
 </div>
+<script src="sync.js"></script>
 <script>
   const $ = id => document.getElementById(id);
   let live = null;
-  const chan = new BroadcastChannel('lumen-live');
-  chan.onmessage = e => {
-    if (e.data?.type !== 'state') return;
-    live = e.data.live;
+  Lumen.on('state', d => {
+    live = d.live;
     $('cur').textContent = live.slide ? live.slide.text : '';
     $('group').textContent = live.slide ? '· ' + live.slide.label : '';
     $('next').textContent = live.next || '—';
     $('msg').textContent = live.stageMsg || '';
     fitCur();
-  };
-  chan.postMessage({ type: 'hello' });
+  });
+  Lumen.init().then(online => { if (!online) Lumen.hello(); });
   function fitCur() {
     const el = $('cur'); let s = 7; el.style.fontSize = s + 'vh';
     while (s > 2 && el.scrollHeight > el.clientHeight) { s -= .5; el.style.fontSize = s + 'vh'; }
@@ -50,7 +49,7 @@
   setInterval(() => {
     $('clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     if (!live) return;
-    const t = live.timer, r = t.endAt ? (t.endAt - Date.now()) / 1000 : t.remaining;
+    const t = live.timer, r = t.endAt ? (t.endAt - Lumen.now()) / 1000 : t.remaining;
     $('timer').textContent = fmt(r);
     $('timer').className = r < 0 ? 'neg' : r < 60 ? 'warn' : '';
   }, 250);

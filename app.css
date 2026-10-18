@@ -114,6 +114,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ed-help b { color: var(--text); }
 code { background: var(--bg); padding: 1px 5px; border-radius: 4px; color: #ffcf7a; }
 
+.srv { font-size: 12px; color: #8b92a3; display: flex; align-items: center; gap: 6px; cursor: default; }
+.srv::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.srv.ok { color: #3ecf8e; } .srv.down { color: #ffb347; } .srv.local { color: #8b92a3; }
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translate(-50%, 30px); opacity: 0; background: #2b3550; padding: 8px 16px; border-radius: 8px; transition: .25s; pointer-events: none; z-index: 20; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 

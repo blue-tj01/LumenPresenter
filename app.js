@@ -1,10 +1,9 @@
 // Lumen Presenter — operator console.
-(() => {
+(async () => {
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
   const uid = () => Math.random().toString(36).slice(2, 10);
   const KEY = 'lumen.db.v1';
-  const chan = new BroadcastChannel('lumen-live');
 
   // ---------- seed data (public-domain hymns) ----------
   const SEED_SONGS = [
@@ -167,19 +166,32 @@ Have a great week!`]
       logoText: 'WELCOME',
     };
   }
-  let db;
-  try { db = JSON.parse(localStorage.getItem(KEY)); } catch { db = null; }
-  if (!db || !db.presentations) db = seed();
-  db.theme = { ...DEFAULT_THEME, ...db.theme };
+  // With the server the library lives there; localStorage is the store when running without it.
+  const online = await Lumen.init();
+  const valid = d => d && Array.isArray(d.presentations);
+  const normalize = d => ({ ...d, media: d.media || [], playlist: d.playlist || [], messages: d.messages || [],
+    theme: { ...DEFAULT_THEME, ...d.theme } });
+  let loadFailed = false;
+  let db = online ? await Lumen.loadLibrary().catch(() => { loadFailed = true; return null; }) : null;
+  const fresh = !valid(db) && !loadFailed; // nothing on the server yet: bring over this browser's library, or the demo
+  if (!valid(db)) { try { db = JSON.parse(localStorage.getItem(KEY)); } catch { db = null; } }
+  if (!valid(db)) db = seed();
+  db = normalize(db);
   const save = () => {
     const keep = { ...db, media: db.media.filter(m => !m.src.startsWith('blob:')) };
+    Lumen.saveLibrary(keep);
     try { localStorage.setItem(KEY, JSON.stringify(keep)); }
-    catch { toast('Storage full — large images are kept for this session only'); }
+    catch { if (!online) toast('Storage full — large images are kept for this session only'); }
   };
 
   // ---------- live state ----------
   const live = { presId: null, idx: -1, slide: null, bg: null, msg: null, logo: false, next: '',
-    stageMsg: '', timer: { dur: 300, endAt: null, remaining: 300 } };
+    stageMsg: '', timer: { dur: 300, endAt: null, remaining: 300 }, _autoBgFrom: null };
+  const LIVE_KEYS = Object.keys(live);
+  const adoptLive = l => LIVE_KEYS.forEach(k => { if (k in l) live[k] = l[k]; });
+  // Pick up where the output left off, so reloading the console never blanks the screen.
+  const restored = online ? (await Lumen.getLive().catch(() => null))?.live : null;
+  if (restored) adoptLive(restored);
   let selectedId = (db.playlist[0] || db.presentations[0]?.id) ?? null;
 
   const getPres = id => db.presentations.find(p => p.id === id);
@@ -188,12 +200,14 @@ Have a great week!`]
   function payload() {
     return { ...live, theme: db.theme, logoText: db.logoText };
   }
-  function broadcast() {
-    chan.postMessage({ type: 'state', live: payload() });
+  function refreshLive() {
     PP.update(preview, payload(), { fade: true });
     renderLiveMarks();
   }
-  chan.onmessage = e => { if (e.data?.type === 'hello') broadcast(); };
+  function broadcast() {
+    Lumen.publish(payload());
+    refreshLive();
+  }
 
   // ---------- go live / navigation ----------
   function nextTarget(presId, idx, dir) {
@@ -328,7 +342,11 @@ Have a great week!`]
       d.insertAdjacentHTML('beforeend', `<span></span>${m.builtin ? '' : '<button class="x" title="Remove">✕</button>'}`);
       d.querySelector('span').textContent = m.name;
       d.onclick = e => {
-        if (e.target.classList.contains('x')) { db.media = db.media.filter(x => x !== m); save(); renderMedia(); return; }
+        if (e.target.classList.contains('x')) {
+          db.media = db.media.filter(x => x !== m); save(); renderMedia();
+          if (!db.presentations.some(p => p.bg && p.bg.src === m.src)) Lumen.deleteMedia(m.src);
+          return;
+        }
         live.bg = live.bg && live.bg.src === m.src ? null : { type: m.type, src: m.src };
         live._autoBgFrom = live.presId; broadcast();
       };
@@ -337,8 +355,19 @@ Have a great week!`]
     renderLiveMarks();
   }
 
-  function addMediaFiles(files) {
-    [...files].forEach(f => {
+  async function addMediaFiles(files) {
+    files = [...files].filter(f => /^(image|video)\//.test(f.type));
+    if (online) {
+      for (const f of files) {
+        toast(`Uploading ${f.name}…`);
+        try {
+          const m = await Lumen.uploadMedia(f);
+          db.media.push({ id: uid(), name: m.name, type: m.type, src: m.src }); save(); renderMedia(); toast(`Added ${m.name}`);
+        } catch (e) { toast(`Upload failed: ${e.message}`); }
+      }
+      return;
+    }
+    files.forEach(f => {
       if (f.type.startsWith('video/')) {
         db.media.push({ id: uid(), name: f.name, type: 'video', src: URL.createObjectURL(f) });
         renderMedia();
@@ -348,7 +377,7 @@ Have a great week!`]
         r.readAsDataURL(f);
       }
     });
-    toast('Media added' + ([...files].some(f => f.type.startsWith('video/')) ? ' (videos last for this session)' : ''));
+    toast('Media added' + (files.some(f => f.type.startsWith('video/')) ? ' (videos last for this session)' : ''));
   }
 
   function renderMessages() {
@@ -394,7 +423,7 @@ Have a great week!`]
   function saveEditor() {
     const r = parseText($('#edText').value);
     const name = $('#edName').value.trim() || 'Untitled';
-    if (editingId) Object.assign(getPres(editingId), { name, groups: r.groups, bg: r.bg });
+    if (editingId && getPres(editingId)) Object.assign(getPres(editingId), { name, groups: r.groups, bg: r.bg });
     else { const p = { id: uid(), name, groups: r.groups, bg: r.bg }; db.presentations.push(p); selectedId = p.id; }
     save(); $('#editor').hidden = true; renderAll();
     if (live.presId === editingId && live.slide) { const s = flat(getPres(editingId))[live.idx]; if (s) goLive(editingId, live.idx); }
@@ -402,7 +431,7 @@ Have a great week!`]
 
   // ---------- timer & clock ----------
   const fmt = sec => { const neg = sec < 0; sec = Math.abs(Math.round(sec)); const m = Math.floor(sec / 60), s = sec % 60; return (neg ? '-' : '') + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0'); };
-  const timerRemaining = () => live.timer.endAt ? (live.timer.endAt - Date.now()) / 1000 : live.timer.remaining;
+  const timerRemaining = () => live.timer.endAt ? (live.timer.endAt - Lumen.now()) / 1000 : live.timer.remaining;
   setInterval(() => {
     $('#clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const r = timerRemaining();
@@ -414,7 +443,7 @@ Have a great week!`]
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2200); }
 
   // ---------- wire up ----------
-  const popup = (url, name) => { const w = window.open(url, name, 'width=1280,height=760'); if (!w) toast('Allow pop-ups to open output windows'); else setTimeout(broadcast, 600); };
+  const popup = (url, name) => { const w = window.open(url, name, 'width=1280,height=760'); if (!w) toast('Allow pop-ups to open output windows'); else if (!online) setTimeout(broadcast, 600); };
   $('#btnOutput').onclick = () => popup('output.html', 'lumen-output');
   $('#btnStage').onclick = () => popup('stage.html', 'lumen-stage');
   $('#btnExport').onclick = () => {
@@ -477,7 +506,7 @@ Have a great week!`]
   };
 
   $('#timerSet').onclick = () => { const s = Math.max(0, +$('#timerMin').value) * 60; live.timer = { dur: s, endAt: null, remaining: s }; broadcast(); };
-  $('#timerStart').onclick = () => { if (!live.timer.endAt) { live.timer.endAt = Date.now() + live.timer.remaining * 1000; broadcast(); } };
+  $('#timerStart').onclick = () => { if (!live.timer.endAt) { live.timer.endAt = Lumen.now() + live.timer.remaining * 1000; broadcast(); } };
   $('#timerPause').onclick = () => { if (live.timer.endAt) { live.timer.remaining = timerRemaining(); live.timer.endAt = null; broadcast(); } };
   $('#timerReset').onclick = () => { live.timer = { dur: live.timer.dur, endAt: null, remaining: live.timer.dur }; broadcast(); };
   $('#stageSend').onclick = () => { live.stageMsg = $('#stageInput').value.trim(); broadcast(); toast('Sent to stage'); };
@@ -500,6 +529,31 @@ Have a great week!`]
     if (map[e.key]) { e.preventDefault(); map[e.key](); }
   });
 
-  renderAll(); renderMedia(); renderMessages(); renderTheme(); broadcast();
-  save();
+  // ---------- server sync ----------
+  Lumen.on('hello', broadcast); // a same-browser window opened without the server
+  Lumen.on('error', toast);
+  Lumen.on('state', d => { adoptLive(d.live); refreshLive(); renderMessages(); }); // another operator console
+  Lumen.on('library', async () => {
+    const d = await Lumen.loadLibrary().catch(() => null);
+    if (!valid(d)) return;
+    db = normalize(d);
+    try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {}
+    if (!getPres(selectedId)) selectedId = db.playlist[0] || db.presentations[0]?.id;
+    renderAll(); renderMedia(); renderMessages(); renderTheme(); refreshLive();
+  });
+  function renderStatus(s) {
+    const el = $('#srvStatus');
+    el.className = 'srv ' + (!s.online ? 'local' : s.streaming ? 'ok' : 'down');
+    el.textContent = !s.online ? 'Local only' : s.streaming ? 'Server' : 'Reconnecting…';
+    el.title = !s.online ? 'No Lumen server — library saved in this browser, output windows must be on this computer'
+      : s.streaming ? 'Connected — library, media and live state are kept on the server'
+      : 'Lost the server — output windows on this computer still follow along';
+  }
+  Lumen.on('status', renderStatus);
+  renderStatus({ online, streaming: Lumen.streaming });
+
+  renderAll(); renderMedia(); renderMessages(); renderTheme();
+  if (online) refreshLive(); else broadcast();
+  if (fresh || !online) save();
+  if (loadFailed) toast('Could not load the library from the server — showing this browser\'s copy');
 })();
