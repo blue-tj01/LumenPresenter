@@ -16,11 +16,11 @@
 <div id="screen"></div>
 <div id="hint">Double-click or press F to go full screen</div>
 <script src="render.js"></script>
+<script src="sync.js"></script>
 <script>
   const screen = PP.createScreen(document.getElementById('screen'));
-  const chan = new BroadcastChannel('lumen-live');
-  chan.onmessage = e => { if (e.data?.type === 'state') PP.update(screen, e.data.live, { fade: true }); };
-  chan.postMessage({ type: 'hello' });
+  Lumen.on('state', d => PP.update(screen, d.live, { fade: true }));
+  Lumen.init().then(online => { if (!online) Lumen.hello(); });
   const fs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
   document.ondblclick = fs;
   document.onkeydown = e => { if (e.key === 'f' || e.key === 'F') fs(); };
