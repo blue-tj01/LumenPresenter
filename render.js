@@ -24,11 +24,13 @@
   }
 
   const bgKey = bg => bg ? bg.type + '|' + bg.src : '';
+  // Library data can come from an imported file, so values never get spliced into markup or CSS text.
+  const cssUrl = src => 'url("' + String(src).replace(/["\\\n\r\f]/g, c => '\\' + c.charCodeAt(0).toString(16) + ' ') + '")';
 
   function makeBg(bg, animate) {
     const d = document.createElement('div');
     d.className = 'pp-fill';
-    if (bg.type === 'image') d.style.background = `center/cover no-repeat url("${bg.src}")`;
+    if (bg.type === 'image') d.style.background = 'center/cover no-repeat ' + cssUrl(bg.src);
     else if (bg.type === 'video') {
       const v = document.createElement('video');
       Object.assign(v, { src: bg.src, autoplay: true, loop: true, muted: true, playsInline: true });
@@ -44,14 +46,15 @@
     const d = document.createElement('div');
     d.className = 'pp-fill pp-text';
     const v = { top: 'flex-start', middle: 'center', bottom: 'flex-end' }[t.valign] || 'center';
-    d.style.cssText = `justify-content:${v};text-align:${t.align};padding:${t.margin}px;`;
+    Object.assign(d.style, { justifyContent: v, textAlign: t.align, padding: t.margin + 'px' });
     const span = document.createElement('div');
     span.className = 'pp-words';
     span.textContent = text;
-    span.style.cssText = `font-family:${t.font};font-size:${t.size}px;color:${t.color};` +
-      `font-weight:${t.bold ? 700 : 400};text-transform:${t.upper ? 'uppercase' : 'none'};` +
-      `line-height:${t.lineHeight || 1.2};` +
-      `text-shadow:${t.shadow ? '0 4px 22px rgba(0,0,0,.85),0 2px 4px rgba(0,0,0,.9)' : 'none'};`;
+    Object.assign(span.style, {
+      fontFamily: t.font, fontSize: t.size + 'px', color: t.color, fontWeight: t.bold ? 700 : 400,
+      textTransform: t.upper ? 'uppercase' : 'none', lineHeight: t.lineHeight || 1.2,
+      textShadow: t.shadow ? '0 4px 22px rgba(0,0,0,.85),0 2px 4px rgba(0,0,0,.9)' : 'none',
+    });
     d.appendChild(span);
     return d;
   }
@@ -114,11 +117,11 @@
     st.logo = swap(logoL, lk, st.logo, () => {
       const d = document.createElement('div');
       d.className = 'pp-fill pp-logo';
-      if (live.logoImg) d.innerHTML = `<img src="${live.logoImg}" alt="">`;
+      if (live.logoImg) { const img = document.createElement('img'); img.src = live.logoImg; img.alt = ''; d.appendChild(img); }
       else { d.innerHTML = '<div class="pp-logotext"></div>'; d.firstChild.textContent = live.logoText || ''; }
       return d;
     }, fade);
   }
 
-  window.PP = { W, H, createScreen, update, fit };
+  window.PP = { W, H, createScreen, update, fit, cssUrl };
 })();

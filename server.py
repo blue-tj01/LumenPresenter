@@ -28,6 +28,12 @@ APP_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC = {'index.html', 'output.html', 'stage.html', 'app.js', 'app.css', 'render.js', 'render.css', 'sync.js'}
 MEDIA_NAME = re.compile(r'^[a-z0-9]{16}\.[a-z0-9]{1,5}$')
 MEDIA_TYPES = ('image/', 'video/')
+# The stored extension decides the Content-Type the file is served with, so it must be a media type,
+# never whatever the uploader's filename says (e.g. .html, which would run as a page on this origin).
+MEDIA_EXT = {'image': {'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'bmp', 'svg'},
+             'video': {'mp4', 'webm', 'mov', 'm4v', 'ogv'}}
+# Media is only ever displayed, never run: neutralises scripts in an SVG opened directly.
+MEDIA_CSP = "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox"
 MAX_JSON = 64 * 1024 * 1024
 BACKUP_EVERY = 600  # seconds between library snapshots in data/backups
 BACKUP_KEEP = 50
@@ -263,9 +269,12 @@ class Handler(BaseHTTPRequestHandler):
         if n > self.server.max_upload:
             return self.error(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, 'file too large')
         name = unquote(self.headers.get('X-Filename') or 'upload')[:200]
-        ext = (os.path.splitext(name)[1][1:] or (mimetypes.guess_extension(ctype) or '.bin')[1:]).lower()
-        if not re.fullmatch(r'[a-z0-9]{1,5}', ext):
-            ext = 'bin'
+        kind = 'video' if ctype.startswith('video/') else 'image'
+        ext = os.path.splitext(name)[1][1:].lower()
+        if ext not in MEDIA_EXT[kind]:
+            ext = (mimetypes.guess_extension(ctype) or '.')[1:]
+        if ext not in MEDIA_EXT[kind]:
+            raise ValueError(f'unsupported {kind} type')
         fname = f'{secrets.token_hex(8)}.{ext}'
         final = os.path.join(self.store.media_dir, fname)
         tmp = final + '.part'
@@ -282,8 +291,7 @@ class Handler(BaseHTTPRequestHandler):
         finally:
             if os.path.exists(tmp):
                 os.remove(tmp)
-        self.send_json({'name': name, 'type': 'video' if ctype.startswith('video/') else 'image',
-                        'src': f'media/{fname}'}, HTTPStatus.CREATED)
+        self.send_json({'name': name, 'type': kind, 'src': f'media/{fname}'}, HTTPStatus.CREATED)
 
     def api_delete_media(self, name):
         fname = name.split('/', 1)[1] if '/' in name else ''
@@ -334,9 +342,10 @@ class Handler(BaseHTTPRequestHandler):
         if not MEDIA_NAME.match(name):
             return self.error(HTTPStatus.NOT_FOUND, 'not found')
         # Names are random and never reused, so the content can be cached forever.
-        self.serve_file(os.path.join(self.store.media_dir, name), cache='public, max-age=31536000, immutable')
+        self.serve_file(os.path.join(self.store.media_dir, name), cache='public, max-age=31536000, immutable',
+                        csp=MEDIA_CSP)
 
-    def serve_file(self, fpath, cache):
+    def serve_file(self, fpath, cache, csp=None):
         try:
             f = open(fpath, 'rb')
         except OSError:
@@ -370,6 +379,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header('Accept-Ranges', 'bytes')
             self.send_header('Cache-Control', cache)
             self.send_header('X-Content-Type-Options', 'nosniff')
+            if csp:
+                self.send_header('Content-Security-Policy', csp)
             self.end_headers()
             if self.command == 'HEAD':
                 return

@@ -336,8 +336,12 @@ Have a great week!`]
     db.media.forEach(m => {
       const d = document.createElement('div');
       d.className = 'mitem'; d.dataset.src = m.src;
-      if (m.type === 'image') d.style.backgroundImage = `url("${m.src}")`;
-      else if (m.type === 'video') d.innerHTML = `<video src="${m.src}" muted loop autoplay playsinline></video>`;
+      if (m.type === 'image') d.style.backgroundImage = PP.cssUrl(m.src);
+      else if (m.type === 'video') {
+        const v = document.createElement('video');
+        Object.assign(v, { src: m.src, muted: true, loop: true, autoplay: true, playsInline: true });
+        d.appendChild(v);
+      }
       else { d.style.background = m.src; if (m.type === 'motion') d.classList.add('pp-motion'); }
       d.insertAdjacentHTML('beforeend', `<span></span>${m.builtin ? '' : '<button class="x" title="Remove">✕</button>'}`);
       d.querySelector('span').textContent = m.name;

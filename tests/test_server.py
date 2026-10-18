@@ -126,6 +126,18 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(self.req('DELETE', '/api/' + m['src'])[0].status, 200)
         self.assertEqual(self.req('GET', '/' + m['src'])[0].status, 404)
 
+    def test_media_extension_comes_from_media_types_only(self):
+        page = b'<script>alert(1)</script>'
+        r, body = self.req('POST', '/api/media', page, {'Content-Type': 'image/png', 'X-Filename': 'evil.html'})
+        self.assertEqual(r.status, 201)
+        src = json.loads(body)['src']
+        self.assertTrue(src.endswith('.png'), src)
+        r, _ = self.req('GET', '/' + src)
+        self.assertEqual(r.getheader('Content-Type'), 'image/png')
+        self.assertIn('sandbox', r.getheader('Content-Security-Policy'))
+        r, body = self.req('POST', '/api/media', page, {'Content-Type': 'image/x-unknown', 'X-Filename': 'a.js'})
+        self.assertEqual(r.status, 400)
+
     def test_media_rejects_other_types_and_bad_names(self):
         self.assertEqual(self.req('POST', '/api/media', b'x', {'Content-Type': 'text/html'})[0].status, 400)
         self.assertEqual(self.req('DELETE', '/api/media/..%2Flibrary.json')[0].status, 400)
