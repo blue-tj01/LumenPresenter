@@ -86,6 +86,11 @@
     </nav>
     <div class="tabbody">
       <div data-pane="theme" class="pane on">
+        <label>All songs <select id="thAll" title="Theme every song uses unless it has its own"></select></label>
+        <label>This song <select id="thSaved" title="Give the selected song its own theme"></select></label>
+        <div class="row"><span id="thEditing" class="muted small th-editing"></span>
+          <button id="thSaveAs" class="btn small-btn" title="Save these settings as a new theme">Save as…</button>
+          <button id="thRename" class="btn small-btn">Rename</button><button id="thDelete" class="btn small-btn ghost danger">Delete</button></div>
         <label>Font <select id="thFont">
           <option value="'Segoe UI', system-ui, sans-serif">Segoe UI</option>
           <option value="Georgia, serif">Georgia</option>
@@ -131,7 +136,7 @@
 <!-- Editor -->
 <div id="editor" class="modal" hidden>
   <div class="modal-card">
-    <div class="modal-h"><input id="edName" class="ed-name" placeholder="Presentation name"><span class="spacer"></span>
+    <div class="modal-h"><input id="edName" class="ed-name" placeholder="Presentation name"><select id="edTheme" class="ed-theme" title="Theme this presentation uses"></select><span class="spacer"></span>
       <button id="edImages" class="btn">🖼 Add images / videos</button>
       <input id="edImageFile" type="file" accept="image/*,video/*" multiple hidden>
       <button id="edCancel" class="btn ghost">Cancel</button><button id="edSave" class="btn primary">Save</button></div>

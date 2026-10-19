@@ -100,6 +100,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pane textarea { resize: vertical; }
 .pane .row { display: flex; gap: 6px; align-items: center; }
 .pane .row input[type=text] { flex: 1; }
+.pane .row select { flex: 1; min-width: 0; }
+.th-editing { flex: 1; min-width: 0; }
 .chk { gap: 4px !important; }
 .seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .seg button { flex: 1; background: none; border: 0; padding: 6px; cursor: pointer; color: var(--muted); }
@@ -113,6 +115,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .modal[hidden] { display: none; }
 .modal-card { width: min(1000px, 92vw); height: min(720px, 88vh); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
 .modal-h { flex-wrap: wrap; display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.ed-theme { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; max-width: 220px; }
 .ed-name { font-size: 16px; font-weight: 600; background: transparent; border: 0; outline: 0; flex: 1; }
 .ed-body { flex: 1; display: grid; grid-template-columns: 1fr 260px; min-height: 0; }
 #edText { background: var(--bg); border: 0; resize: none; padding: 16px; font: 14px/1.6 ui-monospace, Consolas, monospace; outline: 0; }

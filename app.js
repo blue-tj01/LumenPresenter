@@ -112,6 +112,14 @@ Have a great week!`]
 
   const DEFAULT_THEME = { font: "'Segoe UI', system-ui, sans-serif", size: 92, color: '#ffffff', bold: true, shadow: true,
     upper: false, align: 'center', valign: 'middle', margin: 110, lineHeight: 1.2 };
+  // Saved themes a presentation can use instead of the default style. Fixed ids so every console agrees
+  // on them before the library is first saved.
+  const BUILTIN_THEMES = [
+    { id: 'classic', name: 'Classic', ...DEFAULT_THEME },
+    { id: 'lower-third', name: 'Lower third', ...DEFAULT_THEME, size: 64, valign: 'bottom', margin: 80 },
+    { id: 'scripture', name: 'Scripture', ...DEFAULT_THEME, font: 'Georgia, serif', size: 68, bold: false, align: 'left' },
+    { id: 'big-bold', name: 'Big & bold', ...DEFAULT_THEME, font: "Impact, 'Arial Black', sans-serif", size: 120, bold: false, upper: true },
+  ];
 
   // ---------- slide text parsing ----------
   function parseText(src) {
@@ -171,6 +179,7 @@ Have a great week!`]
       playlist: [pres[4].id, pres[0].id, pres[2].id, pres[3].id],
       media: BUILTIN_MEDIA.map(m => ({ id: uid(), builtin: true, ...m })),
       theme: { ...DEFAULT_THEME },
+      themes: BUILTIN_THEMES.map(t => ({ ...t })),
       messages: ['Welcome! Please silence your phones.', 'Nursery parents: please come to the nursery.', 'The parking lot lights are on — car ABC-123.'],
       logoText: 'WELCOME',
     };
@@ -179,7 +188,8 @@ Have a great week!`]
   const online = await Lumen.init();
   const valid = d => d && Array.isArray(d.presentations);
   const normalize = d => ({ ...d, media: d.media || [], playlist: d.playlist || [], messages: d.messages || [],
-    theme: { ...DEFAULT_THEME, ...d.theme } });
+    theme: { ...DEFAULT_THEME, ...d.theme },
+    themes: (Array.isArray(d.themes) ? d.themes : BUILTIN_THEMES).map(t => ({ ...DEFAULT_THEME, ...t })) });
   let loadFailed = false;
   let db = online ? await Lumen.loadLibrary().catch(() => { loadFailed = true; return null; }) : null;
   const fresh = !valid(db) && !loadFailed; // nothing on the server yet: bring over this browser's library, or the demo
@@ -218,9 +228,14 @@ Have a great week!`]
   }); }) : [];
   const slideSummary = s => s ? s.text || (s.video ? '[Video]' : s.image ? '[Image]' : '') : '';
   const isVideoPres = p => { const sl = flat(p); return sl.length > 0 && sl.every(s => s.video); };
+  // Every presentation uses the all-songs theme (a saved theme, or the default style) unless it picked its own.
+  const findTheme = id => id ? db.themes.find(t => t.id === id) || null : null;
+  const savedTheme = p => p ? findTheme(p.themeId) : null;
+  const baseTheme = () => findTheme(db.defaultThemeId) || db.theme;
+  const themeFor = p => savedTheme(p) || baseTheme();
 
   function payload() {
-    return { ...live, theme: db.theme, logoText: db.logoText };
+    return { ...live, theme: themeFor(getPres(live.presId)), logoText: db.logoText };
   }
   function refreshLive() {
     PP.update(preview, payload(), { fade: true });
@@ -343,7 +358,7 @@ Have a great week!`]
     $('#presTitle').textContent = p ? p.name : 'No presentation selected';
     const slides = flat(p);
     const ordered = p && p.order && p.order.length && arrangement(p).map(gi => p.groups[gi].name);
-    $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides` + (ordered ? ` · Order: ${ordered.join(', ')}` : '') : '';
+    $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides` + (ordered ? ` · Order: ${ordered.join(', ')}` : '') + ` · ${themeFor(p).name || 'Default style'}` : '';
     if (!p || !slides.length) { grid.innerHTML = '<div class="empty">No slides yet — click ✎ Edit to add some.</div>'; return; }
     // One continuous grid; each card's coloured label names its group.
     slides.forEach((s, i) => {
@@ -356,7 +371,7 @@ Have a great week!`]
       card.onclick = () => goLive(p.id, i);
       grid.appendChild(card);
       PP.createScreen(scr);
-      PP.update(scr, { bg: p.bg || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { text: s.text, image: s.image, video: s.video }, theme: db.theme }, { animate: false, still: true });
+      PP.update(scr, { bg: p.bg || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { text: s.text, image: s.image, video: s.video }, theme: themeFor(p) }, { animate: false, still: true });
     });
     renderLiveMarks();
   }
@@ -474,8 +489,20 @@ Have a great week!`]
     });
   }
 
+  // The theme pane picks the all-songs theme and the selected presentation's own theme, and its controls
+  // edit whichever of those the selected presentation shows with.
+  const themeOptions = (sel, first, value) => {
+    sel.innerHTML = ''; sel.add(new Option(first, ''));
+    db.themes.forEach(x => sel.add(new Option(x.name, x.id)));
+    sel.value = value || '';
+  };
   function renderTheme() {
-    const t = db.theme;
+    const p = getPres(selectedId), t = themeFor(p);
+    themeOptions($('#thAll'), 'Default style', findTheme(db.defaultThemeId)?.id);
+    themeOptions($('#thSaved'), 'Same as all songs', savedTheme(p)?.id);
+    $('#thSaved').disabled = !p;
+    $('#thEditing').textContent = `Editing: ${t.name || 'Default style'}` + (t.id ? ' · changes apply to every song using it' : '');
+    $('#thRename').disabled = $('#thDelete').disabled = !t.id;
     $('#thFont').value = t.font; $('#thSize').value = t.size; $('#thSizeV').textContent = t.size + 'px';
     $('#thColor').value = t.color; $('#thBold').checked = t.bold; $('#thShadow').checked = t.shadow; $('#thUpper').checked = t.upper;
     $$('#thAlign button').forEach(b => b.classList.toggle('on', b.dataset.v === t.align));
@@ -484,11 +511,48 @@ Have a great week!`]
   }
   let themeTimer;
   function setTheme(patch) {
-    Object.assign(db.theme, patch); save(); renderTheme(); broadcast();
+    Object.assign(themeFor(getPres(selectedId)), patch); themeChanged();
+  }
+  function themeChanged() {
+    save(); renderTheme(); broadcast();
     clearTimeout(themeTimer); themeTimer = setTimeout(renderGrid, 120);
   }
+  function useTheme(id) {
+    const p = getPres(selectedId); if (!p) return;
+    if (id) p.themeId = id; else delete p.themeId;
+    themeChanged();
+  }
+  function useThemeForAll(id) {
+    if (id) db.defaultThemeId = id; else delete db.defaultThemeId;
+    themeChanged();
+  }
+  // The new theme replaces whichever one the selected presentation was showing with.
+  function saveThemeAs() {
+    const name = (prompt('Name for the new theme:', '') || '').trim(); if (!name) return;
+    const p = getPres(selectedId);
+    const { id: _id, name: _n, ...style } = themeFor(p);
+    const t = { ...DEFAULT_THEME, ...style, id: uid(), name };
+    db.themes.push(t);
+    if (savedTheme(p)) useTheme(t.id); else useThemeForAll(t.id);
+    toast(`Saved theme “${name}”`);
+  }
+  function renameTheme() {
+    const t = themeFor(getPres(selectedId)); if (!t.id) return;
+    const name = (prompt('Rename theme:', t.name) || '').trim(); if (!name) return;
+    t.name = name; themeChanged();
+  }
+  function deleteTheme() {
+    const t = themeFor(getPres(selectedId)); if (!t.id) return;
+    const users = db.presentations.filter(p => p.themeId === t.id);
+    const all = db.defaultThemeId === t.id;
+    if (!confirm(`Delete theme “${t.name}”? ` + (all ? 'Songs will go back to the default style.'
+      : `${users.length} presentation${users.length === 1 ? '' : 's'} using it will go back to the all-songs theme.`))) return;
+    users.forEach(p => delete p.themeId);
+    if (all) delete db.defaultThemeId;
+    db.themes = db.themes.filter(x => x !== t); themeChanged();
+  }
 
-  function renderAll() { renderLibrary(); renderPlaylist(); renderGrid(); }
+  function renderAll() { renderLibrary(); renderPlaylist(); renderGrid(); renderTheme(); }
 
   // ---------- editor ----------
   let editingId = null;
@@ -500,6 +564,7 @@ Have a great week!`]
     $('#edText').value = p ? serialize(p) : SAMPLE_TEXT;
     $('#edOrder').value = p && p.order ? p.order.join(', ') : '';
     renderOrderChips();
+    themeOptions($('#edTheme'), 'Theme: same as all songs', savedTheme(p)?.id);
     $('#editor').hidden = false; $('#edText').focus();
   }
   const readOrder = () => $('#edOrder').value.split(',').map(n => n.trim()).filter(Boolean);
@@ -543,8 +608,11 @@ Have a great week!`]
     const order = readOrder().map(n => r.groups.find(g => g.name.toLowerCase() === n.toLowerCase())?.name || n);
     const missing = order.filter(n => !r.groups.some(g => g.name === n));
     if (missing.length) toast(`Not in this song, skipped in the order: ${[...new Set(missing)].join(', ')}`);
-    if (editingId && getPres(editingId)) Object.assign(getPres(editingId), { name, groups: r.groups, bg: r.bg, order });
-    else { const p = { id: uid(), name, groups: r.groups, bg: r.bg, order }; db.presentations.push(p); selectedId = p.id; }
+    const themeId = $('#edTheme').value;
+    let p = editingId && getPres(editingId);
+    if (p) Object.assign(p, { name, groups: r.groups, bg: r.bg, order });
+    else { p = { id: uid(), name, groups: r.groups, bg: r.bg, order }; db.presentations.push(p); selectedId = p.id; }
+    if (themeId) p.themeId = themeId; else delete p.themeId;
     save(); $('#editor').hidden = true; renderAll();
     if (live.presId === editingId && live.slide) { const s = flat(getPres(editingId))[live.idx]; if (s) goLive(editingId, live.idx); }
   }
@@ -636,6 +704,11 @@ Have a great week!`]
   $('#thUpper').onchange = e => setTheme({ upper: e.target.checked });
   $$('#thAlign button').forEach(b => b.onclick = () => setTheme({ align: b.dataset.v }));
   $$('#thVAlign button').forEach(b => b.onclick = () => setTheme({ valign: b.dataset.v }));
+  $('#thSaved').onchange = e => useTheme(e.target.value);
+  $('#thAll').onchange = e => useThemeForAll(e.target.value);
+  $('#thSaveAs').onclick = saveThemeAs;
+  $('#thRename').onclick = renameTheme;
+  $('#thDelete').onclick = deleteTheme;
   $('#logoText').oninput = e => { db.logoText = e.target.value; save(); broadcast(); };
 
   $('#msgShow').onclick = () => {

@@ -104,13 +104,17 @@ Any slide can carry a video with an `@video:` line, the same way as `@image:`, a
 
 Without the server, videos last for the current session only.
 
+## Themes
+
+The **Theme** tab has two lists. **All songs** picks the theme every presentation uses (Classic, Lower third, Scripture, Big & bold, your own, or the plain default style), so switching songs keeps the same look with nothing to restyle. **This song** gives the selected presentation its own theme instead, which it keeps every time it goes live. The font, size, colour and alignment controls edit the theme the selected song is shown with, and every song using that theme follows. **Save as…** stores the current settings as a new theme. The editor has the same theme list, so a new presentation can be given its theme (for example Scripture for readings) when it is created.
+
 ## Data
 
 With the server, everything lives in the data directory:
 
 | Path | Contents |
 | --- | --- |
-| `library.json` | Presentations, playlist, media list, theme, messages (written atomically) |
+| `library.json` | Presentations, playlist, media list, themes, messages (written atomically) |
 | `live.json` | What is on screen right now, so windows recover after a restart |
 | `media/` | Uploaded images and videos |
 | `backups/` | Snapshots of `library.json`, at most one every 10 minutes, newest 50 kept |
