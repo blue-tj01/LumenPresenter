@@ -103,8 +103,10 @@
       if (Math.abs(v.currentTime - t) > 0.4) v.currentTime = t;
     };
     if (v.readyState >= 1) seek(); else v.addEventListener('loadedmetadata', seek, { once: true });
+    const done = !play.paused && (v.ended || (isFinite(v.duration) && at >= v.duration));
+    v.classList.toggle('pp-done', done);
     if (play.paused) { v.pause(); return; }
-    if (isFinite(v.duration) && at >= v.duration) return;
+    if (done) return;
     v.play().catch(() => {
       // The browser blocks sound until someone interacts with this window: play silently until then.
       if (v.muted) return;
@@ -133,6 +135,9 @@
         // Thumbnails show the first frame; only the audience output plays the sound.
         Object.assign(v, { src: opts.still ? sl.video + '#t=0.1' : sl.video, muted: !opts.sound, playsInline: true,
           preload: opts.still ? 'metadata' : 'auto' });
+        // When it finishes it fades out to black rather than holding its last frame.
+        d.classList.add('pp-slidevid');
+        v.addEventListener('ended', () => v.classList.add('pp-done'));
         d.appendChild(v);
       } else {
         const img = document.createElement('img'); img.src = ik; img.alt = '';
