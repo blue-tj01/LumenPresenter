@@ -75,6 +75,10 @@ Chorus line
 - An optional `@bg:` line sets the presentation's default background (colour, CSS gradient, image or video URL).
 - An `@image:` line puts a picture on that slide, letterboxed over the background. Any other lines on the slide are shown as text on top of it.
 
+### Play order
+
+Write each group once, then set the order it is sung in the editor's **Play order** box, for example `Verse 1, Chorus, Verse 2, Chorus, Bridge`. Clicking a group's button under the box adds it to the end. Groups can repeat, the slide grid and Next/Previous follow the order, and an empty box plays the groups as written.
+
 ### Slideshows and picture slides
 
 In the editor, **🖼 Add images** (or dropping pictures onto the text) uploads them and adds one `@image:` slide per picture where the cursor is. In a new presentation it replaces the sample text with a `[Slideshow]` group, so a slideshow is: **＋** → **Add images** → pick the photos → **Save**.
