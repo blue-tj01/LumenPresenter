@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "lumen",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["server.py", "--port", "8642"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js", "--port", "8642"],
       "port": 8642
     }
   ]
