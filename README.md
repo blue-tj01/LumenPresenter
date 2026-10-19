@@ -1,69 +1,63 @@
 # Lumen Presenter
 
-A browser-based worship / live presentation app, built from scratch and inspired by tools like ProPresenter. No build step, no dependencies.
+**A browser-based presentation app for worship services and live events, inspired by tools like ProPresenter.**
 
-## Run it
+Lumen runs from a single Python file with no build step and no dependencies. Run the operator console on one computer and open the audience output and stage display on any screen on your network.
+
+## Contents
+
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Pages](#pages)
+- [Writing slides](#writing-slides)
+- [Images and videos](#images-and-videos)
+- [Themes](#themes)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [Network mode](#network-mode)
+- [Configuration](#configuration)
+- [Data and backups](#data-and-backups)
+- [HTTP API](#http-api)
+- [Development](#development)
+
+## Features
+
+- **Library and playlist.** Build presentations, queue them in a playlist, and step through them with one key.
+- **Plain-text slide editor.** Groups, colour-coded sections and a custom **play order**, so a chorus is written once and sung as often as needed.
+- **Images and slideshows.** Drop in photos to make picture slides or a whole slideshow in a few clicks.
+- **Videos.** Add videos to the playlist or to any slide, with synchronised playback across every output window.
+- **Auto-advance and looping.** Let a presentation run by itself, ideal for announcement loops.
+- **Saved themes.** One look for every song, or a dedicated theme per presentation.
+- **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
+- **Network mode.** Drive screens on other devices through one-time token links, with device sign-in and sign-out.
+- **Never loses the show.** Library, media and live state are saved on disk, so reloading a window or restarting the server never blanks the projector.
+
+## Quick start
+
+Requires Python 3.8 or later.
 
 ```bash
 python3 server.py
 ```
 
-Then open http://localhost:8642. Python 3.8+ is the only requirement.
+Open <http://localhost:8642> for the operator console. The server pushes every change to all open windows instantly over Server-Sent Events.
 
-The server keeps the library, media and live state on disk and pushes every change to all open windows, on any device. Reloading the console, closing the browser, or restarting the server never loses the library or blanks the projector.
-
-To drive screens from other machines (stage display on a laptop, output on a second computer, a second operator console), open the console's **Network** tab and turn on **Network mode**. It shows a link for the operator console, the audience output and the stage display, each carrying the access token, so the other device only needs the link opened once. That signs the device in (a cookie that stands for the device, not the token itself), and the token is taken out of the address bar. Lumen starts local-only, and turning network mode on or off takes effect straight away, with no restart.
-
-The token is generated the first time the server starts and saved, with the network setting, in `settings.json` in the data directory. Updating or replacing the app's files leaves it alone, so the token and the setting survive upgrades and restarts. **New** in the Network tab makes a fresh token if the old one has been shared too widely. The network setting and token can only be seen or changed on the computer running Lumen.
-
-In network mode other devices need the token to see anything, not only to change it: a device that opens Lumen without a link is asked for it. The computer running Lumen never is.
-
-The Network tab lists the signed-in devices and what each is showing, with **Disconnect** (or **Disconnect all**) to sign one out; it goes back to the token page. A console on another device has **Sign out of this device** in its own Network tab. Anyone who knows the token can sign back in, so **New** makes a fresh token and signs every device out until it is given the new one.
-
-After updating the app's files, restart `server.py`. Until then the old server keeps running, and the console says so.
-
-The command-line options still work, and take precedence over the console: `--host` fixes the address (the Network switch is then shown but can't be changed), and `--token` replaces the saved token and is required even locally.
-
-| Option | Env var | Default |
-| --- | --- | --- |
-| `--host` | `LUMEN_HOST` | `127.0.0.1`, or `0.0.0.0` once network mode is on |
-| `--port` | `LUMEN_PORT` | `8642` |
-| `--data` | `LUMEN_DATA` | `./data` |
-| `--token` | `LUMEN_TOKEN` | the generated one, required in network mode |
-| `--allowed-host` | `LUMEN_ALLOWED_HOSTS` (comma-separated) | none; IP addresses, `localhost` and this computer's name always work |
-| `--max-upload-mb` | `LUMEN_MAX_UPLOAD_MB` | `4096` |
-
-To run it as a service, see `deploy/lumen.service` (systemd). Behind a reverse proxy, pass `--token` (requests relayed by a proxy on the same computer otherwise look local) and `--allowed-host` with the name the proxy serves Lumen under, if the proxy passes that name on (Caddy does; nginx only with `proxy_set_header Host`), turn off response buffering for `/api/events` (nginx: `proxy_buffering off;`), and raise the request body limit if you upload videos.
-
-### Without the server
-
-The pages still work from any static host (`python -m http.server`). In that mode the library is kept in the browser's `localStorage`, videos last for the current session only, and the windows must be on the same computer. The console's status indicator shows **Local only**.
+After updating the app's files, restart `server.py`. Until you do, the old server keeps running and the console tells you so.
 
 ## Pages
 
 | Page | Purpose |
 | --- | --- |
-| `index.html` | Operator console: library, playlist, slide grid, live preview, media bin, theme, messages, timer |
-| `output.html` | Audience output — open on the projector and double-click (or press F) for full screen |
-| `stage.html` | Stage display — clock, countdown, current and next slide, stage-only messages |
+| `index.html` | **Operator console:** library, playlist, slide grid, live preview, media bin, themes, messages and timer |
+| `output.html` | **Audience output:** open it on the projector and double-click (or press <kbd>F</kbd>) for full screen |
+| `stage.html` | **Stage display:** clock, countdown, current and next slide, and stage-only messages |
 
-With the server, any of these can be opened on any device that can reach it. Changes are pushed over Server-Sent Events.
-
-## Keyboard
-
-| Key | Action |
-| --- | --- |
-| → / ↓ / Space / PgDn | Next slide (continues into the next playlist item) |
-| ← / ↑ / PgUp | Previous slide |
-| F1 | Clear all |
-| F2 | Clear slide text |
-| F3 | Clear background media |
-| F4 | Clear message |
-| F6 | Toggle logo screen |
+With the server running, any of these pages can be opened on any device that can reach it.
 
 ## Writing slides
 
-```
+Slides are written as plain text in the editor:
+
+```text
 @bg: linear-gradient(135deg,#1e3c72,#2a5298)
 [Verse 1]
 First line
@@ -75,25 +69,31 @@ Next slide in the same group
 Chorus line
 ```
 
-- `[Name]` starts a group; Verse, Chorus, Bridge, Pre-Chorus, Tag, Intro and Ending are colour-coded.
-- A blank line starts a new slide.
-- An optional `@bg:` line sets the presentation's default background (colour, CSS gradient, image or video URL).
-- An `@image:` line puts a picture on that slide, letterboxed over the background. Any other lines on the slide are shown as text on top of it.
-- An `@video:` line plays a video on that slide, once, with sound on the audience output.
+| Syntax | Effect |
+| --- | --- |
+| `[Name]` | Starts a group. Verse, Chorus, Bridge, Pre-Chorus, Tag, Intro and Ending are colour-coded. |
+| Blank line | Starts a new slide. |
+| `@bg:` | Sets the presentation's default background: a colour, CSS gradient, or image or video URL. |
+| `@image:` | Shows a picture on that slide, letterboxed over the background. Other lines on the slide appear as text on top. |
+| `@video:` | Plays a video on that slide, once, with sound on the audience output. |
 
 ### Play order
 
-Write each group once, then set the order it is sung in the editor's **Play order** box, for example `Verse 1, Chorus, Verse 2, Chorus, Bridge`. Clicking a group's button under the box adds it to the end. Groups can repeat, the slide grid and Next/Previous follow the order, and an empty box plays the groups as written.
+Write each group once, then set the order it is sung in the editor's **Play order** box, for example `Verse 1, Chorus, Verse 2, Chorus, Bridge`. Clicking a group's button below the box adds it to the end. Groups can repeat, and both the slide grid and Next/Previous follow the order. Leave the box empty to play the groups as written.
 
 ### Auto-advance
 
-Set **Auto-advance every … seconds** in the editor to have a presentation move to the next slide by itself. After the last slide in its play order it goes back to the first and keeps looping, rather than moving on to the next playlist item. A video slide in such a presentation moves on when the video ends. Clicking a slide or pressing Next/Previous restarts the count from there, and the **❚❚ Auto** button under Prev / Next (with the time left) pauses and resumes it. Leave the box empty to advance by hand.
+Set **Auto-advance every … seconds** in the editor to have a presentation move to the next slide by itself. After the last slide it loops back to the first, rather than moving on to the next playlist item. A video slide moves on when its video ends.
+
+Clicking a slide or pressing Next/Previous restarts the count from there. The **❚❚ Auto** button under Prev / Next shows the time left and pauses or resumes it. Leave the box empty to advance by hand.
+
+## Images and videos
 
 ### Slideshows and picture slides
 
-In the editor, **🖼 Add images** (or dropping pictures onto the text) uploads them and adds one `@image:` slide per picture where the cursor is. In a new presentation it replaces the sample text with a `[Slideshow]` group, so a slideshow is: **＋** → **Add images** → pick the photos → **Save**.
+In the editor, **🖼 Add images** (or dropping pictures onto the text) uploads them and adds one `@image:` slide per picture at the cursor. In a new presentation it replaces the sample text with a `[Slideshow]` group, so making a slideshow is: **＋** → **Add images** → pick the photos → **Save**.
 
-```
+```text
 [Slideshow]
 @image: media/3f9c2a7b1e4d5a60.jpg
 
@@ -101,56 +101,117 @@ In the editor, **🖼 Add images** (or dropping pictures onto the text) uploads 
 Welcome to Youth Camp!
 ```
 
-Without the server, pictures are kept in the media bin and referenced as `@image: #<id>`.
-
 ### Videos in the playlist
 
-**＋ Video** in the playlist header (or dropping video files onto the playlist) adds each video to the queue as its own item, marked ▶. A video already in the media bin has a **＋ Playlist** button. Each one is a one-slide presentation, so it plays in turn and **Next** moves on to the following song.
+**＋ Video** in the playlist header (or dropping video files onto the playlist) adds each video to the queue as its own item, marked ▶. A video already in the media bin has a **＋ Playlist** button. Each one is a one-slide presentation, so it plays in turn and **Next** moves on to the following item.
 
-A live video plays once, with sound on the audience output only (the console preview and thumbnails are muted), then fades to black. While it is live, **Pause / Play** and **Restart** appear under Prev / Next with the elapsed time. Every output window follows the same clock, so a window opened or reloaded mid-video joins at the right moment.
+A live video plays once, with sound on the audience output only (the console preview and thumbnails are muted), then fades to black. While it plays, **Pause / Play** and **Restart** appear under Prev / Next with the elapsed time. Every output window follows the same clock, so a window opened or reloaded mid-video joins at the right moment.
 
-Any slide can carry a video with an `@video:` line, the same way as `@image:`, and the editor's **Add images / videos** button accepts both. If the browser blocks sound in the output window until it has been clicked, the video starts silently and the window says to click it once.
-
-Without the server, videos last for the current session only.
+Any slide can carry a video with an `@video:` line, and the editor's **Add images / videos** button accepts both. If the browser blocks sound in the output window until it has been clicked, the video starts silently and the window asks to be clicked once.
 
 ## Themes
 
-The **Theme** tab has two lists. **All songs** picks the theme every presentation uses (Classic, Lower third, Scripture, Big & bold, your own, or the plain default style), so switching songs keeps the same look with nothing to restyle. **This song** gives the selected presentation its own theme instead, which it keeps every time it goes live. The font, size, colour and alignment controls edit the theme the selected song is shown with, and every song using that theme follows. **Save as…** stores the current settings as a new theme. The editor has the same theme list, so a new presentation can be given its theme (for example Scripture for readings) when it is created.
+The **Theme** tab has two lists:
 
-## Data
+- **All songs** picks the theme every presentation uses: Classic, Lower third, Scripture, Big & bold, one of your own, or the plain default. Switching songs keeps the same look with nothing to restyle.
+- **This song** gives the selected presentation its own theme, which it keeps every time it goes live.
+
+The font, size, colour and alignment controls edit the theme the selected song is shown with, and every song using that theme follows. **Save as…** stores the current settings as a new theme. The editor offers the same theme list, so a new presentation (for example a Scripture reading) can be given its theme when it is created.
+
+## Keyboard shortcuts
+
+| Key | Action |
+| --- | --- |
+| <kbd>→</kbd> <kbd>↓</kbd> <kbd>Space</kbd> <kbd>PgDn</kbd> | Next slide (continues into the next playlist item) |
+| <kbd>←</kbd> <kbd>↑</kbd> <kbd>PgUp</kbd> | Previous slide |
+| <kbd>F1</kbd> | Clear all |
+| <kbd>F2</kbd> | Clear slide text |
+| <kbd>F3</kbd> | Clear background media |
+| <kbd>F4</kbd> | Clear message |
+| <kbd>F6</kbd> | Toggle logo screen |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> | Save, in the editor |
+| <kbd>Esc</kbd> | Close the editor |
+
+## Network mode
+
+Lumen starts local-only. To drive screens from other machines (a stage display on a laptop, the output on a second computer, a second operator console), open the console's **Network** tab and turn on **Network mode**. The change takes effect immediately, with no restart.
+
+**Token links.** The Network tab shows a link for the operator console, the audience output and the stage display, each carrying the access token. Opening a link once signs that device in with a cookie that stands for the device rather than the token, and the token is removed from the address bar.
+
+**Access.** In network mode other devices need the token to see anything, not just to change it; a device that opens Lumen without a link is asked for it. The computer running Lumen never is. The network setting and token can only be viewed or changed on that computer.
+
+**Devices.** The Network tab lists signed-in devices and what each is showing. **Disconnect** (or **Disconnect all**) signs a device out and returns it to the token page. A console on another device has **Sign out of this device** in its own Network tab.
+
+**Rotating the token.** Anyone who knows the token can sign back in, so **New** generates a fresh token and signs every device out until it is given the new one.
+
+The token is generated the first time the server starts and is saved, along with the network setting, in `settings.json` in the data directory. Updating or replacing the app's files leaves it untouched, so both survive upgrades and restarts.
+
+## Configuration
+
+Command-line options take precedence over the console. `--host` fixes the address (the Network switch is then shown but locked), and `--token` replaces the saved token and is required even locally.
+
+| Option | Environment variable | Default |
+| --- | --- | --- |
+| `--host` | `LUMEN_HOST` | `127.0.0.1`, or `0.0.0.0` once network mode is on |
+| `--port` | `LUMEN_PORT` | `8642` |
+| `--data` | `LUMEN_DATA` | `./data` |
+| `--token` | `LUMEN_TOKEN` | The generated token, required in network mode |
+| `--allowed-host` | `LUMEN_ALLOWED_HOSTS` (comma-separated) | None; IP addresses, `localhost` and this computer's name always work |
+| `--max-upload-mb` | `LUMEN_MAX_UPLOAD_MB` | `4096` |
+
+### Running as a service
+
+A systemd unit is provided in [`deploy/lumen.service`](deploy/lumen.service).
+
+### Behind a reverse proxy
+
+- Pass `--token`, because requests relayed by a proxy on the same computer otherwise look local.
+- Pass `--allowed-host` with the name the proxy serves Lumen under, if the proxy forwards that name (Caddy does; nginx only with `proxy_set_header Host`).
+- Turn off response buffering for `/api/events` (nginx: `proxy_buffering off;`).
+- Raise the request body limit if you upload videos.
+
+### Without the server
+
+The pages also work from any static host (for example `python -m http.server`). In that mode the library is kept in the browser's `localStorage`, pictures are kept in the media bin and referenced as `@image: #<id>`, videos last for the current session only, and all windows must be on the same computer. The console's status indicator shows **Local only**.
+
+## Data and backups
 
 With the server, everything lives in the data directory:
 
 | Path | Contents |
 | --- | --- |
-| `library.json` | Presentations, playlist, media list, themes, messages (written atomically) |
+| `library.json` | Presentations, playlist, media list, themes and messages (written atomically) |
 | `live.json` | What is on screen right now, so windows recover after a restart |
-| `settings.json` | Network mode, its access token and the signed-in devices (readable only by the account running the server) |
+| `settings.json` | Network mode, the access token and signed-in devices (readable only by the account running the server) |
 | `media/` | Uploaded images and videos |
 | `backups/` | Snapshots of `library.json`, at most one every 10 minutes, newest 50 kept |
 
-Back up the data directory to back up everything. **Export** / **Import** still produce a portable JSON library.
+Back up the data directory to back up everything. **Export** / **Import** in the console produce and read a portable JSON library.
 
-If several operator consoles edit the library at the same time, the last save wins.
+> **Note:** If several operator consoles edit the library at the same time, the last save wins.
 
-## API
+## HTTP API
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /api/health` | Status, server time, connected clients |
+| `GET /api/health` | Status, server time and connected clients |
 | `GET` / `PUT /api/library` | Read / replace the library (`{library}`) |
 | `GET` / `POST /api/live` | Read / set the live state (`{live}`) |
 | `POST /api/media` | Upload an image or video (raw body, `X-Filename` header) |
 | `DELETE /api/media/<file>` | Remove an uploaded file |
-| `GET` / `POST /api/network` | Network mode (`{network}`, `{regenerate: true}` for a new token, `{disconnect: <device id> or "all"}`); the token, device list and changes are only for the computer running Lumen |
+| `GET` / `POST /api/network` | Network mode (`{network}`, `{regenerate: true}` for a new token, `{disconnect: <device id> or "all"}`); local computer only |
 | `POST /api/logout` | Sign this device out |
 | `GET /api/events` | Server-Sent Events: `hello`, `state`, `library`, `ping` |
 
-Requests made on the computer running Lumen are only accepted under an IP address, `localhost`, the computer's own name or an `--allowed-host` name, so a web page on another site can't point its own name at this computer to reach Lumen (DNS rebinding). Requests that change data must come from Lumen's own pages: JSON bodies must be sent as `application/json`, and requests a browser marks as coming from another site (`Sec-Fetch-Site`) are refused.
+### Authentication and security
 
-Requests that change data need the token (`X-Lumen-Token`, `Authorization: Bearer`, or the sign-in cookie a token link sets) in network mode, or whenever `--token` is set. In network mode, requests from other devices need it to read as well, except `/api/health`.
+- **Tokens.** Requests that change data need the token (`X-Lumen-Token`, `Authorization: Bearer`, or the sign-in cookie a token link sets) in network mode, or whenever `--token` is set. In network mode, requests from other devices also need it to read, except `/api/health`.
+- **DNS rebinding.** Requests on the computer running Lumen are only accepted under an IP address, `localhost`, the computer's own name or an `--allowed-host` name, so a web page on another site can't point its own name at this computer to reach Lumen.
+- **Cross-site requests.** Requests that change data must come from Lumen's own pages: JSON bodies must be sent as `application/json`, and requests a browser marks as coming from another site (`Sec-Fetch-Site`) are refused.
 
-## Tests
+## Development
+
+There is no build step: edit the HTML, CSS and JavaScript files and reload. Run the tests with:
 
 ```bash
 python3 -m unittest discover tests
