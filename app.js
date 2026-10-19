@@ -204,10 +204,17 @@ Have a great week!`]
 
   const getPres = id => db.presentations.find(p => p.id === id);
   const resolveImage = src => src && src.startsWith('#') ? db.media.find(m => m.id === src.slice(1))?.src || null : src;
-  const flat = p => p ? p.groups.flatMap((g, gi) => g.slides.map((raw, si) => {
+  // A presentation's optional play order lists group names (a group may repeat, e.g. the chorus).
+  // Names that match no group are skipped; with no order the groups play as written.
+  const findGroup = (p, name) => p.groups.findIndex(g => g.name.toLowerCase() === name.toLowerCase());
+  const arrangement = p => {
+    const seq = (p.order || []).map(n => findGroup(p, n)).filter(gi => gi >= 0);
+    return seq.length ? seq : p.groups.map((g, gi) => gi);
+  };
+  const flat = p => p ? arrangement(p).flatMap((gi, oi) => { const g = p.groups[gi]; return g.slides.map((raw, si) => {
     const { text, image } = splitSlide(raw);
-    return { text, image: resolveImage(image), group: g.name, gi, si, color: groupColor(g.name) };
-  })) : [];
+    return { text, image: resolveImage(image), group: g.name, gi, oi, si, color: groupColor(g.name) };
+  }); }) : [];
   const slideSummary = s => s ? s.text || (s.image ? '[Image]' : '') : '';
 
   function payload() {
@@ -319,12 +326,13 @@ Have a great week!`]
     const p = getPres(selectedId);
     $('#presTitle').textContent = p ? p.name : 'No presentation selected';
     const slides = flat(p);
-    $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides` : '';
+    const ordered = p && p.order && p.order.length && arrangement(p).map(gi => p.groups[gi].name);
+    $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides` + (ordered ? ` · Order: ${ordered.join(', ')}` : '') : '';
     if (!p || !slides.length) { grid.innerHTML = '<div class="empty">No slides yet — click ✎ Edit to add some.</div>'; return; }
     let lastGroup = -1;
     slides.forEach((s, i) => {
-      if (s.gi !== lastGroup) {
-        lastGroup = s.gi;
+      if (s.oi !== lastGroup) {
+        lastGroup = s.oi;
         const h = document.createElement('div'); h.className = 'group-h'; h.style.setProperty('--gc', s.color); h.textContent = s.group;
         grid.appendChild(h);
       }
@@ -445,7 +453,21 @@ Have a great week!`]
     const p = id ? getPres(id) : null;
     $('#edName').value = p ? p.name : 'Untitled';
     $('#edText').value = p ? serialize(p) : SAMPLE_TEXT;
+    $('#edOrder').value = p && p.order ? p.order.join(', ') : '';
+    renderOrderChips();
     $('#editor').hidden = false; $('#edText').focus();
+  }
+  const readOrder = () => $('#edOrder').value.split(',').map(n => n.trim()).filter(Boolean);
+  // One button per group in the text; clicking appends it to the play order.
+  function renderOrderChips() {
+    const box = $('#edOrderChips'); box.innerHTML = '';
+    const names = [...new Set(parseText($('#edText').value).groups.map(g => g.name))];
+    names.forEach(n => {
+      const b = document.createElement('button');
+      b.className = 'chip'; b.style.setProperty('--gc', groupColor(n)); b.textContent = '+ ' + n;
+      b.onclick = () => { $('#edOrder').value = [...readOrder(), n].join(', '); };
+      box.appendChild(b);
+    });
   }
   const readDataUrl = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
   // Each picture becomes its own slide at the cursor. A new presentation still holding the sample text
@@ -478,8 +500,11 @@ Have a great week!`]
   function saveEditor() {
     const r = parseText($('#edText').value);
     const name = $('#edName').value.trim() || 'Untitled';
-    if (editingId && getPres(editingId)) Object.assign(getPres(editingId), { name, groups: r.groups, bg: r.bg });
-    else { const p = { id: uid(), name, groups: r.groups, bg: r.bg }; db.presentations.push(p); selectedId = p.id; }
+    const order = readOrder().map(n => r.groups.find(g => g.name.toLowerCase() === n.toLowerCase())?.name || n);
+    const missing = order.filter(n => !r.groups.some(g => g.name === n));
+    if (missing.length) toast(`Not in this song, skipped in the order: ${[...new Set(missing)].join(', ')}`);
+    if (editingId && getPres(editingId)) Object.assign(getPres(editingId), { name, groups: r.groups, bg: r.bg, order });
+    else { const p = { id: uid(), name, groups: r.groups, bg: r.bg, order }; db.presentations.push(p); selectedId = p.id; }
     save(); $('#editor').hidden = true; renderAll();
     if (live.presId === editingId && live.slide) { const s = flat(getPres(editingId))[live.idx]; if (s) goLive(editingId, live.idx); }
   }
@@ -532,6 +557,8 @@ Have a great week!`]
   $('#edText').ondragover = e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); };
   $('#edText').ondrop = e => { if (e.dataTransfer.files.length) { e.preventDefault(); addEditorImages(e.dataTransfer.files); } };
   $('#edCancel').onclick = () => { $('#editor').hidden = true; };
+  $('#edText').addEventListener('input', renderOrderChips);
+  $('#edOrderClear').onclick = () => { $('#edOrder').value = ''; };
 
   $$('[data-clear]').forEach(b => b.onclick = () => clear(b.dataset.clear));
   $('#btnNext').onclick = () => step(1);

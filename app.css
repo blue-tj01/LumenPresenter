@@ -114,6 +114,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 #edText { background: var(--bg); border: 0; resize: none; padding: 16px; font: 14px/1.6 ui-monospace, Consolas, monospace; outline: 0; }
 .ed-help { padding: 16px; color: var(--muted); border-left: 1px solid var(--line); }
 .ed-help b { color: var(--text); }
+.ed-order { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
+.ed-order label { font-weight: 600; }
+#edOrder { flex: 1; min-width: 200px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.ed-chips { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.chip { background: var(--gc); border: 0; border-radius: 12px; padding: 3px 10px; color: #fff; font-size: 12px; cursor: pointer; }
+.chip:hover { filter: brightness(1.15); }
 code { background: var(--bg); padding: 1px 5px; border-radius: 4px; color: #ffcf7a; }
 
 .srv { font-size: 12px; color: #8b92a3; display: flex; align-items: center; gap: 6px; cursor: default; }
