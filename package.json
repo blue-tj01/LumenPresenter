@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "server": "node server.js",
-    "test": "node --test tests/server.test.js"
+    "test": "node --test tests/server.test.js tests/screens.test.js"
   },
   "engines": {
     "node": ">=20"

@@ -42,7 +42,18 @@ npm install
 npm start
 ```
 
-The operator console opens in its own window, and **Audience Output** and **Stage Display** open further windows. Output windows play a video's sound straight away, without first being clicked. Only one copy of the app runs at a time; starting it again brings the console to the front, and closing the console closes the app.
+The operator console opens in its own window, and **Audience Output** and **Stage Display** open further windows. Output windows play a video's sound straight away, without first being clicked. Only one copy of the app runs at a time; starting it again brings the console to the front.
+
+The **Screens** menu, also on the Lumen icon in the taskbar's notification area, sets the app up for a service:
+
+- **Audience output** and **Stage display**: choose a display for each, and it opens full screen there, with no window frame and above notifications. The choice is remembered, so both come straight back up the next time Lumen starts. If a display is unplugged its screen closes rather than landing on the operator's screen, and it reopens when the display is reconnected. **In a window** goes back to an ordinary window.
+- **Identify Screens** shows each display's number on it for a few seconds.
+- **Keep Screens Awake** (on by default) stops the computer and its displays going to sleep while Lumen runs.
+- **Start Lumen When Windows Starts** opens Lumen when you sign in to Windows.
+
+Closing the console while a screen is showing keeps Lumen running, so the projector isn't blanked by mistake. Click the Lumen icon to bring the console back, or right-click it and choose **Quit Lumen**. With no screens showing, closing the console quits Lumen.
+
+These choices belong to the computer, not the library, so they are kept in Lumen's own settings folder (`%APPDATA%\lumen-presenter\desktop.json` on Windows) rather than in the data folder.
 
 ### Server only
 
@@ -232,8 +243,9 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload.
 
 | File | Contents |
 | --- | --- |
-| `server.js` | The server: storage, the HTTP API, live updates and network mode. Node's standard library only. |
-| `electron/main.js` | The desktop app: starts the server in-process and opens the console window. |
+| `server.js` | The server: storage, the HTTP API, live updates and network mode, using Node's standard library only |
+| `electron/main.js` | The desktop app: starts the server in-process, opens the console window, and sets up the menus and tray icon |
+| `electron/screens.js` | The desktop app's full-screen output and stage windows, and which display each goes on |
 | `index.html`, `app.js`, `app.css` | The operator console |
 | `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display |
 | `sync.js` | The pages' link to the server |
