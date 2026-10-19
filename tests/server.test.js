@@ -223,6 +223,88 @@ describe('server', () => {
     assert.equal((await t.req('GET', '/media/..%2Flibrary.json')).status, 404);
   });
 
+  it('plays pictures and videos from a media folder, without upload', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumen-folder-'));
+    const clip = Buffer.alloc(5000, 7);
+    fs.mkdirSync(path.join(dir, 'Loops', 'Easter'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'Loops', 'Easter', 'Sunrise 2.mp4'), clip);
+    fs.writeFileSync(path.join(dir, 'Loops', 'Sunrise 10.mp4'), clip);
+    fs.writeFileSync(path.join(dir, 'cross.JPG'), 'jpg');
+    fs.writeFileSync(path.join(dir, 'notes.txt'), 'not media');
+    fs.writeFileSync(path.join(dir, '.hidden.png'), 'x');
+    fs.writeFileSync(path.join(t.data, 'secret.mp4'), 'outside the folder');
+    try {
+      let r = await t.req('POST', '/api/folders', { add: dir });
+      assert.equal(r.status, 200);
+      const id = r.json.id;
+      r = await t.req('GET', '/api/folders');
+      const [f] = r.json.folders;
+      assert.deepEqual([f.id, f.name, f.path, f.fixed, f.missing], [id, path.basename(dir), dir, false, false]);
+      assert.deepEqual(f.files.map(x => [x.path, x.type]),
+        [['cross.JPG', 'image'], ['Loops/Easter/Sunrise 2.mp4', 'video'], ['Loops/Sunrise 10.mp4', 'video']]);
+
+      r = await t.req('GET', `/folders/${id}/Loops/Easter/Sunrise%202.mp4`, undefined, { Range: 'bytes=0-99' });
+      assert.deepEqual([r.status, r.headers['content-type'], r.body.length], [206, 'video/mp4', 100]);
+      assert.match(r.headers['content-security-policy'], /sandbox/);
+      r = await t.req('GET', `/folders/${id}/cross.JPG`, undefined, { 'If-None-Match': r.headers.etag });
+      assert.equal(r.status, 200); // a different file's tag
+      assert.equal((await t.req('GET', `/folders/${id}/cross.JPG`, undefined, { 'If-None-Match': r.headers.etag })).status, 304);
+
+      try { fs.symlinkSync(path.join(t.data, 'secret.mp4'), path.join(dir, 'link.mp4')); } catch {} // Windows may not allow links
+      for (const bad of [`/folders/${id}/notes.txt`, `/folders/${id}/../secret.mp4`, `/folders/${id}/%2e%2e/secret.mp4`,
+        `/folders/${id}/..%2Fsecret.mp4`, `/folders/${id}/Loops%5C..%5C..%5Csecret.mp4`, `/folders/${id}/link.mp4`,
+        `/folders/${id}/cross.JPG:x.mp4`, `/folders/${id}/`, '/folders/nope/cross.JPG', `/folders/${id}`]) {
+        assert.equal((await t.req('GET', bad)).status, 404, bad);
+      }
+
+      assert.equal((await t.req('POST', '/api/folders', { add: path.join(dir, 'notes.txt') })).status, 400);
+      assert.equal((await t.req('POST', '/api/folders', { add: t.data })).status, 400);
+      assert.equal((await t.req('POST', '/api/folders', { add: dir }, { 'X-Forwarded-For': '192.168.1.20' })).status, 403);
+      const remote = (await t.req('GET', '/api/folders', undefined, { 'X-Forwarded-For': '192.168.1.20' })).json;
+      assert.equal('path' in remote.folders[0], false); // other devices aren't told where it is on this computer
+
+      await t.restart(); // kept in settings.json
+      assert.equal((await t.req('GET', '/api/folders')).json.folders[0].id, id);
+      assert.equal((await t.req('POST', '/api/folders', { remove: id })).status, 200);
+      assert.deepEqual((await t.req('GET', '/api/folders')).json.folders, []);
+      assert.equal((await t.req('GET', `/folders/${id}/cross.JPG`)).status, 404);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('tells the consoles when a media folder changes', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumen-folder-'));
+    try {
+      await t.req('POST', '/api/folders', { add: dir });
+      const s = await t.events();
+      await s.next(); // hello
+      let ev;
+      while ((ev = await s.next())[0] !== 'folders'); // the add itself
+      fs.writeFileSync(path.join(dir, 'new.png'), 'x');
+      while ((ev = await s.next())[0] !== 'folders');
+      assert.equal(ev[0], 'folders');
+      s.close();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps folders given on the command line', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lumen-folder-'));
+    try {
+      await t.stop();
+      await t.start({ mediaFolders: [dir] });
+      const [f] = (await t.req('GET', '/api/folders')).json.folders;
+      assert.equal(f.fixed, true);
+      assert.equal((await t.req('POST', '/api/folders', { remove: f.id })).status, 409);
+      fs.rmSync(dir, { recursive: true });
+      assert.equal((await t.req('GET', '/api/folders')).json.folders[0].missing, true); // a drive unplugged
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('keeps library backups', async () => {
     await t.req('PUT', '/api/library', { library: LIB });
     await t.req('PUT', '/api/library', { library: LIB });
@@ -426,7 +508,7 @@ describe('options', () => {
   it('reads the command line and environment', () => {
     const o = server.options(['--port', '9000', '--allowed-host', 'a.example', '-v'],
       { LUMEN_HOST: '0.0.0.0', LUMEN_TOKEN: 't', LUMEN_ALLOWED_HOSTS: 'b.example,c.example', LUMEN_DATA: '/srv/lumen' });
-    assert.deepEqual(o, { host: '0.0.0.0', port: 9000, data: '/srv/lumen', token: 't', maxUploadMb: 4096, verbose: true,
+    assert.deepEqual(o, { host: '0.0.0.0', port: 9000, data: '/srv/lumen', token: 't', maxUploadMb: 4096, verbose: true, mediaFolders: [],
       allowedHosts: ['b.example', 'c.example', 'a.example'] });
     assert.equal(server.options([], {}).host, null);
   });
