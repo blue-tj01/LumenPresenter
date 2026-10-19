@@ -54,8 +54,14 @@
       <button id="btnDelete" class="btn ghost danger">Delete</button>
     </div>
     <div id="slideGrid" class="grid"></div>
-    <div class="media-h">Media <span class="muted small">click to set background · drop images/videos to add</span>
-      <span class="spacer"></span><button id="btnAddMedia" class="btn small-btn">＋ Add file</button>
+    <div class="media-h">Media
+      <select id="mediaSource" class="media-src" title="Media bin, or a folder on this computer" hidden><option value="">Media bin</option></select>
+      <span id="mediaHint" class="muted small">click to set background · drop images/videos to add</span>
+      <span class="spacer"></span>
+      <input id="mediaSearch" class="media-search" type="search" placeholder="Search folder…" hidden>
+      <button id="btnRemoveFolder" class="btn small-btn ghost" title="Stop showing this folder (its files are left alone)" hidden>Remove folder</button>
+      <button id="btnAddFolder" class="btn small-btn" title="Play pictures and videos straight from a folder on this computer" hidden>＋ Folder</button>
+      <button id="btnAddMedia" class="btn small-btn">＋ Add file</button>
       <input id="mediaFile" type="file" accept="image/*,video/*" multiple hidden>
     </div>
     <div id="mediaBin" class="media"></div>

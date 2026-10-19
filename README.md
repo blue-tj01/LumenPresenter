@@ -156,6 +156,17 @@ A live video plays once, with sound on the audience output only (the console pre
 
 Any slide can carry a video with an `@video:` line, and the editor's **Add images / videos** button accepts both. If the browser blocks sound in the output window until it has been clicked, the video starts silently and the window asks to be clicked once.
 
+### Media folders
+
+Instead of uploading, Lumen can play pictures and videos straight from a folder on the computer running it, such as a shared folder of worship loops. Nothing is copied, so a file added to the folder shows up in Lumen straight away, and a large video doesn't need uploading first.
+
+- **Adding a folder.** In the desktop app, use **＋ Folder** above the media bin or **File → Add Media Folder…**. In a browser on the computer running Lumen, **＋ Folder** asks for the folder's full path. Folders can be added and removed only on that computer.
+- **Using it.** The list next to **Media** switches between the media bin and each folder. A folder shows every picture and video in it and its subfolders, with a search box. Click one to make it the background, or use **＋ Playlist** on a video. Folder files are shown on other devices' screens too, served by Lumen.
+- **Slides.** A slide can use a folder file with `@image:` or `@video:` and the path the media bin gives it, for example `@video: folders/3f9c2a7b1e4d/Easter/Sunrise.mp4`.
+- **Removing a folder.** **Remove folder** stops Lumen showing it and leaves the files where they are. If a folder is renamed, moved or on a drive that's unplugged, it is marked **not found** and its slides go blank until it's back.
+
+Lumen serves only pictures and videos from inside each folder. Other files, other folders and links out of the folder aren't reachable.
+
 ## Themes
 
 The **Theme** tab has two lists:
@@ -204,6 +215,7 @@ These options are for `node server.js`; the desktop app reads the same environme
 | `--data` | `LUMEN_DATA` | `./data` |
 | `--token` | `LUMEN_TOKEN` | The generated token, required in network mode |
 | `--allowed-host` | `LUMEN_ALLOWED_HOSTS` (comma-separated) | None; IP addresses, `localhost` and this computer's name always work |
+| `--media-folder` | `LUMEN_MEDIA_FOLDERS` (separated by `;` on Windows, `:` elsewhere) | None; folders added in the console are kept in `settings.json`, and these can't be removed there |
 | `--max-upload-mb` | `LUMEN_MAX_UPLOAD_MB` | `4096` |
 
 ### Running as a service
@@ -229,7 +241,7 @@ With the app or the server, everything lives in the data directory. For the inst
 | --- | --- |
 | `library.json` | Presentations, playlist, media list, themes and messages (written atomically) |
 | `live.json` | What is on screen right now, so windows recover after a restart |
-| `settings.json` | Network mode, the access token and signed-in devices (readable only by the account running the server) |
+| `settings.json` | Network mode, the access token, signed-in devices and media folders (readable only by the account running the server) |
 | `media/` | Uploaded images and videos |
 | `backups/` | Snapshots of `library.json`, at most one every 10 minutes, newest 50 kept |
 
@@ -248,7 +260,10 @@ Back up the data directory to back up everything. **Export** / **Import** in the
 | `DELETE /api/media/<file>` | Remove an uploaded file |
 | `GET` / `POST /api/network` | Network mode (`{network}`, `{regenerate: true}` for a new token, `{disconnect: <device id> or "all"}`); local computer only |
 | `POST /api/logout` | Sign this device out |
-| `GET /api/events` | Server-Sent Events: `hello`, `state`, `library`, `ping` |
+| `GET /api/folders` | Media folders and the pictures and videos in each (`{folders: [{id, name, files}]}`); each folder's path only on the local computer |
+| `POST /api/folders` | Add a media folder (`{add: <path>}`) or remove one (`{remove: <id>}`); local computer only |
+| `GET /folders/<id>/<path>` | A picture or video in a media folder |
+| `GET /api/events` | Server-Sent Events: `hello`, `state`, `library`, `folders`, `ping` |
 
 ### Authentication and security
 
@@ -266,6 +281,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload.
 | `electron/main.js` | The desktop app: starts the server in-process, opens the console window, and sets up the menus and tray icon |
 | `electron/screens.js` | The desktop app's full-screen output and stage windows, and which display each goes on |
 | `electron/updates.js`, `electron/data.js` | Updates for the installed app, and importing a library from another data folder |
+| `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.js`, `app.css` | The operator console |
 | `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display |

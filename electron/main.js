@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const electron = require('electron');
-const { app, BrowserWindow, Menu, Notification, Tray, dialog, nativeImage, powerSaveBlocker, session, shell } = electron;
+const { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, powerSaveBlocker, session, shell } = electron;
 const { LumenServer } = require('../server.js');
 const { SCREENS, Screens } = require('./screens.js');
 const { Updates } = require('./updates.js');
@@ -69,6 +69,21 @@ async function importData() {
   app.exit(0);
 }
 
+// ---------- media folders ----------
+async function pickFolder() {
+  const { canceled, filePaths } = await dialog.showOpenDialog(consoleWin, { title: 'Add Media Folder',
+    message: 'Choose a folder of pictures and videos. Lumen plays them from there, without copying them.',
+    properties: ['openDirectory'] });
+  return canceled ? '' : filePaths[0] || '';
+}
+
+async function addFolder() {
+  const dir = await pickFolder();
+  if (!dir) return;
+  try { srv.folders.add(dir); } // the console hears about it and lists the folder
+  catch (e) { dialog.showMessageBox(consoleWin, { type: 'warning', message: 'That folder can’t be added.', detail: e.message }); }
+}
+
 function notify(title, body) {
   if (Notification.isSupported()) new Notification({ title, body, icon: ICON }).show();
 }
@@ -76,7 +91,8 @@ function notify(title, body) {
 const sameOrigin = url => { try { return new URL(url).origin === origin; } catch { return false; } };
 
 // Animations and video timing keep going in windows that are behind others or not focused.
-const webPreferences = { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false };
+const webPreferences = { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false,
+  preload: path.join(__dirname, 'preload.js') };
 
 /** Keep every window on Lumen's own pages: links elsewhere (a token link for another device) open in the
  * system browser. The console's Audience Output and Stage Display buttons bring up the full-screen window when
@@ -155,6 +171,8 @@ function buildMenus() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...process.platform === 'darwin' ? [{ role: 'appMenu' }] : [],
     { label: 'File', submenu: [
+      { label: 'Add Media Folder…', click: addFolder },
+      { type: 'separator' },
       { label: 'Import Library From Folder…', click: importData },
       { label: 'Open Data Folder', click: () => shell.openPath(srv.store.dir) },
       ...process.platform === 'darwin' ? [] : [{ type: 'separator' }, { role: 'quit', label: 'Quit Lumen' }],
@@ -198,6 +216,8 @@ async function start() {
     done(sameOrigin(wc.getURL()) && ['fullscreen', 'clipboard-sanitized-write'].includes(permission));
   });
   app.on('web-contents-created', (_, wc) => { if (wc.getType() === 'window') guard(wc); });
+  // Only the console, on Lumen's own page, may open the folder picker.
+  ipcMain.handle('lumen:pick-folder', e => e.sender === consoleWin?.webContents && sameOrigin(e.senderFrame.url) ? pickFolder() : '');
 
   updates = new Updates({ app, onChange: () => buildMenus(), notify });
   screens = new Screens({ electron, origin, webPreferences, settings, save: saveSettings, icon: ICON });
