@@ -80,6 +80,10 @@ Chorus line
 
 Write each group once, then set the order it is sung in the editor's **Play order** box, for example `Verse 1, Chorus, Verse 2, Chorus, Bridge`. Clicking a group's button under the box adds it to the end. Groups can repeat, the slide grid and Next/Previous follow the order, and an empty box plays the groups as written.
 
+### Auto-advance
+
+Set **Auto-advance every … seconds** in the editor to have a presentation move to the next slide by itself. After the last slide in its play order it goes back to the first and keeps looping, rather than moving on to the next playlist item. A video slide in such a presentation moves on when the video ends. Clicking a slide or pressing Next/Previous restarts the count from there, and the **❚❚ Auto** button under Prev / Next (with the time left) pauses and resumes it. Leave the box empty to advance by hand.
+
 ### Slideshows and picture slides
 
 In the editor, **🖼 Add images** (or dropping pictures onto the text) uploads them and adds one `@image:` slide per picture where the cursor is. In a new presentation it replaces the sample text with a `[Slideshow]` group, so a slideshow is: **＋** → **Add images** → pick the photos → **Save**.
