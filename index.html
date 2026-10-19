@@ -82,10 +82,11 @@
     </nav>
     <div class="tabbody">
       <div data-pane="theme" class="pane on">
-        <div id="thFor" class="sub-h"></div>
-        <div class="row"><select id="thSaved" title="Theme this presentation uses"></select><button id="thSaveAs" class="btn" title="Save these settings as a new theme">Save as…</button></div>
-        <div class="row"><button id="thRename" class="btn small-btn">Rename</button><button id="thDelete" class="btn small-btn ghost danger">Delete theme</button>
-          <span class="muted small">Changes apply to every presentation using it.</span></div>
+        <label>All songs <select id="thAll" title="Theme every song uses unless it has its own"></select></label>
+        <label>This song <select id="thSaved" title="Give the selected song its own theme"></select></label>
+        <div class="row"><span id="thEditing" class="muted small th-editing"></span>
+          <button id="thSaveAs" class="btn small-btn" title="Save these settings as a new theme">Save as…</button>
+          <button id="thRename" class="btn small-btn">Rename</button><button id="thDelete" class="btn small-btn ghost danger">Delete</button></div>
         <label>Font <select id="thFont">
           <option value="'Segoe UI', system-ui, sans-serif">Segoe UI</option>
           <option value="Georgia, serif">Georgia</option>

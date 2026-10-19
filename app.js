@@ -218,9 +218,11 @@ Have a great week!`]
     const { text, image } = splitSlide(raw);
     return { text, image: resolveImage(image), group: g.name, gi, si, color: groupColor(g.name) };
   })) : [];
-  // A presentation's saved theme, or the default style when it has none (or its theme was deleted).
-  const savedTheme = p => p && p.themeId ? db.themes.find(t => t.id === p.themeId) : null;
-  const themeFor = p => savedTheme(p) || db.theme;
+  // Every presentation uses the all-songs theme (a saved theme, or the default style) unless it picked its own.
+  const findTheme = id => id ? db.themes.find(t => t.id === id) || null : null;
+  const savedTheme = p => p ? findTheme(p.themeId) : null;
+  const baseTheme = () => findTheme(db.defaultThemeId) || db.theme;
+  const themeFor = p => savedTheme(p) || baseTheme();
   const slideSummary = s => s ? s.text || (s.image ? '[Image]' : '') : '';
 
   function payload() {
@@ -332,7 +334,7 @@ Have a great week!`]
     const p = getPres(selectedId);
     $('#presTitle').textContent = p ? p.name : 'No presentation selected';
     const slides = flat(p);
-    $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides · ${savedTheme(p)?.name || 'Default style'}` : '';
+    $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides · ${themeFor(p).name || 'Default style'}` : '';
     if (!p || !slides.length) { grid.innerHTML = '<div class="empty">No slides yet — click ✎ Edit to add some.</div>'; return; }
     let lastGroup = -1;
     slides.forEach((s, i) => {
@@ -434,15 +436,20 @@ Have a great week!`]
     });
   }
 
-  // The theme pane edits the selected presentation's theme: its saved theme, or the default style.
-  function renderTheme() {
-    const p = getPres(selectedId), saved = savedTheme(p), t = saved || db.theme;
-    $('#thFor').textContent = p ? `Theme for “${p.name}”` : 'Default style';
-    const sel = $('#thSaved'); sel.innerHTML = '';
-    sel.add(new Option('Default style', ''));
+  // The theme pane picks the all-songs theme and the selected presentation's own theme, and its controls
+  // edit whichever of those the selected presentation shows with.
+  const themeOptions = (sel, first, value) => {
+    sel.innerHTML = ''; sel.add(new Option(first, ''));
     db.themes.forEach(x => sel.add(new Option(x.name, x.id)));
-    sel.value = saved ? saved.id : ''; sel.disabled = !p;
-    $('#thRename').disabled = $('#thDelete').disabled = !saved;
+    sel.value = value || '';
+  };
+  function renderTheme() {
+    const p = getPres(selectedId), t = themeFor(p);
+    themeOptions($('#thAll'), 'Default style', findTheme(db.defaultThemeId)?.id);
+    themeOptions($('#thSaved'), 'Same as all songs', savedTheme(p)?.id);
+    $('#thSaved').disabled = !p;
+    $('#thEditing').textContent = `Editing: ${t.name || 'Default style'}` + (t.id ? ' · changes apply to every song using it' : '');
+    $('#thRename').disabled = $('#thDelete').disabled = !t.id;
     $('#thFont').value = t.font; $('#thSize').value = t.size; $('#thSizeV').textContent = t.size + 'px';
     $('#thColor').value = t.color; $('#thBold').checked = t.bold; $('#thShadow').checked = t.shadow; $('#thUpper').checked = t.upper;
     $$('#thAlign button').forEach(b => b.classList.toggle('on', b.dataset.v === t.align));
@@ -451,7 +458,7 @@ Have a great week!`]
   }
   let themeTimer;
   function setTheme(patch) {
-    Object.assign(savedTheme(getPres(selectedId)) || db.theme, patch); themeChanged();
+    Object.assign(themeFor(getPres(selectedId)), patch); themeChanged();
   }
   function themeChanged() {
     save(); renderTheme(); broadcast();
@@ -462,24 +469,33 @@ Have a great week!`]
     if (id) p.themeId = id; else delete p.themeId;
     themeChanged();
   }
+  function useThemeForAll(id) {
+    if (id) db.defaultThemeId = id; else delete db.defaultThemeId;
+    themeChanged();
+  }
+  // The new theme replaces whichever one the selected presentation was showing with.
   function saveThemeAs() {
     const name = (prompt('Name for the new theme:', '') || '').trim(); if (!name) return;
-    const { id: _id, name: _n, ...style } = savedTheme(getPres(selectedId)) || db.theme;
+    const p = getPres(selectedId);
+    const { id: _id, name: _n, ...style } = themeFor(p);
     const t = { ...DEFAULT_THEME, ...style, id: uid(), name };
     db.themes.push(t);
-    if (getPres(selectedId)) useTheme(t.id); else themeChanged();
+    if (savedTheme(p)) useTheme(t.id); else useThemeForAll(t.id);
     toast(`Saved theme “${name}”`);
   }
   function renameTheme() {
-    const t = savedTheme(getPres(selectedId)); if (!t) return;
+    const t = themeFor(getPres(selectedId)); if (!t.id) return;
     const name = (prompt('Rename theme:', t.name) || '').trim(); if (!name) return;
     t.name = name; themeChanged();
   }
   function deleteTheme() {
-    const t = savedTheme(getPres(selectedId)); if (!t) return;
+    const t = themeFor(getPres(selectedId)); if (!t.id) return;
     const users = db.presentations.filter(p => p.themeId === t.id);
-    if (!confirm(`Delete theme “${t.name}”? ${users.length} presentation${users.length === 1 ? '' : 's'} using it will go back to the default style.`)) return;
+    const all = db.defaultThemeId === t.id;
+    if (!confirm(`Delete theme “${t.name}”? ` + (all ? 'Songs will go back to the default style.'
+      : `${users.length} presentation${users.length === 1 ? '' : 's'} using it will go back to the all-songs theme.`))) return;
     users.forEach(p => delete p.themeId);
+    if (all) delete db.defaultThemeId;
     db.themes = db.themes.filter(x => x !== t); themeChanged();
   }
 
@@ -599,6 +615,7 @@ Have a great week!`]
   $$('#thAlign button').forEach(b => b.onclick = () => setTheme({ align: b.dataset.v }));
   $$('#thVAlign button').forEach(b => b.onclick = () => setTheme({ valign: b.dataset.v }));
   $('#thSaved').onchange = e => useTheme(e.target.value);
+  $('#thAll').onchange = e => useThemeForAll(e.target.value);
   $('#thSaveAs').onclick = saveThemeAs;
   $('#thRename').onclick = renameTheme;
   $('#thDelete').onclick = deleteTheme;

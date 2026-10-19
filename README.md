@@ -91,7 +91,7 @@ Without the server, pictures are kept in the media bin and referenced as `@image
 
 ## Themes
 
-The **Theme** tab styles the selected presentation. Pick a saved theme from the list (Classic, Lower third, Scripture, Big & bold, or your own) and the presentation keeps it: its thumbnails and the output use that theme every time it goes live, with nothing to restyle. Changing the font, size, colour or alignment edits that theme for every presentation using it. **Save as…** stores the current settings as a new theme, and **Default style** is used by presentations with no theme and by quick slides.
+The **Theme** tab has two lists. **All songs** picks the theme every presentation uses (Classic, Lower third, Scripture, Big & bold, your own, or the plain default style), so switching songs keeps the same look with nothing to restyle. **This song** gives the selected presentation its own theme instead, which it keeps every time it goes live. The font, size, colour and alignment controls edit the theme the selected song is shown with, and every song using that theme follows. **Save as…** stores the current settings as a new theme.
 
 ## Data
 
