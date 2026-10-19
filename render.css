@@ -1,8 +1,11 @@
 .pp-screen { position: relative; overflow: hidden; background: #000; }
 .pp-inner { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden; }
 .pp-layer, .pp-fill { position: absolute; inset: 0; }
-.pp-slideimg img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .pp-fill video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-slideimg img, .pp-slideimg video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.pp-slideimg video { background: #000; transition: opacity 1.2s ease; }
+.pp-slidevid { background: #000; }
+.pp-slideimg video.pp-done { opacity: 0; }
 .pp-text { display: flex; flex-direction: column; align-items: stretch; box-sizing: border-box; }
 .pp-words { white-space: pre-wrap; overflow-wrap: break-word; }
 .pp-motion { background-size: 400% 400% !important; animation: pp-drift 18s ease-in-out infinite; }

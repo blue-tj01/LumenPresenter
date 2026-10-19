@@ -33,7 +33,9 @@
       <ul id="libList" class="list"></ul>
     </section>
     <section class="panel grow">
-      <div class="panel-h">Playlist <span class="muted small">drag to reorder</span></div>
+      <div class="panel-h">Playlist <span class="muted small">drag to reorder · drop videos</span>
+        <button id="btnAddVideo" class="icon txt" title="Add videos to the playlist">＋ Video</button>
+        <input id="playlistFile" type="file" accept="video/*" multiple hidden></div>
       <ul id="playList" class="list"></ul>
     </section>
   </aside>
@@ -73,6 +75,8 @@
     <div class="nav">
       <button id="btnPrev" class="btn">◀ Prev</button>
       <button id="btnNext" class="btn primary">Next ▶</button>
+      <button id="btnVidPlay" class="btn vidctl" hidden>❚❚ Pause<span id="vidTime" class="muted small"></span></button>
+      <button id="btnVidRestart" class="btn vidctl" hidden>⟲ Restart</button>
     </div>
     <nav class="tabs">
       <button data-tab="theme" class="on">Theme</button>
@@ -128,8 +132,8 @@
 <div id="editor" class="modal" hidden>
   <div class="modal-card">
     <div class="modal-h"><input id="edName" class="ed-name" placeholder="Presentation name"><span class="spacer"></span>
-      <button id="edImages" class="btn">🖼 Add images</button>
-      <input id="edImageFile" type="file" accept="image/*" multiple hidden>
+      <button id="edImages" class="btn">🖼 Add images / videos</button>
+      <input id="edImageFile" type="file" accept="image/*,video/*" multiple hidden>
       <button id="edCancel" class="btn ghost">Cancel</button><button id="edSave" class="btn primary">Save</button></div>
     <div class="ed-body">
       <textarea id="edText" spellcheck="false"></textarea>
@@ -140,7 +144,8 @@
         <p>Groups named Verse, Chorus, Bridge, Pre-Chorus, Tag, Intro or Ending get colour-coded automatically.</p>
         <p>Optional first line <code>@bg: #hex</code> or an image URL sets the presentation's default background.</p>
         <p><code>@image: …</code> on a slide shows a picture on it, with any other lines on that slide as text over it.</p>
-        <p><b>Add images</b> (or drop pictures onto the text) adds one picture slide each, which makes a slideshow.</p>
+        <p><code>@video: …</code> on a slide plays a video on it, once, with sound on the audience output.</p>
+        <p><b>Add images / videos</b> (or drop files onto the text) adds one slide each, which makes a slideshow.</p>
         <p><b>Play order</b> lists groups in the order they're sung, e.g. <code>Verse 1, Chorus, Verse 2, Chorus</code>. Click a group below to add it. Leave it empty to play the groups as written.</p>
       </div>
     </div>
