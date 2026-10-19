@@ -204,8 +204,9 @@ Have a great week!`]
   };
 
   // ---------- live state ----------
+  // autoAt is when the live slide auto-advances (shared clock), autoOff pauses that for the live presentation.
   const live = { presId: null, idx: -1, slide: null, bg: null, msg: null, logo: false, next: '',
-    stageMsg: '', timer: { dur: 300, endAt: null, remaining: 300 }, _autoBgFrom: null };
+    stageMsg: '', timer: { dur: 300, endAt: null, remaining: 300 }, autoAt: null, autoOff: false, _autoBgFrom: null };
   const LIVE_KEYS = Object.keys(live);
   const adoptLive = l => LIVE_KEYS.forEach(k => { if (k in l) live[k] = l[k]; });
   // Pick up where the output left off, so reloading the console never blanks the screen.
@@ -233,6 +234,8 @@ Have a great week!`]
   const savedTheme = p => p ? findTheme(p.themeId) : null;
   const baseTheme = () => findTheme(db.defaultThemeId) || db.theme;
   const themeFor = p => savedTheme(p) || baseTheme();
+  // A presentation can move on by itself every few seconds, looping from its last slide back to its first.
+  const autoSecs = p => p && p.advance > 0 ? p.advance : 0;
 
   function payload() {
     return { ...live, theme: themeFor(getPres(live.presId)), logoText: db.logoText };
@@ -258,14 +261,18 @@ Have a great week!`]
     const ns = flat(np);
     return ns.length ? [np.id, dir > 0 ? 0 : ns.length - 1] : null;
   }
+  const loopTarget = (presId, idx) => [presId, (idx + 1) % flat(getPres(presId)).length];
   function goLive(presId, idx) {
     const p = getPres(presId); const s = flat(p)[idx];
     if (!s) return;
+    if (live.presId !== presId || !live.slide) live.autoOff = false; // a pause lasts while this presentation stays live
     live.presId = presId; live.idx = idx; live.logo = false;
+    // A video slide moves on when the video ends rather than on the clock.
+    live.autoAt = autoSecs(p) && !s.video ? Lumen.now() + autoSecs(p) * 1000 : null;
     live.slide = { text: s.text, image: s.image, label: `${p.name} — ${s.group}`, color: s.color };
     if (s.video) Object.assign(live.slide, { video: s.video, play: { startAt: Lumen.now(), paused: false, pos: 0 } });
     if (p.bg && (!live.bg || live._autoBgFrom !== p.id)) { live.bg = p.bg; live._autoBgFrom = p.id; }
-    const nt = nextTarget(presId, idx, 1);
+    const nt = autoSecs(p) ? loopTarget(presId, idx) : nextTarget(presId, idx, 1);
     live.next = nt ? slideSummary(flat(getPres(nt[0]))[nt[1]]) : '';
     if (selectedId !== presId) { selectedId = presId; renderAll(); }
     broadcast();
@@ -295,6 +302,24 @@ Have a great week!`]
     else live.slide.play = { startAt: null, paused: true, pos: Math.min(videoPos(play), dur) };
     broadcast();
   }
+  function autoStep() {
+    if (!live.slide || !autoSecs(getPres(live.presId))) return;
+    const [id, i] = loopTarget(live.presId, live.idx);
+    goLive(id, i);
+  }
+  function toggleAuto() {
+    const p = getPres(live.presId); if (!live.slide || !autoSecs(p)) return;
+    live.autoOff = !live.autoOff;
+    if (!live.autoOff && live.autoAt) live.autoAt = Lumen.now() + autoSecs(p) * 1000;
+    broadcast();
+  }
+  // Seconds until the live slide auto-advances, or null when it won't.
+  const autoRemaining = () => {
+    if (!live.slide || live.autoOff || !autoSecs(getPres(live.presId))) return null;
+    if (live.autoAt) return (live.autoAt - Lumen.now()) / 1000;
+    const v = liveVideoEl(), play = live.slide.play;
+    return v && play && !play.paused && isFinite(v.duration) ? v.duration - videoPos(play) : null;
+  };
   function clear(what) {
     if (what === 'all') { live.slide = null; live.bg = null; live.msg = null; live.logo = false; live.idx = -1; live.next = ''; live._autoBgFrom = null; }
     if (what === 'slide') { live.slide = null; live.idx = -1; live.next = ''; }
@@ -358,7 +383,8 @@ Have a great week!`]
     $('#presTitle').textContent = p ? p.name : 'No presentation selected';
     const slides = flat(p);
     const ordered = p && p.order && p.order.length && arrangement(p).map(gi => p.groups[gi].name);
-    $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides` + (ordered ? ` · Order: ${ordered.join(', ')}` : '') + ` · ${themeFor(p).name || 'Default style'}` : '';
+    $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides` + (ordered ? ` · Order: ${ordered.join(', ')}` : '')
+      + (autoSecs(p) ? ` · Auto-advance every ${autoSecs(p)}s, looping` : '') + ` · ${themeFor(p).name || 'Default style'}` : '';
     if (!p || !slides.length) { grid.innerHTML = '<div class="empty">No slides yet — click ✎ Edit to add some.</div>'; return; }
     // One continuous grid; each card's coloured label names its group.
     slides.forEach((s, i) => {
@@ -382,6 +408,7 @@ Have a great week!`]
     $('#btnLogo').classList.toggle('on', live.logo);
     const vidLive = !!(live.slide && live.slide.video);
     $$('.vidctl').forEach(b => b.hidden = !vidLive);
+    $('#btnAuto').hidden = !(live.slide && autoSecs(getPres(live.presId)));
     if (vidLive) $('#btnVidPlay').firstChild.textContent = live.slide.play && live.slide.play.paused ? '▶ Play' : '❚❚ Pause';
     $('#liveLabel').textContent = live.slide ? live.slide.label : (live.logo ? 'Logo' : '');
     markLists();
@@ -563,6 +590,7 @@ Have a great week!`]
     $('#edName').value = p ? p.name : 'Untitled';
     $('#edText').value = p ? serialize(p) : SAMPLE_TEXT;
     $('#edOrder').value = p && p.order ? p.order.join(', ') : '';
+    $('#edAdvance').value = autoSecs(p) || '';
     renderOrderChips();
     themeOptions($('#edTheme'), 'Theme: same as all songs', savedTheme(p)?.id);
     $('#editor').hidden = false; $('#edText').focus();
@@ -608,11 +636,12 @@ Have a great week!`]
     const order = readOrder().map(n => r.groups.find(g => g.name.toLowerCase() === n.toLowerCase())?.name || n);
     const missing = order.filter(n => !r.groups.some(g => g.name === n));
     if (missing.length) toast(`Not in this song, skipped in the order: ${[...new Set(missing)].join(', ')}`);
-    const themeId = $('#edTheme').value;
+    const themeId = $('#edTheme').value, advance = Math.max(0, +$('#edAdvance').value || 0);
     let p = editingId && getPres(editingId);
     if (p) Object.assign(p, { name, groups: r.groups, bg: r.bg, order });
     else { p = { id: uid(), name, groups: r.groups, bg: r.bg, order }; db.presentations.push(p); selectedId = p.id; }
     if (themeId) p.themeId = themeId; else delete p.themeId;
+    if (advance) p.advance = advance; else delete p.advance;
     save(); $('#editor').hidden = true; renderAll();
     if (live.presId === editingId && live.slide) { const s = flat(getPres(editingId))[live.idx]; if (s) goLive(editingId, live.idx); }
   }
@@ -628,6 +657,12 @@ Have a great week!`]
     if (v && live.slide.play) {
       const dur = isFinite(v.duration) ? v.duration : 0, at = Math.max(0, videoPos(live.slide.play));
       $('#vidTime').textContent = fmt(dur ? Math.min(at, dur) : at) + (dur ? ' / ' + fmt(dur) : '');
+    }
+    const ar = autoRemaining();
+    if (ar !== null && ar <= 0) autoStep();
+    else if (live.slide && autoSecs(getPres(live.presId))) {
+      $('#btnAuto').firstChild.textContent = live.autoOff ? '▶ Auto' : '❚❚ Auto';
+      $('#autoLeft').textContent = ar === null ? '' : fmt(Math.ceil(ar));
     }
   }, 250);
 
@@ -678,6 +713,7 @@ Have a great week!`]
   $('#btnPrev').onclick = () => step(-1);
   $('#btnVidPlay').onclick = () => videoControl('toggle');
   $('#btnVidRestart').onclick = () => videoControl('restart');
+  $('#btnAuto').onclick = toggleAuto;
   $('#btnAddVideo').onclick = () => $('#playlistFile').click();
   $('#playlistFile').onchange = e => { addPlaylistVideos(e.target.files); e.target.value = ''; };
   const pl = $('#playList');
@@ -719,7 +755,7 @@ Have a great week!`]
   $('#msgInput').onkeydown = e => { if (e.key === 'Enter') $('#msgShow').click(); };
   $('#quickGo').onclick = () => {
     const v = $('#quickText').value.trim(); if (!v) return;
-    live.presId = null; live.idx = -1; live.logo = false; live.next = '';
+    live.presId = null; live.idx = -1; live.logo = false; live.next = ''; live.autoAt = null;
     live.slide = { text: v, label: 'Quick slide', color: '#555' }; broadcast();
   };
 

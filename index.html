@@ -77,6 +77,7 @@
       <button id="btnNext" class="btn primary">Next ▶</button>
       <button id="btnVidPlay" class="btn vidctl" hidden>❚❚ Pause<span id="vidTime" class="muted small"></span></button>
       <button id="btnVidRestart" class="btn vidctl" hidden>⟲ Restart</button>
+      <button id="btnAuto" class="btn" title="Pause or resume moving to the next slide by itself" hidden>❚❚ Auto<span id="autoLeft" class="muted small"></span></button>
     </div>
     <nav class="tabs">
       <button data-tab="theme" class="on">Theme</button>
@@ -152,12 +153,15 @@
         <p><code>@video: …</code> on a slide plays a video on it, once, with sound on the audience output.</p>
         <p><b>Add images / videos</b> (or drop files onto the text) adds one slide each, which makes a slideshow.</p>
         <p><b>Play order</b> lists groups in the order they're sung, e.g. <code>Verse 1, Chorus, Verse 2, Chorus</code>. Click a group below to add it. Leave it empty to play the groups as written.</p>
+        <p><b>Auto-advance</b> moves to the next slide by itself after that many seconds, and after the last slide in the play order goes back to the first. Video slides move on when the video ends. Leave it empty to advance by hand.</p>
       </div>
     </div>
     <div class="ed-order">
       <label for="edOrder">Play order</label>
       <input id="edOrder" placeholder="As written — or e.g. Verse 1, Chorus, Verse 2, Chorus, Bridge">
       <button id="edOrderClear" class="btn ghost" title="Play the groups as written">Clear</button>
+      <label for="edAdvance">Auto-advance every</label>
+      <input id="edAdvance" type="number" min="0" step="1" placeholder="Off"> <span class="muted">seconds, then loop</span>
       <div id="edOrderChips" class="ed-chips"></div>
     </div>
   </div>

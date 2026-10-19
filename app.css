@@ -72,6 +72,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .mitem:hover .x { display: block; }
 .mitem .pl { position: absolute; bottom: 18px; left: 4px; background: rgba(0,0,0,.65); border: 0; color: #fff; border-radius: 4px; cursor: pointer; font-size: 10px; padding: 2px 5px; display: none; }
 .mitem:hover .pl { display: block; }
+#edAdvance { width: 70px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+#autoLeft { margin-left: 6px; font-variant-numeric: tabular-nums; }
 .vidctl #vidTime { margin-left: 6px; font-variant-numeric: tabular-nums; }
 
 .live-panel { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
@@ -119,7 +121,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ed-name { font-size: 16px; font-weight: 600; background: transparent; border: 0; outline: 0; flex: 1; }
 .ed-body { flex: 1; display: grid; grid-template-columns: 1fr 260px; min-height: 0; }
 #edText { background: var(--bg); border: 0; resize: none; padding: 16px; font: 14px/1.6 ui-monospace, Consolas, monospace; outline: 0; }
-.ed-help { padding: 16px; color: var(--muted); border-left: 1px solid var(--line); }
+.ed-help { padding: 16px; color: var(--muted); border-left: 1px solid var(--line); overflow-y: auto; }
 .ed-help b { color: var(--text); }
 .ed-order { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
 .ed-order label { font-weight: 600; }
