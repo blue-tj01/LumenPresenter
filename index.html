@@ -143,7 +143,11 @@
             <button id="netCopy" class="btn small-btn">Copy</button>
             <button id="netNewToken" class="btn small-btn ghost danger" title="Make a new token; other consoles will have to enter it again">New</button></div>
           <p class="muted small">A device opening Lumen without a link is asked for this token. <b>New</b> makes another one and signs every other device out.</p>
+          <div class="sub-h">Signed-in devices <button id="netDropAll" class="btn small-btn ghost danger" hidden>Disconnect all</button></div>
+          <ul id="netDevices" class="net-devices"></ul>
+          <p class="muted small">Disconnect signs a device out. Anyone who still knows the token can sign back in, so make a <b>New</b> token to keep them out.</p>
         </div>
+        <button id="netSignOut" class="btn wide" hidden>Sign out of this device</button>
       </div>
     </div>
   </aside>

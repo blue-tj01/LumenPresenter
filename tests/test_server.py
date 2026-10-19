@@ -270,9 +270,69 @@ class NetworkModeTest(unittest.TestCase):
             self.assertEqual(get(path, {'Cookie': cookie})[0].status, 200, path)
         self.assertEqual(self.req('POST', '/api/live', {'live': {}}, {**remote, 'Cookie': cookie})[0], 200)
 
+        self.assertNotIn(token, cookie)  # the cookie holds a sign-in for this device, not the token itself
+
         self.req('POST', '/api/network', {'regenerate': True}, {'X-Lumen-Token': token})
         self.assertEqual(get('/stage.html', {'Cookie': cookie})[0].status, 401)  # signed out by a new token
         self.assertEqual(self.req('GET', '/api/library')[0], 200)  # this computer never needs it to read
+
+    def sign_in(self, token, page='/output.html', agent='Mozilla/5.0 (iPhone) Safari/604.1'):
+        c = http.client.HTTPConnection('127.0.0.1', self.port, timeout=5)
+        c.request('GET', f'{page}?token={token}', headers={'X-Forwarded-For': '192.168.1.20', 'User-Agent': agent})
+        r = c.getresponse()
+        r.read()
+        c.close()
+        self.assertEqual(r.status, 303)
+        return {'X-Forwarded-For': '192.168.1.20', 'Cookie': r.getheader('Set-Cookie').split(';')[0]}
+
+    def test_devices_are_listed_and_can_be_disconnected(self):
+        token = self.req('POST', '/api/network', {'network': True})[1]['token']
+        phone = self.sign_in(token)
+        laptop = self.sign_in(token, '/stage.html', 'Mozilla/5.0 (Windows NT 10.0) Chrome/120.0 Safari/537.36')
+
+        c = http.client.HTTPConnection('127.0.0.1', self.port, timeout=5)  # the phone shows the output
+        c.request('GET', '/api/events', headers={**phone, 'Referer': f'http://192.168.1.5:{self.port}/output.html'})
+        stream = c.getresponse()
+        self.assertEqual(stream.status, 200)
+        stream.fp.readline()
+
+        devices = self.req('GET', '/api/network', headers={'X-Lumen-Token': token})[1]['devices']
+        self.assertEqual(sorted(d['device'] for d in devices), ['Chrome on Windows', 'Safari on iPhone'])
+        iphone = next(d for d in devices if d['device'] == 'Safari on iPhone')
+        self.assertEqual(iphone['open'], ['Audience output'])
+        self.assertNotIn('token', self.req('GET', '/api/network', headers=phone)[1])
+        self.assertTrue(self.req('GET', '/api/network', headers=phone)[1]['signedIn'])
+
+        status, n = self.req('POST', '/api/network', {'disconnect': iphone['id']}, {'X-Lumen-Token': token})
+        self.assertEqual([d['device'] for d in n['devices']], ['Chrome on Windows'])
+        self.assertEqual(self.req('GET', '/api/library', headers=phone)[0], 401)
+        self.assertEqual(self.req('GET', '/api/library', headers=laptop)[0], 200)
+        while stream.fp.readline():  # the phone's open stream is closed too
+            pass
+        c.close()
+
+        self.req('POST', '/api/network', {'disconnect': 'all'}, {'X-Lumen-Token': token})
+        self.assertEqual(self.req('GET', '/api/library', headers=laptop)[0], 401)
+
+    def test_a_device_can_sign_itself_out(self):
+        token = self.req('POST', '/api/network', {'network': True})[1]['token']
+        phone = self.sign_in(token, '/')
+        c = http.client.HTTPConnection('127.0.0.1', self.port, timeout=5)
+        c.request('POST', '/api/logout', headers=phone)
+        r = c.getresponse()
+        r.read()
+        c.close()
+        self.assertEqual(r.status, 200)
+        self.assertIn('Max-Age=0', r.getheader('Set-Cookie'))
+        self.assertEqual(self.req('GET', '/api/library', headers=phone)[0], 401)
+        self.assertEqual(self.req('GET', '/api/network', headers={'X-Lumen-Token': token})[1]['devices'], [])
+
+    def test_sign_ins_survive_a_restart(self):
+        token = self.req('POST', '/api/network', {'network': True})[1]['token']
+        phone = self.sign_in(token)
+        self.stop()
+        self.start()
+        self.assertEqual(self.req('GET', '/api/library', headers=phone)[0], 200)
 
     def test_host_from_command_line_locks_the_switch(self):
         self.stop()

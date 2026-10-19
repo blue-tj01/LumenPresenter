@@ -29,7 +29,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import CookieError, SimpleCookie
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
-VERSION = 1
+VERSION = 2  # the pages warn when the server is older than they are (updated but not restarted)
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC = {'index.html', 'output.html', 'stage.html', 'app.js', 'app.css', 'render.js', 'render.css', 'sync.js'}
 MEDIA_NAME = re.compile(r'^[a-z0-9]{16}\.[a-z0-9]{1,5}$')
@@ -47,7 +47,9 @@ HEARTBEAT = 15
 LOCAL_HOSTS = ('127.0.0.1', 'localhost', '::1')
 TOKEN_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789'  # no 0/o, 1/l/i, so it can be read off one screen and typed on another
 FORWARDED = ('X-Forwarded-For', 'Forwarded', 'X-Real-IP')
-COOKIE = 'lumen_token'
+COOKIE = 'lumen_session'
+MAX_SESSIONS = 100
+PAGES = {'output.html': 'Audience output', 'stage.html': 'Stage display'}
 # Shown to another device that opens a page without the token (or with an old one).
 TOKEN_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>Lumen Presenter</title>
@@ -64,6 +66,15 @@ button{background:#4f7cff;border-color:#4f7cff;cursor:pointer}p{margin:0;color:#
 def new_token():
     """Three groups of four, e.g. k7mq-3xht-p9wd (about 59 bits)."""
     return '-'.join(''.join(secrets.choice(TOKEN_CHARS) for _ in range(4)) for _ in range(3))
+
+
+def device_name(agent):
+    """'Chrome on iPhone' from a User-Agent, for the list of signed-in devices."""
+    system = next((n for k, n in (('iPhone', 'iPhone'), ('iPad', 'iPad'), ('Android', 'Android'), ('CrOS', 'Chromebook'),
+                                  ('Macintosh', 'Mac'), ('Windows', 'Windows'), ('Linux', 'Linux')) if k in agent), '')
+    browser = next((n for k, n in (('Edg/', 'Edge'), ('Firefox/', 'Firefox'), ('CriOS/', 'Chrome'), ('Chrome/', 'Chrome'),
+                                   ('Safari/', 'Safari')) if k in agent), '')
+    return ' on '.join(x for x in (browser, system) if x) or 'Unknown device'
 
 
 def lan_addresses():
@@ -129,15 +140,42 @@ class Store:
         self.last_backup = 0
 
         self.settings_path = os.path.join(self.dir, 'settings.json')
+        self.settings_lock = threading.Lock()
         settings = read_json(self.settings_path)
         self.settings = settings if isinstance(settings, dict) else {}
+        if not isinstance(self.settings.get('sessions'), dict):
+            self.settings['sessions'] = {}
         if not isinstance(self.settings.get('token'), str) or not self.settings['token']:
             self.settings['token'] = new_token()
             self.save_settings()
 
     def save_settings(self, **changes):
-        """Network mode and its token. Kept with the library, so updating the app's files leaves them alone."""
-        self.settings.update(changes)
+        """Network mode, its token and signed-in devices. Kept with the library, so updating the app's files
+        leaves them alone."""
+        with self.settings_lock:
+            self.settings.update(changes)
+            self._write_settings()
+
+    def add_session(self, info):
+        """Sign a device in; returns the id its cookie carries instead of the token."""
+        sid = secrets.token_urlsafe(24)
+        with self.settings_lock:
+            sessions = self.settings['sessions']
+            sessions[sid] = {**info, 'created': now_ms()}
+            for old in sorted(sessions, key=lambda k: sessions[k].get('created', 0))[:-MAX_SESSIONS]:
+                del sessions[old]
+            self._write_settings()
+        return sid
+
+    def drop_sessions(self, sids=None):
+        """Sign out the given devices, or all of them."""
+        with self.settings_lock:
+            sessions = self.settings['sessions']
+            for sid in list(sessions) if sids is None else sids:
+                sessions.pop(sid, None)
+            self._write_settings()
+
+    def _write_settings(self):
         tmp = f'{self.settings_path}.{secrets.token_hex(4)}.tmp'
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)  # the token is a secret
         with os.fdopen(fd, 'wb') as f:
@@ -248,42 +286,49 @@ class Handler(BaseHTTPRequestHandler):
         """A request from this computer itself, not relayed by a proxy on it."""
         return self.from_loopback() and not any(self.headers.get(h) for h in FORWARDED)
 
-    def given_tokens(self):
-        """Tokens this request carries: header, bearer, or the cookie a token link sets."""
-        given = [self.headers.get('X-Lumen-Token', '')]
-        auth = self.headers.get('Authorization', '')
-        if auth.startswith('Bearer '):
-            given.append(auth[7:])
+    def session(self):
+        """The signed-in device this request comes from (its cookie), if any."""
         try:
             morsel = SimpleCookie(self.headers.get('Cookie', '')).get(COOKIE)
         except CookieError:
-            morsel = None
-        if morsel:
-            given.append(unquote(morsel.value))
-        return [g for g in given if g]
+            return None
+        sid = morsel.value if morsel else ''
+        return sid if sid and sid in self.store.settings['sessions'] else None
 
     def authorized(self):
         token = self.server.token
         if not token:
             return True
-        return any(secrets.compare_digest(g.encode(), token.encode()) for g in self.given_tokens())
+        given = [self.headers.get('X-Lumen-Token', '')]
+        auth = self.headers.get('Authorization', '')
+        if auth.startswith('Bearer '):
+            given.append(auth[7:])
+        if any(g and secrets.compare_digest(g.encode(), token.encode()) for g in given):
+            return True
+        sid = self.session()
+        if sid:
+            self.server.seen[sid] = now_ms()
+        return bool(sid)
 
     def may_read(self):
         """In network mode other devices need the token to see anything, not only to change it."""
         return not self.server.network or self.is_local() or self.authorized()
 
     def token_link(self, url, method):
-        """A page opened as ?token=... (the links in the console's Network tab): remember it in a cookie and
-        reload without it, so the token doesn't stay in the address bar or history. True if handled."""
+        """A page opened as ?token=... (the links in the console's Network tab, or the token page's form): sign
+        the device in with a cookie and reload without the token, so it doesn't stay in the address bar or
+        history. True if handled."""
         if method != 'GET' or url.path.startswith('/api/') or 'token' not in parse_qs(url.query):
             return False
         token = parse_qs(url.query)['token'][0].strip()
         if not secrets.compare_digest(token.encode(), (self.server.token or '').encode()):
             self.send_token_page('That token is not right. Check it in the Network tab of the console.')
             return True
+        sid = self.store.add_session({'device': device_name(self.headers.get('User-Agent', '')),
+                                      'address': self.client_address[0]})
         self.send_response(HTTPStatus.SEE_OTHER)
         self.send_header('Location', quote(url.path))
-        self.send_header('Set-Cookie', f'{COOKIE}={quote(token, safe="")}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict')
+        self.send_header('Set-Cookie', f'{COOKIE}={sid}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict')
         self.send_header('Content-Length', '0')
         self.send_header('Cache-Control', 'no-store')
         self.end_headers()
@@ -358,10 +403,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def network_info(self):
         srv = self.server
-        info = {'network': srv.network, 'local': self.is_local()}
+        info = {'network': srv.network, 'local': self.is_local(), 'signedIn': bool(self.session())}
         if info['local']:  # only the computer running Lumen is shown the token and may change the setting
+            with self.store.settings_lock:
+                sessions = dict(self.store.settings['sessions'])
+            with srv.streams_lock:
+                pages = {sid: sorted(set(p)) for sid, p in srv.streams.items()}
+            devices = [{'id': sid, **s, 'seen': srv.seen.get(sid), 'open': pages.get(sid, [])}
+                       for sid, s in sessions.items()]
             info.update(locked=srv.host_locked, token=srv.explicit_token or self.store.settings['token'],
-                        port=srv.server_address[1], addresses=lan_addresses() if srv.network else [])
+                        port=srv.server_address[1], addresses=lan_addresses() if srv.network else [],
+                        devices=sorted(devices, key=lambda d: d.get('seen') or d.get('created') or 0, reverse=True))
         return info
 
     def api_get_network(self, _):
@@ -376,7 +428,11 @@ class Handler(BaseHTTPRequestHandler):
             if srv.explicit_token:
                 return self.error(HTTPStatus.CONFLICT, 'the token is set with --token or LUMEN_TOKEN')
             self.store.save_settings(token=new_token())
-            self.hub.send('ping', {'time': now_ms()})  # event streams opened with the old token close
+            self.store.drop_sessions()
+            self.hub.send('ping', {'time': now_ms()})  # event streams of signed-out devices close
+        if 'disconnect' in body:  # a device id, or 'all'
+            self.store.drop_sessions(None if body['disconnect'] == 'all' else [str(body['disconnect'])])
+            self.hub.send('ping', {'time': now_ms()})
         if 'network' in body:
             on = bool(body['network'])
             if srv.host_locked and on != srv.network:
@@ -384,6 +440,21 @@ class Handler(BaseHTTPRequestHandler):
             if on != srv.network:
                 srv.set_network(on)
         self.send_json(self.network_info())
+
+    def api_post_logout(self, _):
+        """Sign this device out: forget its session and its cookie."""
+        sid = self.session()
+        if sid:
+            self.store.drop_sessions([sid])
+            self.hub.send('ping', {'time': now_ms()})
+        body = b'{"ok": true}'
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Set-Cookie', f'{COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict')
+        self.end_headers()
+        self.wfile.write(body)
 
     def api_get_library(self, _):
         with self.store.lock:
@@ -458,6 +529,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_get_events(self, _):
         q = self.hub.add()
+        sid = self.session()
+        page = PAGES.get(urlsplit(self.headers.get('Referer', '')).path.rsplit('/', 1)[-1], 'Console')
+        if sid:
+            with self.server.streams_lock:
+                self.server.streams.setdefault(sid, []).append(page)
         try:
             self.send_response(200)
             self.send_header('Content-Type', 'text/event-stream')
@@ -476,7 +552,7 @@ class Handler(BaseHTTPRequestHandler):
                     msg = q.get(timeout=HEARTBEAT)
                 except queue.Empty:
                     msg = f'event: ping\ndata: {{"time": {now_ms()}}}\n\n'.encode()
-                # Network mode switched off, or a new token made since this stream opened.
+                # Network mode switched off, or this device signed out (or a new token made) since it opened.
                 if msg is None or not (local or self.server.network) or not self.may_read():
                     break
                 self.wfile.write(msg)
@@ -485,6 +561,12 @@ class Handler(BaseHTTPRequestHandler):
             pass
         finally:
             self.hub.remove(q)
+            if sid:
+                with self.server.streams_lock:
+                    open_pages = self.server.streams[sid]
+                    open_pages.remove(page)
+                    if not open_pages:
+                        del self.server.streams[sid]
 
     # ---------- files ----------
     def serve_static(self, path):
@@ -571,6 +653,9 @@ class LumenServer(ThreadingHTTPServer):
         self.rebind_to = None
         self.rebound = threading.Event()
         self.switching = threading.Lock()
+        self.seen = {}     # session id -> last request (ms), not saved
+        self.streams = {}  # session id -> pages it has open now (one per event stream)
+        self.streams_lock = threading.Lock()
 
     @property
     def network(self):
