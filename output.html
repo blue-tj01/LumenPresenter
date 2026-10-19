@@ -32,7 +32,9 @@
   const fs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
   document.ondblclick = fs;
   document.onkeydown = e => { if (e.key === 'f' || e.key === 'F') fs(); };
-  showHint('Double-click or press F to go full screen', 3500);
+  // The desktop app opens it already full screen on its display (output.html?display).
+  if (new URLSearchParams(location.search).has('display')) hint.style.opacity = 0;
+  else showHint('Double-click or press F to go full screen', 3500);
 </script>
 </body>
 </html>
