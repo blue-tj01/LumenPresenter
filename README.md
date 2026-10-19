@@ -74,6 +74,7 @@ Chorus line
 - A blank line starts a new slide.
 - An optional `@bg:` line sets the presentation's default background (colour, CSS gradient, image or video URL).
 - An `@image:` line puts a picture on that slide, letterboxed over the background. Any other lines on the slide are shown as text on top of it.
+- An `@video:` line plays a video on that slide, once, with sound on the audience output.
 
 ### Slideshows and picture slides
 
@@ -88,6 +89,16 @@ Welcome to Youth Camp!
 ```
 
 Without the server, pictures are kept in the media bin and referenced as `@image: #<id>`.
+
+### Videos in the playlist
+
+**＋ Video** in the playlist header (or dropping video files onto the playlist) adds each video to the queue as its own item, marked ▶. A video already in the media bin has a **＋ Playlist** button. Each one is a one-slide presentation, so it plays in turn and **Next** moves on to the following song.
+
+A live video plays once, with sound on the audience output only (the console preview and thumbnails are muted). While it is live, **Pause / Play** and **Restart** appear under Prev / Next with the elapsed time. Every output window follows the same clock, so a window opened or reloaded mid-video joins at the right moment.
+
+Any slide can carry a video with an `@video:` line, the same way as `@image:`, and the editor's **Add images / videos** button accepts both. If the browser blocks sound in the output window until it has been clicked, the video starts silently and the window says to click it once.
+
+Without the server, videos last for the current session only.
 
 ## Data
 

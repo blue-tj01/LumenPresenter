@@ -140,13 +140,14 @@ Have a great week!`]
     out += p.groups.map(g => `[${g.name}]\n` + g.slides.join('\n\n')).join('\n\n');
     return out;
   }
-  // A slide line "@image: <src>" puts a picture on that slide. <src> is a URL, a server media path,
-  // or "#<id>" for a picture kept in the media bin (how pictures are stored when running without the server).
-  const IMAGE_LINE = /^@image:\s*(.+)$/i;
+  // A slide line "@image: <src>" puts a picture on that slide, and "@video: <src>" a video that plays once,
+  // with sound on the audience output. <src> is a URL, a server media path, or "#<id>" for a file kept in the
+  // media bin (how pictures and videos are stored when running without the server).
+  const MEDIA_LINE = /^@(image|video):\s*(.+)$/i;
   function splitSlide(raw) {
-    let image = null;
-    const text = raw.split('\n').filter(l => { const m = l.match(IMAGE_LINE); if (m) image = m[1].trim(); return !m; }).join('\n').trim();
-    return { text, image };
+    const media = { image: null, video: null };
+    const text = raw.split('\n').filter(l => { const m = l.match(MEDIA_LINE); if (m) media[m[1].toLowerCase()] = m[2].trim(); return !m; }).join('\n').trim();
+    return { text, ...media };
   }
   function makePres(name, text) { const r = parseText(text); return { id: uid(), name, groups: r.groups, bg: r.bg }; }
 
@@ -203,12 +204,13 @@ Have a great week!`]
   let selectedId = (db.playlist[0] || db.presentations[0]?.id) ?? null;
 
   const getPres = id => db.presentations.find(p => p.id === id);
-  const resolveImage = src => src && src.startsWith('#') ? db.media.find(m => m.id === src.slice(1))?.src || null : src;
+  const resolveMedia = src => src && src.startsWith('#') ? db.media.find(m => m.id === src.slice(1))?.src || null : src;
   const flat = p => p ? p.groups.flatMap((g, gi) => g.slides.map((raw, si) => {
-    const { text, image } = splitSlide(raw);
-    return { text, image: resolveImage(image), group: g.name, gi, si, color: groupColor(g.name) };
+    const { text, image, video } = splitSlide(raw);
+    return { text, image: resolveMedia(image), video: resolveMedia(video), group: g.name, gi, si, color: groupColor(g.name) };
   })) : [];
-  const slideSummary = s => s ? s.text || (s.image ? '[Image]' : '') : '';
+  const slideSummary = s => s ? s.text || (s.video ? '[Video]' : s.image ? '[Image]' : '') : '';
+  const isVideoPres = p => { const sl = flat(p); return sl.length > 0 && sl.every(s => s.video); };
 
   function payload() {
     return { ...live, theme: db.theme, logoText: db.logoText };
@@ -239,6 +241,7 @@ Have a great week!`]
     if (!s) return;
     live.presId = presId; live.idx = idx; live.logo = false;
     live.slide = { text: s.text, image: s.image, label: `${p.name} — ${s.group}`, color: s.color };
+    if (s.video) Object.assign(live.slide, { video: s.video, play: { startAt: Lumen.now(), paused: false, pos: 0 } });
     if (p.bg && (!live.bg || live._autoBgFrom !== p.id)) { live.bg = p.bg; live._autoBgFrom = p.id; }
     const nt = nextTarget(presId, idx, 1);
     live.next = nt ? slideSummary(flat(getPres(nt[0]))[nt[1]]) : '';
@@ -257,6 +260,18 @@ Have a great week!`]
     if (live.presId !== selectedId && dir > 0 && live.idx < 0) { goLive(selectedId, 0); return; }
     const t = nextTarget(live.presId, live.idx, dir);
     if (t) goLive(t[0], t[1]);
+  }
+  // Seconds into the live video, from its shared clock.
+  const videoPos = play => play.paused ? play.pos : (Lumen.now() - play.startAt) / 1000 + play.pos;
+  const liveVideoEl = () => live.slide && live.slide.video && preview._pp.img && preview._pp.img.el ? preview._pp.img.el.querySelector('video') : null;
+  function videoControl(what) {
+    const play = live.slide && live.slide.video && live.slide.play;
+    if (!play) return;
+    const v = liveVideoEl(), dur = v && isFinite(v.duration) ? v.duration : Infinity;
+    if (what === 'restart') live.slide.play = { startAt: Lumen.now(), paused: false, pos: 0 };
+    else if (play.paused) { const pos = play.pos >= dur ? 0 : play.pos; live.slide.play = { startAt: Lumen.now(), paused: false, pos }; }
+    else live.slide.play = { startAt: null, paused: true, pos: Math.min(videoPos(play), dur) };
+    broadcast();
   }
   function clear(what) {
     if (what === 'all') { live.slide = null; live.bg = null; live.msg = null; live.logo = false; live.idx = -1; live.next = ''; live._autoBgFrom = null; }
@@ -279,6 +294,7 @@ Have a great week!`]
         const li = document.createElement('li');
         li.dataset.id = p.id;
         li.innerHTML = '<span class="ico">♪</span><span class="nm"></span>';
+        if (isVideoPres(p)) li.firstChild.textContent = '▶';
         li.querySelector('.nm').textContent = li.title = p.name;
         li.onclick = () => { selectedId = p.id; renderAll(); };
         li.ondblclick = () => { if (!db.playlist.includes(p.id)) { db.playlist.push(p.id); save(); renderPlaylist(); } };
@@ -295,7 +311,7 @@ Have a great week!`]
       const p = getPres(id);
       const li = document.createElement('li');
       li.dataset.id = id; li.draggable = true;
-      li.innerHTML = `<span class="ico">${i + 1}</span><span class="nm"></span><button class="x" title="Remove">✕</button>`;
+      li.innerHTML = `<span class="ico">${i + 1}</span>${isVideoPres(p) ? '<span class="kind">▶</span>' : ''}<span class="nm"></span><button class="x" title="Remove">✕</button>`;
       li.querySelector('.nm').textContent = li.title = p.name;
       li.onclick = e => { if (e.target.classList.contains('x')) { db.playlist.splice(i, 1); save(); renderPlaylist(); return; } selectedId = id; renderAll(); };
       li.ondragstart = () => { dragFrom = i; };
@@ -337,7 +353,7 @@ Have a great week!`]
       card.onclick = () => goLive(p.id, i);
       grid.appendChild(card);
       PP.createScreen(scr);
-      PP.update(scr, { bg: p.bg || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { text: s.text, image: s.image }, theme: db.theme }, { animate: false });
+      PP.update(scr, { bg: p.bg || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { text: s.text, image: s.image, video: s.video }, theme: db.theme }, { animate: false, still: true });
     });
     renderLiveMarks();
   }
@@ -346,6 +362,9 @@ Have a great week!`]
     $$('.slide').forEach(el => el.classList.toggle('live', live.presId === selectedId && +el.dataset.idx === live.idx && !!live.slide));
     $$('.mitem').forEach(el => el.classList.toggle('live', !!live.bg && el.dataset.src === live.bg.src));
     $('#btnLogo').classList.toggle('on', live.logo);
+    const vidLive = !!(live.slide && live.slide.video);
+    $$('.vidctl').forEach(b => b.hidden = !vidLive);
+    if (vidLive) $('#btnVidPlay').firstChild.textContent = live.slide.play && live.slide.play.paused ? '▶ Play' : '❚❚ Pause';
     $('#liveLabel').textContent = live.slide ? live.slide.label : (live.logo ? 'Logo' : '');
     markLists();
   }
@@ -362,9 +381,15 @@ Have a great week!`]
         d.appendChild(v);
       }
       else { d.style.background = m.src; if (m.type === 'motion') d.classList.add('pp-motion'); }
-      d.insertAdjacentHTML('beforeend', `<span></span>${m.builtin ? '' : '<button class="x" title="Remove">✕</button>'}`);
+      d.insertAdjacentHTML('beforeend', `<span></span>${m.builtin ? '' : '<button class="x" title="Remove">✕</button>'}` +
+        (m.type === 'video' ? '<button class="pl" title="Add to playlist">＋ Playlist</button>' : ''));
       d.querySelector('span').textContent = m.name;
       d.onclick = e => {
+        if (e.target.classList.contains('pl')) {
+          addVideoToPlaylist(m.name.replace(/\.[^.]+$/, ''), online ? m.src : '#' + m.id);
+          save(); renderAll(); toast(`Added ${m.name} to the playlist`);
+          return;
+        }
         if (e.target.classList.contains('x')) {
           const onSlide = db.presentations.some(p => p.groups.some(g => g.slides.some(s => s.includes('#' + m.id))));
           if (onSlide) { toast(`“${m.name}” is used on a slide — remove it there first`); return; }
@@ -404,6 +429,31 @@ Have a great week!`]
       }
     });
     toast('Media added' + (files.some(f => f.type.startsWith('video/')) ? ' (videos last for this session)' : ''));
+  }
+
+  // Stores a picture or video and returns how a slide refers to it: its server path, or "#<id>" for a file kept
+  // in the media bin without the server (videos then last for this session only).
+  async function storeSlideMedia(f) {
+    if (online) return (await Lumen.uploadMedia(f)).src;
+    const video = f.type.startsWith('video/');
+    const m = { id: uid(), name: f.name, type: video ? 'video' : 'image', src: video ? URL.createObjectURL(f) : await readDataUrl(f) };
+    db.media.push(m);
+    return '#' + m.id;
+  }
+  // A video in the playlist is a one-slide presentation, so it plays in turn and Next moves past it.
+  function addVideoToPlaylist(name, ref, at = db.playlist.length) {
+    const p = { id: uid(), name, groups: [{ name: 'Video', slides: ['@video: ' + ref] }], bg: null };
+    db.presentations.push(p); db.playlist.splice(at, 0, p.id);
+    return p;
+  }
+  async function addPlaylistVideos(files, at = db.playlist.length) {
+    files = [...files].filter(f => f.type.startsWith('video/'));
+    for (const f of files) {
+      toast(`Adding ${f.name}…`);
+      try { addVideoToPlaylist(f.name.replace(/\.[^.]+$/, ''), await storeSlideMedia(f), at++); }
+      catch (e) { toast(`Could not add ${f.name}: ${e.message || 'read failed'}`); continue; }
+      save(); renderAll(); renderMedia(); toast(`Added ${f.name} to the playlist`);
+    }
   }
 
   function renderMessages() {
@@ -448,32 +498,27 @@ Have a great week!`]
     $('#editor').hidden = false; $('#edText').focus();
   }
   const readDataUrl = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
-  // Each picture becomes its own slide at the cursor. A new presentation still holding the sample text
+  // Each picture or video becomes its own slide at the cursor. A new presentation still holding the sample text
   // becomes a slideshow instead.
   async function addEditorImages(files) {
-    files = [...files].filter(f => f.type.startsWith('image/'));
+    files = [...files].filter(f => /^(image|video)\//.test(f.type));
     if (!files.length) return;
-    toast(`Adding ${files.length} image${files.length > 1 ? 's' : ''}…`);
+    toast(`Adding ${files.length} file${files.length > 1 ? 's' : ''}…`);
     const refs = [];
     for (const f of files) {
-      try {
-        if (online) refs.push((await Lumen.uploadMedia(f)).src);
-        else {
-          const m = { id: uid(), name: f.name, type: 'image', src: await readDataUrl(f) };
-          db.media.push(m); refs.push('#' + m.id);
-        }
-      } catch (e) { toast(`Could not add ${f.name}: ${e.message || 'read failed'}`); }
+      try { refs.push((f.type.startsWith('video/') ? '@video: ' : '@image: ') + await storeSlideMedia(f)); }
+      catch (e) { toast(`Could not add ${f.name}: ${e.message || 'read failed'}`); }
     }
     if (!refs.length) return;
     if (!online) { save(); renderMedia(); }
-    const ta = $('#edText'), block = refs.map(r => '@image: ' + r).join('\n\n');
+    const ta = $('#edText'), block = refs.join('\n\n');
     if (!ta.value.trim() || ta.value === SAMPLE_TEXT) ta.value = '[Slideshow]\n' + block;
     else {
       const at = ta.selectionEnd;
       ta.value = (ta.value.slice(0, at) + '\n\n' + block + '\n\n' + ta.value.slice(at)).replace(/\n{3,}/g, '\n\n').trim();
     }
     if ($('#edName').value === 'Untitled' && ta.value.startsWith('[Slideshow]')) $('#edName').value = 'Slideshow';
-    toast(`Added ${refs.length} image slide${refs.length > 1 ? 's' : ''}`);
+    toast(`Added ${refs.length} slide${refs.length > 1 ? 's' : ''}`);
   }
   function saveEditor() {
     const r = parseText($('#edText').value);
@@ -491,6 +536,11 @@ Have a great week!`]
     $('#clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const r = timerRemaining();
     $('#timerBig').textContent = fmt(r); $('#timerBig').classList.toggle('neg', r < 0);
+    const v = liveVideoEl();
+    if (v && live.slide.play) {
+      const dur = isFinite(v.duration) ? v.duration : 0, at = Math.max(0, videoPos(live.slide.play));
+      $('#vidTime').textContent = fmt(dur ? Math.min(at, dur) : at) + (dur ? ' / ' + fmt(dur) : '');
+    }
   }, 250);
 
   // ---------- toast ----------
@@ -536,6 +586,20 @@ Have a great week!`]
   $$('[data-clear]').forEach(b => b.onclick = () => clear(b.dataset.clear));
   $('#btnNext').onclick = () => step(1);
   $('#btnPrev').onclick = () => step(-1);
+  $('#btnVidPlay').onclick = () => videoControl('toggle');
+  $('#btnVidRestart').onclick = () => videoControl('restart');
+  $('#btnAddVideo').onclick = () => $('#playlistFile').click();
+  $('#playlistFile').onchange = e => { addPlaylistVideos(e.target.files); e.target.value = ''; };
+  const pl = $('#playList');
+  pl.ondragover = e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); pl.classList.add('drop'); } };
+  pl.ondragleave = () => pl.classList.remove('drop');
+  pl.ondrop = e => {
+    pl.classList.remove('drop'); $$('#playList .drag-over').forEach(li => li.classList.remove('drag-over'));
+    if (!e.dataTransfer.files.length) return;
+    e.preventDefault();
+    const li = e.target.closest('li'), at = li ? [...pl.children].indexOf(li) : db.playlist.length;
+    addPlaylistVideos(e.dataTransfer.files, at);
+  };
 
   $$('.tabs button').forEach(b => b.onclick = () => {
     $$('.tabs button').forEach(x => x.classList.toggle('on', x === b));
