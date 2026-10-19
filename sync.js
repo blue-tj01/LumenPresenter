@@ -12,6 +12,8 @@
   let streaming = false; // the event stream is open right now
   let offset = 0;        // server clock minus local clock, so timers agree across devices
   let authDeclined = false;
+  let outdated = false;  // server.py was updated on disk but the running server wasn't restarted
+  const SERVER_VERSION = 2;
 
   const syncClock = t => { if (t) offset = t - Date.now(); };
   const status = () => emit('status', { online, streaming });
@@ -31,7 +33,8 @@
       }
       const r = await fetch(path, { method, headers, body: data, cache: 'no-store' });
       if (r.status === 401 && attempt === 0 && !authDeclined) {
-        const t = prompt('This Lumen server needs its access token before changes can be made:', '');
+        // On the computer running Lumen the server hands over its token, so only other devices are asked.
+        const t = await localToken() || prompt('This Lumen server needs its access token before changes can be made:', '');
         if (t && t.trim()) { setToken(t.trim()); continue; }
         authDeclined = true;
       }
@@ -41,6 +44,22 @@
       }
       return r.json();
     }
+  }
+
+  async function localToken() {
+    try {
+      const r = await fetch('api/network', { cache: 'no-store' });
+      // Another device whose token link is out of date (a new token was made): reload to be asked for it.
+      if (r.status === 401) { location.reload(); return new Promise(() => {}); }
+      const n = await r.json();
+      if (n.token && n.token !== getToken()) return n.token;
+    } catch {}
+    return '';
+  }
+  async function network(change) {
+    const n = change ? await request('POST', 'api/network', change) : await request('GET', 'api/network');
+    if (n.token) setToken(n.token);
+    return n;
   }
 
   // ---------- live state ----------
@@ -105,7 +124,7 @@
   function connect() {
     const es = new EventSource('api/events');
     es.onopen = () => { streaming = true; status(); flushLive(); flushLib(); };
-    es.onerror = () => { if (streaming) { streaming = false; status(); } };
+    es.onerror = () => { if (streaming) { streaming = false; status(); localToken(); } };
     es.addEventListener('hello', e => {
       const d = JSON.parse(e.data);
       receiveState(d);
@@ -127,6 +146,7 @@
       const h = r.ok ? await r.json() : null;
       online = !!(h && h.ok);
       if (online) syncClock(h.time);
+      outdated = online && !(h.version >= SERVER_VERSION);
     } catch { online = false; }
     if (online) connect();
     status();
@@ -144,6 +164,14 @@
     on: (type, fn) => listeners[type].push(fn),
     hello: () => chan.postMessage({ type: 'hello' }), // ask same-browser operator windows for the current state
     getLive: () => request('GET', 'api/live'),
+    network: () => network(),            // {network, local, and on this computer: locked, token, port, addresses}
+    setNetwork: change => network(change), // {network: true|false}, {regenerate: true} or {disconnect: id|'all'}
+    signOut: async () => { // this device, when it was signed in with the token
+      setToken('');
+      await fetch('api/logout', { method: 'POST', cache: 'no-store' }).catch(() => {});
+      location.reload();
+    },
+    get outdated() { return outdated; },
     uploadMedia: file => request('POST', 'api/media', file),
     deleteMedia: src => /^media\/[a-z0-9.]+$/.test(src) ? request('DELETE', 'api/' + src).catch(() => {}) : Promise.resolve(),
     now: () => Date.now() + offset,

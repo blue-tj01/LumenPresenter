@@ -12,23 +12,27 @@ Then open http://localhost:8642. Python 3.8+ is the only requirement.
 
 The server keeps the library, media and live state on disk and pushes every change to all open windows, on any device. Reloading the console, closing the browser, or restarting the server never loses the library or blanks the projector.
 
-To drive screens from other machines (stage display on a laptop, output on a second computer, a second operator console), bind to the network and set a token:
+To drive screens from other machines (stage display on a laptop, output on a second computer, a second operator console), open the console's **Network** tab and turn on **Network mode**. It shows a link for the operator console, the audience output and the stage display, each carrying the access token, so the other device only needs the link opened once. That signs the device in (a cookie that stands for the device, not the token itself), and the token is taken out of the address bar. Lumen starts local-only, and turning network mode on or off takes effect straight away, with no restart.
 
-```bash
-python3 server.py --host 0.0.0.0 --token <secret>
-```
+The token is generated the first time the server starts and saved, with the network setting, in `settings.json` in the data directory. Updating or replacing the app's files leaves it alone, so the token and the setting survive upgrades and restarts. **New** in the Network tab makes a fresh token if the old one has been shared too widely. The network setting and token can only be seen or changed on the computer running Lumen.
 
-The console asks for the token the first time it changes anything. Output and stage pages only read, so they don't need it.
+In network mode other devices need the token to see anything, not only to change it: a device that opens Lumen without a link is asked for it. The computer running Lumen never is.
+
+The Network tab lists the signed-in devices and what each is showing, with **Disconnect** (or **Disconnect all**) to sign one out; it goes back to the token page. A console on another device has **Sign out of this device** in its own Network tab. Anyone who knows the token can sign back in, so **New** makes a fresh token and signs every device out until it is given the new one.
+
+After updating the app's files, restart `server.py`. Until then the old server keeps running, and the console says so.
+
+The command-line options still work, and take precedence over the console: `--host` fixes the address (the Network switch is then shown but can't be changed), and `--token` replaces the saved token and is required even locally.
 
 | Option | Env var | Default |
 | --- | --- | --- |
-| `--host` | `LUMEN_HOST` | `127.0.0.1` |
+| `--host` | `LUMEN_HOST` | `127.0.0.1`, or `0.0.0.0` once network mode is on |
 | `--port` | `LUMEN_PORT` | `8642` |
 | `--data` | `LUMEN_DATA` | `./data` |
-| `--token` | `LUMEN_TOKEN` | none (no auth) |
+| `--token` | `LUMEN_TOKEN` | the generated one, required in network mode |
 | `--max-upload-mb` | `LUMEN_MAX_UPLOAD_MB` | `4096` |
 
-To run it as a service, see `deploy/lumen.service` (systemd). Behind a reverse proxy, turn off response buffering for `/api/events` (nginx: `proxy_buffering off;`), and raise the request body limit if you upload videos.
+To run it as a service, see `deploy/lumen.service` (systemd). Behind a reverse proxy, pass `--token` (requests relayed by a proxy on the same computer otherwise look local), turn off response buffering for `/api/events` (nginx: `proxy_buffering off;`), and raise the request body limit if you upload videos.
 
 ### Without the server
 
@@ -120,6 +124,7 @@ With the server, everything lives in the data directory:
 | --- | --- |
 | `library.json` | Presentations, playlist, media list, themes, messages (written atomically) |
 | `live.json` | What is on screen right now, so windows recover after a restart |
+| `settings.json` | Network mode, its access token and the signed-in devices (readable only by the account running the server) |
 | `media/` | Uploaded images and videos |
 | `backups/` | Snapshots of `library.json`, at most one every 10 minutes, newest 50 kept |
 
@@ -136,9 +141,11 @@ If several operator consoles edit the library at the same time, the last save wi
 | `GET` / `POST /api/live` | Read / set the live state (`{live}`) |
 | `POST /api/media` | Upload an image or video (raw body, `X-Filename` header) |
 | `DELETE /api/media/<file>` | Remove an uploaded file |
+| `GET` / `POST /api/network` | Network mode (`{network}`, `{regenerate: true}` for a new token, `{disconnect: <device id> or "all"}`); the token, device list and changes are only for the computer running Lumen |
+| `POST /api/logout` | Sign this device out |
 | `GET /api/events` | Server-Sent Events: `hello`, `state`, `library`, `ping` |
 
-Requests that change data need `X-Lumen-Token` or `Authorization: Bearer` when a token is set.
+Requests that change data need the token (`X-Lumen-Token`, `Authorization: Bearer`, or the sign-in cookie a token link sets) in network mode, or whenever `--token` is set. In network mode, requests from other devices need it to read as well, except `/api/health`.
 
 ## Tests
 

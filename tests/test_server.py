@@ -160,5 +160,189 @@ class TokenTest(ServerTest):
         self.assertTrue(json.loads(self.req('GET', '/api/health')[1])['auth'])
 
 
+class NetworkModeTest(unittest.TestCase):
+    """Network mode switched from the console: a saved token, rebinding, and who may see or change it."""
+
+    def setUp(self):
+        self.data = tempfile.mkdtemp()
+        self.start()
+
+    def start(self):
+        self.srv = server.LumenServer((None, 0), self.data)
+        self.port = self.srv.server_address[1]
+        self.thread = threading.Thread(target=self.srv.serve, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.srv.shutdown()
+        self.srv.server_close()
+        self.thread.join(5)
+
+    def tearDown(self):
+        self.stop()
+        shutil.rmtree(self.data, ignore_errors=True)
+
+    def req(self, method, path, body=None, headers=None):
+        c = http.client.HTTPConnection('127.0.0.1', self.port, timeout=15)
+        h = dict(headers or {})
+        if body is not None:
+            body = json.dumps(body).encode()
+            h['Content-Type'] = 'application/json'
+        c.request(method, path, body, h)
+        r = c.getresponse()
+        data = r.read()
+        c.close()
+        return r.status, json.loads(data) if data else None
+
+    def test_local_only_by_default_with_a_saved_token(self):
+        self.assertEqual(self.srv.server_address[0], '127.0.0.1')
+        status, n = self.req('GET', '/api/network')
+        self.assertEqual(status, 200)
+        self.assertFalse(n['network'])
+        self.assertFalse(n['locked'])
+        self.assertRegex(n['token'], r'^[a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{4}$')
+        self.assertEqual(self.req('POST', '/api/live', {'live': {}})[0], 200)  # no token needed locally
+        with open(os.path.join(self.data, 'settings.json')) as f:
+            self.assertEqual(json.load(f)['token'], n['token'])
+        if os.name == 'posix':
+            self.assertEqual(os.stat(os.path.join(self.data, 'settings.json')).st_mode & 0o777, 0o600)
+
+    def test_switching_on_rebinds_requires_the_token_and_persists(self):
+        token = self.req('GET', '/api/network')[1]['token']
+        status, n = self.req('POST', '/api/network', {'network': True})
+        self.assertEqual(status, 200)
+        self.assertTrue(n['network'])
+        self.assertEqual(self.srv.server_address, ('0.0.0.0', self.port))
+        self.assertEqual(self.req('POST', '/api/live', {'live': {}})[0], 401)
+        self.assertEqual(self.req('POST', '/api/live', {'live': {}}, {'X-Lumen-Token': token})[0], 200)
+        self.assertEqual(self.req('POST', '/api/network', {'network': False})[0], 401)
+
+        self.stop()  # a restart (or an updated server.py) keeps both the mode and the token
+        self.start()
+        self.assertEqual(self.srv.server_address[0], '0.0.0.0')
+        self.assertEqual(self.req('GET', '/api/network')[1]['token'], token)
+
+        status, n = self.req('POST', '/api/network', {'network': False}, {'X-Lumen-Token': token})
+        self.assertEqual(status, 200)
+        self.assertEqual(self.srv.server_address[0], '127.0.0.1')
+        self.assertEqual(self.req('POST', '/api/live', {'live': {}})[0], 200)
+
+    def test_regenerate_token(self):
+        old = self.req('GET', '/api/network')[1]['token']
+        new = self.req('POST', '/api/network', {'regenerate': True})[1]['token']
+        self.assertNotEqual(old, new)
+        self.assertEqual(self.req('GET', '/api/network')[1]['token'], new)
+
+    def test_proxied_requests_get_no_token_and_cannot_switch(self):
+        fwd = {'X-Forwarded-For': '203.0.113.9'}
+        status, n = self.req('GET', '/api/network', headers=fwd)
+        self.assertEqual(status, 200)
+        self.assertNotIn('token', n)
+        self.assertEqual(self.req('POST', '/api/network', {'network': True}, fwd)[0], 403)
+        self.assertEqual(self.srv.server_address[0], '127.0.0.1')
+
+    def test_other_devices_need_the_token_to_see_anything(self):
+        token = self.req('POST', '/api/network', {'network': True})[1]['token']
+        remote = {'X-Forwarded-For': '192.168.1.20'}  # counts as another device
+
+        def get(path, headers=None):
+            c = http.client.HTTPConnection('127.0.0.1', self.port, timeout=5)
+            c.request('GET', path, headers={**remote, **(headers or {})})
+            r = c.getresponse()
+            body = r.read()
+            c.close()
+            return r, body
+
+        r, body = get('/output.html')
+        self.assertEqual(r.status, 401)
+        self.assertIn(b'access token', body)
+        self.assertEqual(get('/api/library')[0].status, 401)
+        self.assertEqual(get('/render.js')[0].status, 401)
+        self.assertEqual(get('/api/health')[0].status, 200)
+        self.assertEqual(get('/stage.html?token=nope')[0].status, 401)
+
+        r, _ = get(f'/stage.html?token={token}')  # a link from the Network tab
+        self.assertEqual(r.status, 303)
+        self.assertEqual(r.getheader('Location'), '/stage.html')
+        cookie = r.getheader('Set-Cookie').split(';')[0]
+        self.assertIn('HttpOnly', r.getheader('Set-Cookie'))
+        for path in ('/stage.html', '/render.js', '/api/library', '/api/live'):
+            self.assertEqual(get(path, {'Cookie': cookie})[0].status, 200, path)
+        self.assertEqual(self.req('POST', '/api/live', {'live': {}}, {**remote, 'Cookie': cookie})[0], 200)
+
+        self.assertNotIn(token, cookie)  # the cookie holds a sign-in for this device, not the token itself
+
+        self.req('POST', '/api/network', {'regenerate': True}, {'X-Lumen-Token': token})
+        self.assertEqual(get('/stage.html', {'Cookie': cookie})[0].status, 401)  # signed out by a new token
+        self.assertEqual(self.req('GET', '/api/library')[0], 200)  # this computer never needs it to read
+
+    def sign_in(self, token, page='/output.html', agent='Mozilla/5.0 (iPhone) Safari/604.1'):
+        c = http.client.HTTPConnection('127.0.0.1', self.port, timeout=5)
+        c.request('GET', f'{page}?token={token}', headers={'X-Forwarded-For': '192.168.1.20', 'User-Agent': agent})
+        r = c.getresponse()
+        r.read()
+        c.close()
+        self.assertEqual(r.status, 303)
+        return {'X-Forwarded-For': '192.168.1.20', 'Cookie': r.getheader('Set-Cookie').split(';')[0]}
+
+    def test_devices_are_listed_and_can_be_disconnected(self):
+        token = self.req('POST', '/api/network', {'network': True})[1]['token']
+        phone = self.sign_in(token)
+        laptop = self.sign_in(token, '/stage.html', 'Mozilla/5.0 (Windows NT 10.0) Chrome/120.0 Safari/537.36')
+
+        c = http.client.HTTPConnection('127.0.0.1', self.port, timeout=5)  # the phone shows the output
+        c.request('GET', '/api/events', headers={**phone, 'Referer': f'http://192.168.1.5:{self.port}/output.html'})
+        stream = c.getresponse()
+        self.assertEqual(stream.status, 200)
+        stream.fp.readline()
+
+        devices = self.req('GET', '/api/network', headers={'X-Lumen-Token': token})[1]['devices']
+        self.assertEqual(sorted(d['device'] for d in devices), ['Chrome on Windows', 'Safari on iPhone'])
+        iphone = next(d for d in devices if d['device'] == 'Safari on iPhone')
+        self.assertEqual(iphone['open'], ['Audience output'])
+        self.assertNotIn('token', self.req('GET', '/api/network', headers=phone)[1])
+        self.assertTrue(self.req('GET', '/api/network', headers=phone)[1]['signedIn'])
+
+        status, n = self.req('POST', '/api/network', {'disconnect': iphone['id']}, {'X-Lumen-Token': token})
+        self.assertEqual([d['device'] for d in n['devices']], ['Chrome on Windows'])
+        self.assertEqual(self.req('GET', '/api/library', headers=phone)[0], 401)
+        self.assertEqual(self.req('GET', '/api/library', headers=laptop)[0], 200)
+        while stream.fp.readline():  # the phone's open stream is closed too
+            pass
+        c.close()
+
+        self.req('POST', '/api/network', {'disconnect': 'all'}, {'X-Lumen-Token': token})
+        self.assertEqual(self.req('GET', '/api/library', headers=laptop)[0], 401)
+
+    def test_a_device_can_sign_itself_out(self):
+        token = self.req('POST', '/api/network', {'network': True})[1]['token']
+        phone = self.sign_in(token, '/')
+        c = http.client.HTTPConnection('127.0.0.1', self.port, timeout=5)
+        c.request('POST', '/api/logout', headers=phone)
+        r = c.getresponse()
+        r.read()
+        c.close()
+        self.assertEqual(r.status, 200)
+        self.assertIn('Max-Age=0', r.getheader('Set-Cookie'))
+        self.assertEqual(self.req('GET', '/api/library', headers=phone)[0], 401)
+        self.assertEqual(self.req('GET', '/api/network', headers={'X-Lumen-Token': token})[1]['devices'], [])
+
+    def test_sign_ins_survive_a_restart(self):
+        token = self.req('POST', '/api/network', {'network': True})[1]['token']
+        phone = self.sign_in(token)
+        self.stop()
+        self.start()
+        self.assertEqual(self.req('GET', '/api/library', headers=phone)[0], 200)
+
+    def test_host_from_command_line_locks_the_switch(self):
+        self.stop()
+        self.srv = server.LumenServer(('127.0.0.1', 0), self.data)
+        self.port = self.srv.server_address[1]
+        self.thread = threading.Thread(target=self.srv.serve, daemon=True)
+        self.thread.start()
+        self.assertTrue(self.req('GET', '/api/network')[1]['locked'])
+        self.assertEqual(self.req('POST', '/api/network', {'network': True})[0], 409)
+
+
 if __name__ == '__main__':
     unittest.main()
