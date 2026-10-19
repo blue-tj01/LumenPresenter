@@ -7,8 +7,12 @@ Standard library only.
 
     python3 server.py                       # http://127.0.0.1:8642, data in ./data
     python3 server.py --host 0.0.0.0 --token secret   # reachable from the LAN
+
+Network mode can also be switched on and off from the console. Its access token is generated once and kept,
+with the setting, in data/settings.json.
 """
 import argparse
+import ipaddress
 import json
 import mimetypes
 import os
@@ -16,6 +20,7 @@ import queue
 import re
 import secrets
 import shutil
+import socket
 import sys
 import threading
 import time
@@ -38,6 +43,31 @@ MAX_JSON = 64 * 1024 * 1024
 BACKUP_EVERY = 600  # seconds between library snapshots in data/backups
 BACKUP_KEEP = 50
 HEARTBEAT = 15
+LOCAL_HOSTS = ('127.0.0.1', 'localhost', '::1')
+TOKEN_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789'  # no 0/o, 1/l/i, so it can be read off one screen and typed on another
+FORWARDED = ('X-Forwarded-For', 'Forwarded', 'X-Real-IP')
+
+
+def new_token():
+    """Three groups of four, e.g. k7mq-3xht-p9wd (about 59 bits)."""
+    return '-'.join(''.join(secrets.choice(TOKEN_CHARS) for _ in range(4)) for _ in range(3))
+
+
+def lan_addresses():
+    """This computer's addresses on the local network, best guess first."""
+    found = []
+    try:  # the address the default route would use; connecting a UDP socket sends nothing
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(('192.0.2.1', 9))
+            found.append(s.getsockname()[0])
+    except OSError:
+        pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            found.append(info[4][0])
+    except OSError:
+        pass
+    return [a for i, a in enumerate(found) if a not in found[:i] and not a.startswith('127.')]
 
 
 def now_ms():
@@ -84,6 +114,24 @@ class Store:
         self.live = live.get('live') if isinstance(live, dict) else None
         self.live_origin = None
         self.last_backup = 0
+
+        self.settings_path = os.path.join(self.dir, 'settings.json')
+        settings = read_json(self.settings_path)
+        self.settings = settings if isinstance(settings, dict) else {}
+        if not isinstance(self.settings.get('token'), str) or not self.settings['token']:
+            self.settings['token'] = new_token()
+            self.save_settings()
+
+    def save_settings(self, **changes):
+        """Network mode and its token. Kept with the library, so updating the app's files leaves them alone."""
+        self.settings.update(changes)
+        tmp = f'{self.settings_path}.{secrets.token_hex(4)}.tmp'
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)  # the token is a secret
+        with os.fdopen(fd, 'wb') as f:
+            f.write(json.dumps(self.settings, indent=2).encode())
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, self.settings_path)
 
     def set_library(self, library, origin):
         with self.lock:
@@ -176,6 +224,17 @@ class Handler(BaseHTTPRequestHandler):
         self.close_connection = True  # any unread request body must not be parsed as the next request
         self.send_json({'error': msg}, status)
 
+    def from_loopback(self):
+        try:
+            ip = ipaddress.ip_address(self.client_address[0])
+        except ValueError:
+            return False
+        return (getattr(ip, 'ipv4_mapped', None) or ip).is_loopback
+
+    def is_local(self):
+        """A request from this computer itself, not relayed by a proxy on it."""
+        return self.from_loopback() and not any(self.headers.get(h) for h in FORWARDED)
+
     def authorized(self):
         token = self.server.token
         if not token:
@@ -195,6 +254,9 @@ class Handler(BaseHTTPRequestHandler):
     # ---------- routing ----------
     def route(self, method):
         path = urlsplit(self.path).path
+        if not self.server.network and not self.from_loopback():
+            # Network mode was just switched off; connections made while it was on are turned away.
+            return self.error(HTTPStatus.FORBIDDEN, 'network mode is off')
         if path.startswith('/api/'):
             name = path[5:]
             if method not in ('GET', 'HEAD') and not self.authorized():
@@ -231,6 +293,34 @@ class Handler(BaseHTTPRequestHandler):
     def api_get_health(self, _):
         self.send_json({'ok': True, 'version': VERSION, 'time': now_ms(), 'auth': bool(self.server.token),
                         'clients': self.hub.count()})
+
+    def network_info(self):
+        srv = self.server
+        info = {'network': srv.network, 'local': self.is_local()}
+        if info['local']:  # only the computer running Lumen is shown the token and may change the setting
+            info.update(locked=srv.host_locked, token=srv.explicit_token or self.store.settings['token'],
+                        port=srv.server_address[1], addresses=lan_addresses() if srv.network else [])
+        return info
+
+    def api_get_network(self, _):
+        self.send_json(self.network_info())
+
+    def api_post_network(self, _):
+        if not self.is_local():
+            return self.error(HTTPStatus.FORBIDDEN, 'network mode can only be changed on the computer running Lumen')
+        body = self.read_body_json()
+        srv = self.server
+        if body.get('regenerate'):
+            if srv.explicit_token:
+                return self.error(HTTPStatus.CONFLICT, 'the token is set with --token or LUMEN_TOKEN')
+            self.store.save_settings(token=new_token())
+        if 'network' in body:
+            on = bool(body['network'])
+            if srv.host_locked and on != srv.network:
+                return self.error(HTTPStatus.CONFLICT, 'network mode is set with --host or LUMEN_HOST')
+            if on != srv.network:
+                srv.set_network(on)
+        self.send_json(self.network_info())
 
     def api_get_library(self, _):
         with self.store.lock:
@@ -317,12 +407,13 @@ class Handler(BaseHTTPRequestHandler):
                          'time': now_ms()}
             self.wfile.write(f'retry: 2000\nevent: hello\ndata: {json.dumps(hello)}\n\n'.encode())
             self.wfile.flush()
+            local = self.from_loopback()
             while not self.server.stopping.is_set():
                 try:
                     msg = q.get(timeout=HEARTBEAT)
                 except queue.Empty:
                     msg = f'event: ping\ndata: {{"time": {now_ms()}}}\n\n'.encode()
-                if msg is None:
+                if msg is None or not (local or self.server.network):
                     break
                 self.wfile.write(msg)
                 self.wfile.flush()
@@ -398,16 +489,76 @@ class Handler(BaseHTTPRequestHandler):
 
 
 class LumenServer(ThreadingHTTPServer):
+    """host=None binds as the saved network mode says; any other host is fixed (--host) and can't be switched."""
     daemon_threads = True
 
     def __init__(self, addr, data_dir, token='', max_upload_mb=4096, verbose=False):
-        super().__init__(addr, Handler)
+        host, port = addr
         self.store = Store(data_dir)
+        self.host_locked = host is not None
+        if host is None:
+            host = '0.0.0.0' if self.store.settings.get('network') else '127.0.0.1'
+        super().__init__((host, port), Handler)
         self.hub = Hub()
-        self.token = token
+        self.explicit_token = token
         self.max_upload = max_upload_mb * 1024 * 1024
         self.verbose = verbose
         self.stopping = threading.Event()
+        self.rebind_to = None
+        self.rebound = threading.Event()
+        self.switching = threading.Lock()
+
+    @property
+    def network(self):
+        """Reachable from other computers."""
+        return self.server_address[0] not in LOCAL_HOSTS
+
+    @property
+    def token(self):
+        """The token changes need: --token if given, otherwise the saved one while in network mode."""
+        return self.explicit_token or (self.store.settings['token'] if self.network else '')
+
+    def set_network(self, on):
+        """Save the setting and move the listening socket. Open connections (output windows) carry on."""
+        with self.switching:
+            self.store.save_settings(network=on)
+            self.rebind_to = '0.0.0.0' if on else '127.0.0.1'
+            self.rebound.clear()
+            super().shutdown()  # serve() rebinds once the loop has stopped
+            self.rebound.wait(10)
+        self.hub.send('ping', {'time': now_ms()})  # wake event streams so remote ones close if now local
+
+    def serve(self):
+        """serve_forever, rebinding whenever network mode is switched."""
+        while True:
+            self.serve_forever()
+            if self.stopping.is_set() or not self.rebind_to:
+                return
+            try:
+                self._rebind(self.rebind_to)
+            finally:
+                self.rebind_to = None
+                self.rebound.set()
+
+    def _rebind(self, host):
+        port = self.server_address[1]
+        old = self.server_address[0]
+        self.socket.close()
+        for h in (host, old):
+            self.socket = socket.socket(self.address_family, self.socket_type)
+            self.server_address = (h, port)
+            try:
+                self.server_bind()
+                self.server_activate()
+                break
+            except OSError as e:
+                print(f'warning: could not listen on {h}:{port}: {e}', file=sys.stderr)
+                self.socket.close()
+        else:
+            raise OSError(f'could not listen on port {port}')
+        if self.server_address[0] != host:  # fell back; keep the saved setting truthful
+            self.store.save_settings(network=self.network)
+        print(f'Network mode {"on" if self.network else "off"}: listening on {self.server_address[0]}:{port}')
 
     def shutdown(self):
         self.stopping.set()
@@ -416,13 +567,15 @@ class LumenServer(ThreadingHTTPServer):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description='Lumen Presenter server')
-    p.add_argument('--host', default=os.environ.get('LUMEN_HOST', '127.0.0.1'),
-                   help='address to bind (0.0.0.0 for all interfaces; default 127.0.0.1)')
+    p.add_argument('--host', default=os.environ.get('LUMEN_HOST') or None,
+                   help='address to bind, fixing network mode (0.0.0.0 for all interfaces); '
+                        'default: 127.0.0.1, or 0.0.0.0 once network mode is switched on in the console')
     p.add_argument('--port', type=int, default=int(os.environ.get('LUMEN_PORT', 8642)))
     p.add_argument('--data', default=os.environ.get('LUMEN_DATA', os.path.join(APP_DIR, 'data')),
                    help='directory for the library, media and live state (default ./data)')
     p.add_argument('--token', default=os.environ.get('LUMEN_TOKEN', ''),
-                   help='require this token for any change (recommended when not bound to localhost)')
+                   help='require this token for any change, even locally '
+                        '(default: a generated one, kept in the data directory and required in network mode)')
     p.add_argument('--max-upload-mb', type=int, default=int(os.environ.get('LUMEN_MAX_UPLOAD_MB', 4096)))
     p.add_argument('-v', '--verbose', action='store_true', help='log every request')
     a = p.parse_args(argv)
@@ -432,13 +585,14 @@ def main(argv=None):
     mimetypes.add_type('video/webm', '.webm')
     mimetypes.add_type('video/quicktime', '.mov')
     srv = LumenServer((a.host, a.port), a.data, a.token, a.max_upload_mb, a.verbose)
-    local = a.host in ('127.0.0.1', 'localhost', '::1')
-    print(f'Lumen Presenter on http://{"localhost" if local else a.host}:{srv.server_address[1]}  (data: {srv.store.dir})')
-    if not local and not a.token:
-        print('warning: reachable from the network with no --token; anyone on it can control the output',
-              file=sys.stderr)
+    port = srv.server_address[1]
+    print(f'Lumen Presenter on http://localhost:{port}  (data: {srv.store.dir})')
+    if srv.network:
+        hosts = lan_addresses() if srv.server_address[0] in ('0.0.0.0', '::') else [srv.server_address[0]]
+        print(f'Network mode on: {", ".join(f"http://{h}:{port}" for h in hosts) or srv.server_address[0]}'
+              f'  token: {srv.token if not a.token else "(from --token)"}')
     try:
-        srv.serve_forever()
+        srv.serve()
     except KeyboardInterrupt:
         pass
     finally:

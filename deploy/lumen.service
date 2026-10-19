@@ -9,7 +9,9 @@ Wants=network-online.target
 User=lumen
 WorkingDirectory=/opt/lumen
 ExecStart=/usr/bin/python3 /opt/lumen/server.py --host 0.0.0.0 --port 8642 --data /var/lib/lumen
-Environment=LUMEN_TOKEN=change-me
+# The access token is generated on first start and kept in /var/lib/lumen/settings.json (also printed to the
+# journal). To choose your own instead:
+#Environment=LUMEN_TOKEN=change-me
 Restart=always
 RestartSec=2
 

@@ -806,6 +806,37 @@ Have a great week!`]
   Lumen.on('status', renderStatus);
   renderStatus({ online, streaming: Lumen.streaming });
 
+  // ---------- network mode ----------
+  function renderNetwork(n) {
+    const on = $('#netOn'), note = $('#netNote');
+    on.checked = !!n?.network;
+    on.disabled = !n?.local || !!n.locked;
+    note.textContent = !n ? 'Network mode needs the Lumen server (python3 server.py).'
+      : !n.local ? 'Network mode can only be changed on the computer running Lumen.'
+      : n.locked ? `Set when the server was started (--host), so it can't be changed here.`
+      : n.network ? 'Other devices on this network can open Lumen. Changes need the token below.'
+      : 'Only this computer can open Lumen. Turn on to drive screens or a second console from other devices.';
+    $('#netDetails').hidden = !(n?.local && n.network);
+    if (!n?.local) return;
+    $('#netToken').textContent = n.token || '';
+    $('#netAddrs').innerHTML = '';
+    for (const a of n.addresses?.length ? n.addresses : ['<this computer\'s address>']) {
+      const li = document.createElement('li'); li.textContent = `http://${a}:${n.port}`; $('#netAddrs').append(li);
+    }
+  }
+  const loadNetwork = () => online ? Lumen.network().then(renderNetwork).catch(() => renderNetwork(null)) : renderNetwork(null);
+  async function changeNetwork(change) {
+    try { renderNetwork(await Lumen.setNetwork(change)); }
+    catch (e) { toast(`Network mode not changed: ${e.message}`); loadNetwork(); }
+  }
+  $('#netOn').onchange = e => changeNetwork({ network: e.target.checked });
+  $('#netNewToken').onclick = () => {
+    if (confirm('Make a new access token? Other consoles will have to enter the new one.')) changeNetwork({ regenerate: true });
+  };
+  $('#netCopy').onclick = () => navigator.clipboard?.writeText($('#netToken').textContent).then(() => toast('Token copied'), () => {});
+  $('.tabs button[data-tab="net"]').addEventListener('click', loadNetwork);
+  loadNetwork();
+
   renderAll(); renderMedia(); renderMessages(); renderTheme();
   if (online) refreshLive(); else broadcast();
   if (fresh || !online) save();

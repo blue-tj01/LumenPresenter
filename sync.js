@@ -31,7 +31,8 @@
       }
       const r = await fetch(path, { method, headers, body: data, cache: 'no-store' });
       if (r.status === 401 && attempt === 0 && !authDeclined) {
-        const t = prompt('This Lumen server needs its access token before changes can be made:', '');
+        // On the computer running Lumen the server hands over its token, so only other devices are asked.
+        const t = await localToken() || prompt('This Lumen server needs its access token before changes can be made:', '');
         if (t && t.trim()) { setToken(t.trim()); continue; }
         authDeclined = true;
       }
@@ -41,6 +42,19 @@
       }
       return r.json();
     }
+  }
+
+  async function localToken() {
+    try {
+      const n = await (await fetch('api/network', { cache: 'no-store' })).json();
+      if (n.token && n.token !== getToken()) return n.token;
+    } catch {}
+    return '';
+  }
+  async function network(change) {
+    const n = change ? await request('POST', 'api/network', change) : await request('GET', 'api/network');
+    if (n.token) setToken(n.token);
+    return n;
   }
 
   // ---------- live state ----------
@@ -144,6 +158,8 @@
     on: (type, fn) => listeners[type].push(fn),
     hello: () => chan.postMessage({ type: 'hello' }), // ask same-browser operator windows for the current state
     getLive: () => request('GET', 'api/live'),
+    network: () => network(),            // {network, local, and on this computer: locked, token, port, addresses}
+    setNetwork: change => network(change), // {network: true|false} or {regenerate: true}
     uploadMedia: file => request('POST', 'api/media', file),
     deleteMedia: src => /^media\/[a-z0-9.]+$/.test(src) ? request('DELETE', 'api/' + src).catch(() => {}) : Promise.resolve(),
     now: () => Date.now() + offset,

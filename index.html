@@ -84,6 +84,7 @@
       <button data-tab="msg">Messages</button>
       <button data-tab="timer">Timer</button>
       <button data-tab="stage">Stage</button>
+      <button data-tab="net">Network</button>
     </nav>
     <div class="tabbody">
       <div data-pane="theme" class="pane on">
@@ -129,6 +130,19 @@
         <div class="row"><input id="stageInput" type="text" placeholder="Message to the stage only…"><button id="stageSend" class="btn primary">Send</button></div>
         <button id="stageClear" class="btn wide">Clear stage message</button>
         <p class="muted small">Stage Display shows current &amp; next slide, clock, timer and this message.</p>
+      </div>
+      <div data-pane="net" class="pane">
+        <label class="chk"><input id="netOn" type="checkbox"> Network mode</label>
+        <p id="netNote" class="muted small"></p>
+        <div id="netDetails" class="net-details" hidden>
+          <div class="sub-h">Open on another device</div>
+          <ul id="netAddrs" class="net-addrs"></ul>
+          <div class="sub-h">Access token</div>
+          <div class="row"><code id="netToken" class="net-token"></code>
+            <button id="netCopy" class="btn small-btn">Copy</button>
+            <button id="netNewToken" class="btn small-btn ghost danger" title="Make a new token; other consoles will have to enter it again">New</button></div>
+          <p class="muted small">Other consoles ask for this token the first time they change anything. Output and stage pages don't need it.</p>
+        </div>
       </div>
     </div>
   </aside>
