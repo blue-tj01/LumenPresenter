@@ -24,6 +24,7 @@ import socket
 import sys
 import threading
 import time
+import traceback
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.cookies import CookieError, SimpleCookie
@@ -630,7 +631,7 @@ class Handler(BaseHTTPRequestHandler):
                         break
                     self.wfile.write(chunk)
                     left -= len(chunk)
-            except (BrokenPipeError, ConnectionResetError):
+            except ConnectionError:
                 pass
 
 
@@ -712,6 +713,24 @@ class LumenServer(ThreadingHTTPServer):
     def shutdown(self):
         self.stopping.set()
         super().shutdown()
+
+    def handle_error(self, request, client_address):
+        """Replaces socketserver's multi-line traceback dump.
+
+        A client going away mid-request (a closed tab, a phone sleeping, a dropped Wi-Fi link) is normal
+        and stays silent; anything else is one line, with the full traceback only with --verbose."""
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionError, TimeoutError)):
+            return
+        where = ''
+        tb = traceback.extract_tb(exc.__traceback__) if exc else None
+        if tb:
+            where = f' at {os.path.basename(tb[-1].filename)}:{tb[-1].lineno}'
+        line = f'error: request from {client_address[0]} failed: {type(exc).__name__}: {exc}{where}'
+        if self.verbose:
+            line += '\n' + ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__)).rstrip()
+        sys.stderr.write(line + '\n')  # one write, so lines from parallel requests don't interleave
+        sys.stderr.flush()
 
 
 def main(argv=None):
