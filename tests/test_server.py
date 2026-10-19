@@ -1,12 +1,18 @@
 """Tests for server.py. Run with: python3 -m unittest discover tests"""
+import contextlib
 import http.client
+import io
 import json
 import os
 import shutil
+import socket
+import struct
 import sys
 import tempfile
 import threading
+import time
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import server  # noqa: E402
@@ -342,6 +348,29 @@ class NetworkModeTest(unittest.TestCase):
         self.thread.start()
         self.assertTrue(self.req('GET', '/api/network')[1]['locked'])
         self.assertEqual(self.req('POST', '/api/network', {'network': True})[0], 409)
+
+
+class ErrorLogTest(ServerTest):
+    def errors(self, act):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            act()
+            time.sleep(0.3)  # let the handler thread finish
+        return err.getvalue()
+
+    def test_client_dropping_the_connection_is_silent(self):
+        def drop():
+            s = socket.create_connection(('127.0.0.1', self.port))
+            s.sendall(b'GET /api/health HTTP/1.1\r\nHost: x')  # half a request, then a reset
+            time.sleep(0.1)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', 1, 0))
+            s.close()
+        self.assertEqual(self.errors(drop), '')
+
+    def test_real_error_is_one_line(self):
+        with mock.patch.object(server.Handler, 'api_get_health', side_effect=RuntimeError('boom')):
+            out = self.errors(lambda: self.assertRaises(Exception, self.req, 'GET', '/api/health'))
+        self.assertRegex(out, r'^error: request from 127\.0\.0\.1 failed: RuntimeError: boom at \S+:\d+\n$')
 
 
 if __name__ == '__main__':
