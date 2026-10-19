@@ -89,13 +89,17 @@ Welcome to Youth Camp!
 
 Without the server, pictures are kept in the media bin and referenced as `@image: #<id>`.
 
+## Themes
+
+The **Theme** tab styles the selected presentation. Pick a saved theme from the list (Classic, Lower third, Scripture, Big & bold, or your own) and the presentation keeps it: its thumbnails and the output use that theme every time it goes live, with nothing to restyle. Changing the font, size, colour or alignment edits that theme for every presentation using it. **Save as…** stores the current settings as a new theme, and **Default style** is used by presentations with no theme and by quick slides.
+
 ## Data
 
 With the server, everything lives in the data directory:
 
 | Path | Contents |
 | --- | --- |
-| `library.json` | Presentations, playlist, media list, theme, messages (written atomically) |
+| `library.json` | Presentations, playlist, media list, themes, messages (written atomically) |
 | `live.json` | What is on screen right now, so windows recover after a restart |
 | `media/` | Uploaded images and videos |
 | `backups/` | Snapshots of `library.json`, at most one every 10 minutes, newest 50 kept |

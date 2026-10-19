@@ -96,6 +96,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .pane textarea { resize: vertical; }
 .pane .row { display: flex; gap: 6px; align-items: center; }
 .pane .row input[type=text] { flex: 1; }
+.pane .row select { flex: 1; min-width: 0; }
+#thFor { margin-top: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chk { gap: 4px !important; }
 .seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
 .seg button { flex: 1; background: none; border: 0; padding: 6px; cursor: pointer; color: var(--muted); }

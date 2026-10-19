@@ -112,6 +112,14 @@ Have a great week!`]
 
   const DEFAULT_THEME = { font: "'Segoe UI', system-ui, sans-serif", size: 92, color: '#ffffff', bold: true, shadow: true,
     upper: false, align: 'center', valign: 'middle', margin: 110, lineHeight: 1.2 };
+  // Saved themes a presentation can use instead of the default style. Fixed ids so every console agrees
+  // on them before the library is first saved.
+  const BUILTIN_THEMES = [
+    { id: 'classic', name: 'Classic', ...DEFAULT_THEME },
+    { id: 'lower-third', name: 'Lower third', ...DEFAULT_THEME, size: 64, valign: 'bottom', margin: 80 },
+    { id: 'scripture', name: 'Scripture', ...DEFAULT_THEME, font: 'Georgia, serif', size: 68, bold: false, align: 'left' },
+    { id: 'big-bold', name: 'Big & bold', ...DEFAULT_THEME, font: "Impact, 'Arial Black', sans-serif", size: 120, bold: false, upper: true },
+  ];
 
   // ---------- slide text parsing ----------
   function parseText(src) {
@@ -170,6 +178,7 @@ Have a great week!`]
       playlist: [pres[4].id, pres[0].id, pres[2].id, pres[3].id],
       media: BUILTIN_MEDIA.map(m => ({ id: uid(), builtin: true, ...m })),
       theme: { ...DEFAULT_THEME },
+      themes: BUILTIN_THEMES.map(t => ({ ...t })),
       messages: ['Welcome! Please silence your phones.', 'Nursery parents: please come to the nursery.', 'The parking lot lights are on — car ABC-123.'],
       logoText: 'WELCOME',
     };
@@ -178,7 +187,8 @@ Have a great week!`]
   const online = await Lumen.init();
   const valid = d => d && Array.isArray(d.presentations);
   const normalize = d => ({ ...d, media: d.media || [], playlist: d.playlist || [], messages: d.messages || [],
-    theme: { ...DEFAULT_THEME, ...d.theme } });
+    theme: { ...DEFAULT_THEME, ...d.theme },
+    themes: (Array.isArray(d.themes) ? d.themes : BUILTIN_THEMES).map(t => ({ ...DEFAULT_THEME, ...t })) });
   let loadFailed = false;
   let db = online ? await Lumen.loadLibrary().catch(() => { loadFailed = true; return null; }) : null;
   const fresh = !valid(db) && !loadFailed; // nothing on the server yet: bring over this browser's library, or the demo
@@ -208,10 +218,13 @@ Have a great week!`]
     const { text, image } = splitSlide(raw);
     return { text, image: resolveImage(image), group: g.name, gi, si, color: groupColor(g.name) };
   })) : [];
+  // A presentation's saved theme, or the default style when it has none (or its theme was deleted).
+  const savedTheme = p => p && p.themeId ? db.themes.find(t => t.id === p.themeId) : null;
+  const themeFor = p => savedTheme(p) || db.theme;
   const slideSummary = s => s ? s.text || (s.image ? '[Image]' : '') : '';
 
   function payload() {
-    return { ...live, theme: db.theme, logoText: db.logoText };
+    return { ...live, theme: themeFor(getPres(live.presId)), logoText: db.logoText };
   }
   function refreshLive() {
     PP.update(preview, payload(), { fade: true });
@@ -319,7 +332,7 @@ Have a great week!`]
     const p = getPres(selectedId);
     $('#presTitle').textContent = p ? p.name : 'No presentation selected';
     const slides = flat(p);
-    $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides` : '';
+    $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides · ${savedTheme(p)?.name || 'Default style'}` : '';
     if (!p || !slides.length) { grid.innerHTML = '<div class="empty">No slides yet — click ✎ Edit to add some.</div>'; return; }
     let lastGroup = -1;
     slides.forEach((s, i) => {
@@ -337,7 +350,7 @@ Have a great week!`]
       card.onclick = () => goLive(p.id, i);
       grid.appendChild(card);
       PP.createScreen(scr);
-      PP.update(scr, { bg: p.bg || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { text: s.text, image: s.image }, theme: db.theme }, { animate: false });
+      PP.update(scr, { bg: p.bg || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { text: s.text, image: s.image }, theme: themeFor(p) }, { animate: false });
     });
     renderLiveMarks();
   }
@@ -421,8 +434,15 @@ Have a great week!`]
     });
   }
 
+  // The theme pane edits the selected presentation's theme: its saved theme, or the default style.
   function renderTheme() {
-    const t = db.theme;
+    const p = getPres(selectedId), saved = savedTheme(p), t = saved || db.theme;
+    $('#thFor').textContent = p ? `Theme for “${p.name}”` : 'Default style';
+    const sel = $('#thSaved'); sel.innerHTML = '';
+    sel.add(new Option('Default style', ''));
+    db.themes.forEach(x => sel.add(new Option(x.name, x.id)));
+    sel.value = saved ? saved.id : ''; sel.disabled = !p;
+    $('#thRename').disabled = $('#thDelete').disabled = !saved;
     $('#thFont').value = t.font; $('#thSize').value = t.size; $('#thSizeV').textContent = t.size + 'px';
     $('#thColor').value = t.color; $('#thBold').checked = t.bold; $('#thShadow').checked = t.shadow; $('#thUpper').checked = t.upper;
     $$('#thAlign button').forEach(b => b.classList.toggle('on', b.dataset.v === t.align));
@@ -431,11 +451,39 @@ Have a great week!`]
   }
   let themeTimer;
   function setTheme(patch) {
-    Object.assign(db.theme, patch); save(); renderTheme(); broadcast();
+    Object.assign(savedTheme(getPres(selectedId)) || db.theme, patch); themeChanged();
+  }
+  function themeChanged() {
+    save(); renderTheme(); broadcast();
     clearTimeout(themeTimer); themeTimer = setTimeout(renderGrid, 120);
   }
+  function useTheme(id) {
+    const p = getPres(selectedId); if (!p) return;
+    if (id) p.themeId = id; else delete p.themeId;
+    themeChanged();
+  }
+  function saveThemeAs() {
+    const name = (prompt('Name for the new theme:', '') || '').trim(); if (!name) return;
+    const { id: _id, name: _n, ...style } = savedTheme(getPres(selectedId)) || db.theme;
+    const t = { ...DEFAULT_THEME, ...style, id: uid(), name };
+    db.themes.push(t);
+    if (getPres(selectedId)) useTheme(t.id); else themeChanged();
+    toast(`Saved theme “${name}”`);
+  }
+  function renameTheme() {
+    const t = savedTheme(getPres(selectedId)); if (!t) return;
+    const name = (prompt('Rename theme:', t.name) || '').trim(); if (!name) return;
+    t.name = name; themeChanged();
+  }
+  function deleteTheme() {
+    const t = savedTheme(getPres(selectedId)); if (!t) return;
+    const users = db.presentations.filter(p => p.themeId === t.id);
+    if (!confirm(`Delete theme “${t.name}”? ${users.length} presentation${users.length === 1 ? '' : 's'} using it will go back to the default style.`)) return;
+    users.forEach(p => delete p.themeId);
+    db.themes = db.themes.filter(x => x !== t); themeChanged();
+  }
 
-  function renderAll() { renderLibrary(); renderPlaylist(); renderGrid(); }
+  function renderAll() { renderLibrary(); renderPlaylist(); renderGrid(); renderTheme(); }
 
   // ---------- editor ----------
   let editingId = null;
@@ -550,6 +598,10 @@ Have a great week!`]
   $('#thUpper').onchange = e => setTheme({ upper: e.target.checked });
   $$('#thAlign button').forEach(b => b.onclick = () => setTheme({ align: b.dataset.v }));
   $$('#thVAlign button').forEach(b => b.onclick = () => setTheme({ valign: b.dataset.v }));
+  $('#thSaved').onchange = e => useTheme(e.target.value);
+  $('#thSaveAs').onclick = saveThemeAs;
+  $('#thRename').onclick = renameTheme;
+  $('#thDelete').onclick = deleteTheme;
   $('#logoText').oninput = e => { db.logoText = e.target.value; save(); broadcast(); };
 
   $('#msgShow').onclick = () => {
