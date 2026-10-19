@@ -33,14 +33,33 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 
 ## Quick start
 
-Requires [Node.js](https://nodejs.org) 20 or later.
+### Install
 
-### Desktop app
+Download the latest release from the [Releases page](https://github.com/blue-tj01/LumenPresenter/releases):
+
+| System | Download |
+| --- | --- |
+| Windows (64-bit) | `Lumen-Presenter-Setup-<version>.exe`, an installer with Start menu and desktop shortcuts |
+| Linux (64-bit) | `Lumen-Presenter-<version>-x86_64.AppImage` to run without installing (make it executable first), or `Lumen-Presenter-<version>-amd64.deb` for Debian and Ubuntu |
+
+The installers aren't code-signed yet, so Windows may show **Windows protected your PC** the first time: choose **More info**, then **Run anyway**.
+
+**Updates.** The Windows app and the AppImage check for a new version when they start and every few hours after. An update downloads in the background and installs the next time Lumen is closed, so it never restarts in the middle of a service; **Help → Restart to Install** installs it straight away. The `.deb` is updated by installing the newer `.deb`.
+
+**Bringing your library in.** The installed app keeps its library in its own data folder (`%APPDATA%\lumen-presenter\data` on Windows, `~/.config/lumen-presenter/data` on Linux). To carry over a library from a copy of the source or from `server.js`, use **File → Import Library From Folder…** and choose that copy's `data` folder. Presentations, media, the network token and signed-in devices all come across, and the library the app had is kept in its backups folder. **File → Open Data Folder** shows where it lives.
+
+### Desktop app from the source
+
+Requires [Node.js](https://nodejs.org) 20 or later.
 
 ```bash
 npm install
 npm start
 ```
+
+Run this way, Lumen uses the `data` folder next to `server.js`, and doesn't update itself: pull the new code with git instead.
+
+### Using the app
 
 The operator console opens in its own window, and **Audience Output** and **Stage Display** open further windows. Output windows play a video's sound straight away, without first being clicked. Only one copy of the app runs at a time; starting it again brings the console to the front.
 
@@ -49,11 +68,11 @@ The **Screens** menu, also on the Lumen icon in the taskbar's notification area,
 - **Audience output** and **Stage display**: choose a display for each, and it opens full screen there, with no window frame and above notifications. The choice is remembered, so both come straight back up the next time Lumen starts. If a display is unplugged its screen closes rather than landing on the operator's screen, and it reopens when the display is reconnected. **In a window** goes back to an ordinary window.
 - **Identify Screens** shows each display's number on it for a few seconds.
 - **Keep Screens Awake** (on by default) stops the computer and its displays going to sleep while Lumen runs.
-- **Start Lumen When Windows Starts** opens Lumen when you sign in to Windows.
+- **Start Lumen When Windows Starts** opens Lumen when you sign in to Windows. Not yet available on Linux.
 
 Closing the console while a screen is showing keeps Lumen running, so the projector isn't blanked by mistake. Click the Lumen icon to bring the console back, or right-click it and choose **Quit Lumen**. With no screens showing, closing the console quits Lumen.
 
-These choices belong to the computer, not the library, so they are kept in Lumen's own settings folder (`%APPDATA%\lumen-presenter\desktop.json` on Windows) rather than in the data folder.
+These choices belong to the computer, not the library, so they are kept in Lumen's own settings folder (`%APPDATA%\lumen-presenter\desktop.json` on Windows, `~/.config/lumen-presenter/desktop.json` on Linux) rather than in the data folder.
 
 ### Server only
 
@@ -204,7 +223,7 @@ The pages also work from any static host (for example `npx http-server`). In tha
 
 ## Data and backups
 
-With the app or the server, everything lives in the data directory. That is the `data` folder next to `server.js`, unless `--data` or `LUMEN_DATA` says otherwise.
+With the app or the server, everything lives in the data directory. For the installed app that is its own data folder (see [Install](#install)); for `server.js` and the app run from the source it is the `data` folder next to `server.js`. `--data` or `LUMEN_DATA` overrides either.
 
 | Path | Contents |
 | --- | --- |
@@ -246,6 +265,8 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload.
 | `server.js` | The server: storage, the HTTP API, live updates and network mode, using Node's standard library only |
 | `electron/main.js` | The desktop app: starts the server in-process, opens the console window, and sets up the menus and tray icon |
 | `electron/screens.js` | The desktop app's full-screen output and stage windows, and which display each goes on |
+| `electron/updates.js`, `electron/data.js` | Updates for the installed app, and importing a library from another data folder |
+| `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.js`, `app.css` | The operator console |
 | `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display |
 | `sync.js` | The pages' link to the server |
@@ -255,3 +276,16 @@ Run the tests with:
 ```bash
 npm test
 ```
+
+GitHub Actions runs the tests on Windows and Linux for every pull request and builds the installers, which can be downloaded from the run's **Artifacts** to try before merging. `npm run dist` builds them locally, into `dist/`.
+
+### Releasing
+
+1. Set the new version: `npm version minor` (or `patch`), which updates `package.json` and makes a `v<version>` tag.
+2. Push it: `git push --follow-tags`.
+
+The tag's build publishes the Windows and Linux installers as a GitHub release, and installed copies update from it. Updates need the repository to be public, since installed copies download releases without signing in.
+
+### macOS
+
+Not built yet. Lumen runs on a Mac from the source, but a downloadable Mac app needs an Apple Developer account (about $99 a year) to sign and notarise it, or macOS refuses to open it and it can't update itself. Adding it later is a `mac` target in `package.json` and a macOS runner in the workflow.
