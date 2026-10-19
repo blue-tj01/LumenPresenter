@@ -814,14 +814,24 @@ Have a great week!`]
     note.textContent = !n ? 'Network mode needs the Lumen server (python3 server.py).'
       : !n.local ? 'Network mode can only be changed on the computer running Lumen.'
       : n.locked ? `Set when the server was started (--host), so it can't be changed here.`
-      : n.network ? 'Other devices on this network can open Lumen. Changes need the token below.'
+      : n.network ? 'Other devices on this network can open Lumen with the token below.'
       : 'Only this computer can open Lumen. Turn on to drive screens or a second console from other devices.';
     $('#netDetails').hidden = !(n?.local && n.network);
     if (!n?.local) return;
     $('#netToken').textContent = n.token || '';
-    $('#netAddrs').innerHTML = '';
-    for (const a of n.addresses?.length ? n.addresses : ['<this computer\'s address>']) {
-      const li = document.createElement('li'); li.textContent = `http://${a}:${n.port}`; $('#netAddrs').append(li);
+    const list = $('#netLinks'); list.innerHTML = '';
+    const pages = [['Operator console', ''], ['Audience output', 'output.html'], ['Stage display', 'stage.html']];
+    for (const addr of n.addresses?.length ? n.addresses : ['<this computer\'s address>']) {
+      for (const [what, page] of pages) {
+        const url = `http://${addr}:${n.port}/${page}?token=${encodeURIComponent(n.token || '')}`;
+        const li = document.createElement('li');
+        const label = document.createElement('span'); label.className = 'net-what';
+        label.textContent = n.addresses.length > 1 ? `${what} (${addr})` : what;
+        const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.textContent = url;
+        const copy = document.createElement('button'); copy.className = 'btn small-btn'; copy.textContent = 'Copy';
+        copy.onclick = () => navigator.clipboard?.writeText(url).then(() => toast(`${what} link copied`), () => {});
+        li.append(label, a, copy); list.append(li);
+      }
     }
   }
   const loadNetwork = () => online ? Lumen.network().then(renderNetwork).catch(() => renderNetwork(null)) : renderNetwork(null);

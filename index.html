@@ -136,12 +136,13 @@
         <p id="netNote" class="muted small"></p>
         <div id="netDetails" class="net-details" hidden>
           <div class="sub-h">Open on another device</div>
-          <ul id="netAddrs" class="net-addrs"></ul>
+          <ul id="netLinks" class="net-links"></ul>
+          <p class="muted small">Each link carries the access token, so the device opening it needs nothing else.</p>
           <div class="sub-h">Access token</div>
           <div class="row"><code id="netToken" class="net-token"></code>
             <button id="netCopy" class="btn small-btn">Copy</button>
             <button id="netNewToken" class="btn small-btn ghost danger" title="Make a new token; other consoles will have to enter it again">New</button></div>
-          <p class="muted small">Other consoles ask for this token the first time they change anything. Output and stage pages don't need it.</p>
+          <p class="muted small">A device opening Lumen without a link is asked for this token. <b>New</b> makes another one and signs every other device out.</p>
         </div>
       </div>
     </div>

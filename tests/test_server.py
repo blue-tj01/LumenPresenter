@@ -241,6 +241,39 @@ class NetworkModeTest(unittest.TestCase):
         self.assertEqual(self.req('POST', '/api/network', {'network': True}, fwd)[0], 403)
         self.assertEqual(self.srv.server_address[0], '127.0.0.1')
 
+    def test_other_devices_need_the_token_to_see_anything(self):
+        token = self.req('POST', '/api/network', {'network': True})[1]['token']
+        remote = {'X-Forwarded-For': '192.168.1.20'}  # counts as another device
+
+        def get(path, headers=None):
+            c = http.client.HTTPConnection('127.0.0.1', self.port, timeout=5)
+            c.request('GET', path, headers={**remote, **(headers or {})})
+            r = c.getresponse()
+            body = r.read()
+            c.close()
+            return r, body
+
+        r, body = get('/output.html')
+        self.assertEqual(r.status, 401)
+        self.assertIn(b'access token', body)
+        self.assertEqual(get('/api/library')[0].status, 401)
+        self.assertEqual(get('/render.js')[0].status, 401)
+        self.assertEqual(get('/api/health')[0].status, 200)
+        self.assertEqual(get('/stage.html?token=nope')[0].status, 401)
+
+        r, _ = get(f'/stage.html?token={token}')  # a link from the Network tab
+        self.assertEqual(r.status, 303)
+        self.assertEqual(r.getheader('Location'), '/stage.html')
+        cookie = r.getheader('Set-Cookie').split(';')[0]
+        self.assertIn('HttpOnly', r.getheader('Set-Cookie'))
+        for path in ('/stage.html', '/render.js', '/api/library', '/api/live'):
+            self.assertEqual(get(path, {'Cookie': cookie})[0].status, 200, path)
+        self.assertEqual(self.req('POST', '/api/live', {'live': {}}, {**remote, 'Cookie': cookie})[0], 200)
+
+        self.req('POST', '/api/network', {'regenerate': True}, {'X-Lumen-Token': token})
+        self.assertEqual(get('/stage.html', {'Cookie': cookie})[0].status, 401)  # signed out by a new token
+        self.assertEqual(self.req('GET', '/api/library')[0], 200)  # this computer never needs it to read
+
     def test_host_from_command_line_locks_the_switch(self):
         self.stop()
         self.srv = server.LumenServer(('127.0.0.1', 0), self.data)

@@ -46,7 +46,10 @@
 
   async function localToken() {
     try {
-      const n = await (await fetch('api/network', { cache: 'no-store' })).json();
+      const r = await fetch('api/network', { cache: 'no-store' });
+      // Another device whose token link is out of date (a new token was made): reload to be asked for it.
+      if (r.status === 401) { location.reload(); return new Promise(() => {}); }
+      const n = await r.json();
       if (n.token && n.token !== getToken()) return n.token;
     } catch {}
     return '';
@@ -119,7 +122,7 @@
   function connect() {
     const es = new EventSource('api/events');
     es.onopen = () => { streaming = true; status(); flushLive(); flushLib(); };
-    es.onerror = () => { if (streaming) { streaming = false; status(); } };
+    es.onerror = () => { if (streaming) { streaming = false; status(); localToken(); } };
     es.addEventListener('hello', e => {
       const d = JSON.parse(e.data);
       receiveState(d);

@@ -26,7 +26,8 @@ import threading
 import time
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import unquote, urlsplit
+from http.cookies import CookieError, SimpleCookie
+from urllib.parse import parse_qs, quote, unquote, urlsplit
 
 VERSION = 1
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -46,6 +47,18 @@ HEARTBEAT = 15
 LOCAL_HOSTS = ('127.0.0.1', 'localhost', '::1')
 TOKEN_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789'  # no 0/o, 1/l/i, so it can be read off one screen and typed on another
 FORWARDED = ('X-Forwarded-For', 'Forwarded', 'X-Real-IP')
+COOKIE = 'lumen_token'
+# Shown to another device that opens a page without the token (or with an old one).
+TOKEN_PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><title>Lumen Presenter</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#14161b;color:#e6e8ee;
+font:15px system-ui,sans-serif}form{display:flex;flex-direction:column;gap:12px;width:min(320px,90vw)}
+input,button{font:inherit;padding:9px 11px;border-radius:6px;border:1px solid #333a48;background:#1d2027;color:inherit}
+button{background:#4f7cff;border-color:#4f7cff;cursor:pointer}p{margin:0;color:#8b92a3;font-size:13px}</style></head>
+<body><form method="get"><strong>Lumen Presenter</strong>
+<p>%s</p>
+<input name="token" placeholder="xxxx-xxxx-xxxx" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus>
+<button>Open</button></form></body></html>"""
 
 
 def new_token():
@@ -235,15 +248,57 @@ class Handler(BaseHTTPRequestHandler):
         """A request from this computer itself, not relayed by a proxy on it."""
         return self.from_loopback() and not any(self.headers.get(h) for h in FORWARDED)
 
+    def given_tokens(self):
+        """Tokens this request carries: header, bearer, or the cookie a token link sets."""
+        given = [self.headers.get('X-Lumen-Token', '')]
+        auth = self.headers.get('Authorization', '')
+        if auth.startswith('Bearer '):
+            given.append(auth[7:])
+        try:
+            morsel = SimpleCookie(self.headers.get('Cookie', '')).get(COOKIE)
+        except CookieError:
+            morsel = None
+        if morsel:
+            given.append(unquote(morsel.value))
+        return [g for g in given if g]
+
     def authorized(self):
         token = self.server.token
         if not token:
             return True
-        given = self.headers.get('X-Lumen-Token', '')
-        auth = self.headers.get('Authorization', '')
-        if auth.startswith('Bearer '):
-            given = auth[7:]
-        return secrets.compare_digest(given.encode(), token.encode())
+        return any(secrets.compare_digest(g.encode(), token.encode()) for g in self.given_tokens())
+
+    def may_read(self):
+        """In network mode other devices need the token to see anything, not only to change it."""
+        return not self.server.network or self.is_local() or self.authorized()
+
+    def token_link(self, url, method):
+        """A page opened as ?token=... (the links in the console's Network tab): remember it in a cookie and
+        reload without it, so the token doesn't stay in the address bar or history. True if handled."""
+        if method != 'GET' or url.path.startswith('/api/') or 'token' not in parse_qs(url.query):
+            return False
+        token = parse_qs(url.query)['token'][0].strip()
+        if not secrets.compare_digest(token.encode(), (self.server.token or '').encode()):
+            self.send_token_page('That token is not right. Check it in the Network tab of the console.')
+            return True
+        self.send_response(HTTPStatus.SEE_OTHER)
+        self.send_header('Location', quote(url.path))
+        self.send_header('Set-Cookie', f'{COOKIE}={quote(token, safe="")}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict')
+        self.send_header('Content-Length', '0')
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        return True
+
+    def send_token_page(self, msg):
+        body = (TOKEN_PAGE % msg).encode()
+        self.close_connection = True
+        self.send_response(HTTPStatus.UNAUTHORIZED)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        if self.command != 'HEAD':
+            self.wfile.write(body)
 
     def read_body_json(self):
         n = int(self.headers.get('Content-Length') or 0)
@@ -253,10 +308,17 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---------- routing ----------
     def route(self, method):
-        path = urlsplit(self.path).path
+        url = urlsplit(self.path)
+        path = url.path
         if not self.server.network and not self.from_loopback():
             # Network mode was just switched off; connections made while it was on are turned away.
             return self.error(HTTPStatus.FORBIDDEN, 'network mode is off')
+        if self.server.network and self.token_link(url, method):
+            return
+        if path != '/api/health' and not self.may_read():
+            if path.startswith(('/api/', '/media/')) or not (path == '/' or path.endswith('.html')):
+                return self.error(HTTPStatus.UNAUTHORIZED, 'token required')
+            return self.send_token_page('Enter the access token shown in the Network tab of the console.')
         if path.startswith('/api/'):
             name = path[5:]
             if method not in ('GET', 'HEAD') and not self.authorized():
@@ -314,6 +376,7 @@ class Handler(BaseHTTPRequestHandler):
             if srv.explicit_token:
                 return self.error(HTTPStatus.CONFLICT, 'the token is set with --token or LUMEN_TOKEN')
             self.store.save_settings(token=new_token())
+            self.hub.send('ping', {'time': now_ms()})  # event streams opened with the old token close
         if 'network' in body:
             on = bool(body['network'])
             if srv.host_locked and on != srv.network:
@@ -413,7 +476,8 @@ class Handler(BaseHTTPRequestHandler):
                     msg = q.get(timeout=HEARTBEAT)
                 except queue.Empty:
                     msg = f'event: ping\ndata: {{"time": {now_ms()}}}\n\n'.encode()
-                if msg is None or not (local or self.server.network):
+                # Network mode switched off, or a new token made since this stream opened.
+                if msg is None or not (local or self.server.network) or not self.may_read():
                     break
                 self.wfile.write(msg)
                 self.wfile.flush()
