@@ -1,4 +1,4 @@
-// Link to the Lumen server (server.py): library storage, media uploads, and live state pushed to every window
+// Link to the Lumen server (server.js): library storage, media uploads, and live state pushed to every window
 // on any device. When the pages are served without the server, windows in the same browser fall back to a
 // BroadcastChannel and the library stays in localStorage.
 (function () {
@@ -12,7 +12,7 @@
   let streaming = false; // the event stream is open right now
   let offset = 0;        // server clock minus local clock, so timers agree across devices
   let authDeclined = false;
-  let outdated = false;  // server.py was updated on disk but the running server wasn't restarted
+  let outdated = false;  // server.js was updated on disk but the running server wasn't restarted
   const SERVER_VERSION = 2;
 
   const syncClock = t => { if (t) offset = t - Date.now(); };

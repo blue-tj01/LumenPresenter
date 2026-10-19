@@ -1,8 +1,8 @@
 # Lumen Presenter
 
-**A browser-based presentation app for worship services and live events, inspired by tools like ProPresenter.**
+**A presentation app for worship services and live events, inspired by tools like ProPresenter.**
 
-Lumen runs from a single Python file with no build step and no dependencies. Run the operator console on one computer and open the audience output and stage display on any screen on your network.
+Lumen runs as a desktop app on the presentation computer, or as a small Node server with no dependencies. Run the operator console on one computer and open the audience output and stage display on any screen on your network, in the app or in any browser.
 
 ## Contents
 
@@ -33,15 +33,32 @@ Lumen runs from a single Python file with no build step and no dependencies. Run
 
 ## Quick start
 
-Requires Python 3.8 or later.
+Requires [Node.js](https://nodejs.org) 20 or later.
+
+### Desktop app
 
 ```bash
-python3 server.py
+npm install
+npm start
+```
+
+The operator console opens in its own window, and **Audience Output** and **Stage Display** open further windows. Output windows play a video's sound straight away, without first being clicked. Only one copy of the app runs at a time; starting it again brings the console to the front, and closing the console closes the app.
+
+### Server only
+
+For a headless or Linux machine, or to use your own browser, run the server on its own:
+
+```bash
+node server.js
 ```
 
 Open <http://localhost:8642> for the operator console. The server pushes every change to all open windows instantly over Server-Sent Events.
 
-After updating the app's files, restart `server.py`. Until you do, the old server keeps running and the console tells you so.
+After updating the app's files, restart the app or `server.js`. Until you do, the old server keeps running and the console tells you so.
+
+### Moving from `server.py`
+
+Earlier versions ran on a Python server. The Node server reads and writes the same data folder in the same format, so the library, media, network setting, token and signed-in devices all carry over. Stop `server.py` before starting Lumen, as both use port 8642.
 
 ## Pages
 
@@ -148,7 +165,7 @@ The token is generated the first time the server starts and is saved, along with
 
 ## Configuration
 
-Command-line options take precedence over the console. `--host` fixes the address (the Network switch is then shown but locked), and `--token` replaces the saved token and is required even locally.
+These options are for `node server.js`; the desktop app reads the same environment variables. Command-line options take precedence over the console. `--host` fixes the address (the Network switch is then shown but locked), and `--token` replaces the saved token and is required even locally.
 
 | Option | Environment variable | Default |
 | --- | --- | --- |
@@ -172,11 +189,11 @@ A systemd unit is provided in [`deploy/lumen.service`](deploy/lumen.service).
 
 ### Without the server
 
-The pages also work from any static host (for example `python -m http.server`). In that mode the library is kept in the browser's `localStorage`, pictures are kept in the media bin and referenced as `@image: #<id>`, videos last for the current session only, and all windows must be on the same computer. The console's status indicator shows **Local only**.
+The pages also work from any static host (for example `npx http-server`). In that mode the library is kept in the browser's `localStorage`, pictures are kept in the media bin and referenced as `@image: #<id>`, videos last for the current session only, and all windows must be on the same computer. The console's status indicator shows **Local only**.
 
 ## Data and backups
 
-With the server, everything lives in the data directory:
+With the app or the server, everything lives in the data directory. That is the `data` folder next to `server.js`, unless `--data` or `LUMEN_DATA` says otherwise.
 
 | Path | Contents |
 | --- | --- |
@@ -211,8 +228,18 @@ Back up the data directory to back up everything. **Export** / **Import** in the
 
 ## Development
 
-There is no build step: edit the HTML, CSS and JavaScript files and reload. Run the tests with:
+There is no build step: edit the HTML, CSS and JavaScript files and reload.
+
+| File | Contents |
+| --- | --- |
+| `server.js` | The server: storage, the HTTP API, live updates and network mode. Node's standard library only. |
+| `electron/main.js` | The desktop app: starts the server in-process and opens the console window. |
+| `index.html`, `app.js`, `app.css` | The operator console |
+| `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display |
+| `sync.js` | The pages' link to the server |
+
+Run the tests with:
 
 ```bash
-python3 -m unittest discover tests
+npm test
 ```

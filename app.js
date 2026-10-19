@@ -811,7 +811,7 @@ Have a great week!`]
     const on = $('#netOn'), note = $('#netNote');
     on.checked = !!n?.network;
     on.disabled = !n?.local || !!n.locked;
-    note.textContent = !n ? 'Network mode needs the Lumen server (python3 server.py).'
+    note.textContent = !n ? 'Network mode needs the Lumen desktop app or server (node server.js).'
       : !n.local ? 'Network mode can only be changed on the computer running Lumen.'
       : n.locked ? `Set when the server was started (--host), so it can't be changed here.`
       : n.network ? 'Other devices on this network can open Lumen with the token below.'
@@ -872,6 +872,6 @@ Have a great week!`]
   renderAll(); renderMedia(); renderMessages(); renderTheme();
   if (online) refreshLive(); else broadcast();
   if (fresh || !online) save();
-  if (Lumen.outdated) setTimeout(() => toast('The server is older than this page. Restart server.py to finish updating.'), 2500);
+  if (Lumen.outdated) setTimeout(() => toast('The server is older than this page. Restart Lumen to finish updating.'), 2500);
   if (loadFailed) toast('Could not load the library from the server — showing this browser\'s copy');
 })();
