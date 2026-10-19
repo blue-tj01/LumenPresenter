@@ -140,6 +140,14 @@ Have a great week!`]
     out += p.groups.map(g => `[${g.name}]\n` + g.slides.join('\n\n')).join('\n\n');
     return out;
   }
+  // A slide line "@image: <src>" puts a picture on that slide. <src> is a URL, a server media path,
+  // or "#<id>" for a picture kept in the media bin (how pictures are stored when running without the server).
+  const IMAGE_LINE = /^@image:\s*(.+)$/i;
+  function splitSlide(raw) {
+    let image = null;
+    const text = raw.split('\n').filter(l => { const m = l.match(IMAGE_LINE); if (m) image = m[1].trim(); return !m; }).join('\n').trim();
+    return { text, image };
+  }
   function makePres(name, text) { const r = parseText(text); return { id: uid(), name, groups: r.groups, bg: r.bg }; }
 
   function groupColor(name) {
@@ -195,7 +203,12 @@ Have a great week!`]
   let selectedId = (db.playlist[0] || db.presentations[0]?.id) ?? null;
 
   const getPres = id => db.presentations.find(p => p.id === id);
-  const flat = p => p ? p.groups.flatMap((g, gi) => g.slides.map((text, si) => ({ text, group: g.name, gi, si, color: groupColor(g.name) }))) : [];
+  const resolveImage = src => src && src.startsWith('#') ? db.media.find(m => m.id === src.slice(1))?.src || null : src;
+  const flat = p => p ? p.groups.flatMap((g, gi) => g.slides.map((raw, si) => {
+    const { text, image } = splitSlide(raw);
+    return { text, image: resolveImage(image), group: g.name, gi, si, color: groupColor(g.name) };
+  })) : [];
+  const slideSummary = s => s ? s.text || (s.image ? '[Image]' : '') : '';
 
   function payload() {
     return { ...live, theme: db.theme, logoText: db.logoText };
@@ -225,10 +238,10 @@ Have a great week!`]
     const p = getPres(presId); const s = flat(p)[idx];
     if (!s) return;
     live.presId = presId; live.idx = idx; live.logo = false;
-    live.slide = { text: s.text, label: `${p.name} — ${s.group}`, color: s.color };
+    live.slide = { text: s.text, image: s.image, label: `${p.name} — ${s.group}`, color: s.color };
     if (p.bg && (!live.bg || live._autoBgFrom !== p.id)) { live.bg = p.bg; live._autoBgFrom = p.id; }
     const nt = nextTarget(presId, idx, 1);
-    live.next = nt ? flat(getPres(nt[0]))[nt[1]].text : '';
+    live.next = nt ? slideSummary(flat(getPres(nt[0]))[nt[1]]) : '';
     if (selectedId !== presId) { selectedId = presId; renderAll(); }
     broadcast();
     const el = $(`.slide[data-idx="${idx}"]`); if (el) revealSlide(el);
@@ -324,7 +337,7 @@ Have a great week!`]
       card.onclick = () => goLive(p.id, i);
       grid.appendChild(card);
       PP.createScreen(scr);
-      PP.update(scr, { bg: p.bg || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { text: s.text }, theme: db.theme }, { animate: false });
+      PP.update(scr, { bg: p.bg || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { text: s.text, image: s.image }, theme: db.theme }, { animate: false });
     });
     renderLiveMarks();
   }
@@ -353,8 +366,11 @@ Have a great week!`]
       d.querySelector('span').textContent = m.name;
       d.onclick = e => {
         if (e.target.classList.contains('x')) {
+          const onSlide = db.presentations.some(p => p.groups.some(g => g.slides.some(s => s.includes('#' + m.id))));
+          if (onSlide) { toast(`“${m.name}” is used on a slide — remove it there first`); return; }
           db.media = db.media.filter(x => x !== m); save(); renderMedia();
-          if (!db.presentations.some(p => p.bg && p.bg.src === m.src)) Lumen.deleteMedia(m.src);
+          const used = db.presentations.some(p => (p.bg && p.bg.src === m.src) || p.groups.some(g => g.slides.some(s => s.includes(m.src))));
+          if (!used) Lumen.deleteMedia(m.src);
           return;
         }
         live.bg = live.bg && live.bg.src === m.src ? null : { type: m.type, src: m.src };
@@ -423,12 +439,41 @@ Have a great week!`]
 
   // ---------- editor ----------
   let editingId = null;
+  const SAMPLE_TEXT = '[Verse 1]\nFirst line\nSecond line\n\nThird line\nFourth line\n\n[Chorus]\nChorus line';
   function openEditor(id) {
     editingId = id;
     const p = id ? getPres(id) : null;
     $('#edName').value = p ? p.name : 'Untitled';
-    $('#edText').value = p ? serialize(p) : '[Verse 1]\nFirst line\nSecond line\n\nThird line\nFourth line\n\n[Chorus]\nChorus line';
+    $('#edText').value = p ? serialize(p) : SAMPLE_TEXT;
     $('#editor').hidden = false; $('#edText').focus();
+  }
+  const readDataUrl = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+  // Each picture becomes its own slide at the cursor. A new presentation still holding the sample text
+  // becomes a slideshow instead.
+  async function addEditorImages(files) {
+    files = [...files].filter(f => f.type.startsWith('image/'));
+    if (!files.length) return;
+    toast(`Adding ${files.length} image${files.length > 1 ? 's' : ''}…`);
+    const refs = [];
+    for (const f of files) {
+      try {
+        if (online) refs.push((await Lumen.uploadMedia(f)).src);
+        else {
+          const m = { id: uid(), name: f.name, type: 'image', src: await readDataUrl(f) };
+          db.media.push(m); refs.push('#' + m.id);
+        }
+      } catch (e) { toast(`Could not add ${f.name}: ${e.message || 'read failed'}`); }
+    }
+    if (!refs.length) return;
+    if (!online) { save(); renderMedia(); }
+    const ta = $('#edText'), block = refs.map(r => '@image: ' + r).join('\n\n');
+    if (!ta.value.trim() || ta.value === SAMPLE_TEXT) ta.value = '[Slideshow]\n' + block;
+    else {
+      const at = ta.selectionEnd;
+      ta.value = (ta.value.slice(0, at) + '\n\n' + block + '\n\n' + ta.value.slice(at)).replace(/\n{3,}/g, '\n\n').trim();
+    }
+    if ($('#edName').value === 'Untitled' && ta.value.startsWith('[Slideshow]')) $('#edName').value = 'Slideshow';
+    toast(`Added ${refs.length} image slide${refs.length > 1 ? 's' : ''}`);
   }
   function saveEditor() {
     const r = parseText($('#edText').value);
@@ -482,6 +527,10 @@ Have a great week!`]
   $('#thumbSize').oninput = e => $('#slideGrid').style.setProperty('--tw', e.target.value + 'px');
 
   $('#edSave').onclick = saveEditor;
+  $('#edImages').onclick = () => $('#edImageFile').click();
+  $('#edImageFile').onchange = e => { addEditorImages(e.target.files); e.target.value = ''; };
+  $('#edText').ondragover = e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); };
+  $('#edText').ondrop = e => { if (e.dataTransfer.files.length) { e.preventDefault(); addEditorImages(e.dataTransfer.files); } };
   $('#edCancel').onclick = () => { $('#editor').hidden = true; };
 
   $$('[data-clear]').forEach(b => b.onclick = () => clear(b.dataset.clear));

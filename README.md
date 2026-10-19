@@ -73,6 +73,21 @@ Chorus line
 - `[Name]` starts a group; Verse, Chorus, Bridge, Pre-Chorus, Tag, Intro and Ending are colour-coded.
 - A blank line starts a new slide.
 - An optional `@bg:` line sets the presentation's default background (colour, CSS gradient, image or video URL).
+- An `@image:` line puts a picture on that slide, letterboxed over the background. Any other lines on the slide are shown as text on top of it.
+
+### Slideshows and picture slides
+
+In the editor, **🖼 Add images** (or dropping pictures onto the text) uploads them and adds one `@image:` slide per picture where the cursor is. In a new presentation it replaces the sample text with a `[Slideshow]` group, so a slideshow is: **＋** → **Add images** → pick the photos → **Save**.
+
+```
+[Slideshow]
+@image: media/3f9c2a7b1e4d5a60.jpg
+
+@image: media/8a1b2c3d4e5f6071.jpg
+Welcome to Youth Camp!
+```
+
+Without the server, pictures are kept in the media bin and referenced as `@image: #<id>`.
 
 ## Data
 
