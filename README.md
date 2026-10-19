@@ -50,7 +50,7 @@ The installers aren't code-signed yet, so Windows may show **Windows protected y
 
 ### Desktop app from the source
 
-Requires [Node.js](https://nodejs.org) 20 or later.
+Requires [Node.js](https://nodejs.org) 24 or later (the current long-term support release).
 
 ```bash
 npm install
