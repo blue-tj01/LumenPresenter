@@ -211,9 +211,9 @@ Have a great week!`]
     const seq = (p.order || []).map(n => findGroup(p, n)).filter(gi => gi >= 0);
     return seq.length ? seq : p.groups.map((g, gi) => gi);
   };
-  const flat = p => p ? arrangement(p).flatMap((gi, oi) => { const g = p.groups[gi]; return g.slides.map((raw, si) => {
+  const flat = p => p ? arrangement(p).flatMap(gi => { const g = p.groups[gi]; return g.slides.map((raw, si) => {
     const { text, image } = splitSlide(raw);
-    return { text, image: resolveImage(image), group: g.name, gi, oi, si, color: groupColor(g.name) };
+    return { text, image: resolveImage(image), group: g.name, gi, si, color: groupColor(g.name) };
   }); }) : [];
   const slideSummary = s => s ? s.text || (s.image ? '[Image]' : '') : '';
 
@@ -329,13 +329,8 @@ Have a great week!`]
     const ordered = p && p.order && p.order.length && arrangement(p).map(gi => p.groups[gi].name);
     $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides` + (ordered ? ` · Order: ${ordered.join(', ')}` : '') : '';
     if (!p || !slides.length) { grid.innerHTML = '<div class="empty">No slides yet — click ✎ Edit to add some.</div>'; return; }
-    let lastGroup = -1;
+    // One continuous grid; each card's coloured label names its group.
     slides.forEach((s, i) => {
-      if (s.oi !== lastGroup) {
-        lastGroup = s.oi;
-        const h = document.createElement('div'); h.className = 'group-h'; h.style.setProperty('--gc', s.color); h.textContent = s.group;
-        grid.appendChild(h);
-      }
       const card = document.createElement('div');
       card.className = 'slide'; card.dataset.idx = i;
       const scr = document.createElement('div'); card.appendChild(scr);

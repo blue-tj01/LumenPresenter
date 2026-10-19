@@ -55,8 +55,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .slide .pp-screen { width: 100%; aspect-ratio: 16 / 9; }
 .slide .lbl { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 11px; color: #fff; }
 .slide .lbl .n { opacity: .75; }
-.group-h { grid-column: 1 / -1; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-top: 4px; display: flex; align-items: center; gap: 8px; }
-.group-h::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--gc); }
 .empty { grid-column: 1 / -1; text-align: center; color: var(--muted); padding: 60px 0; }
 
 .media-h { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-top: 1px solid var(--line); background: var(--panel); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
