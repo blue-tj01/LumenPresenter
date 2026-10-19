@@ -564,6 +564,7 @@ Have a great week!`]
     $('#edText').value = p ? serialize(p) : SAMPLE_TEXT;
     $('#edOrder').value = p && p.order ? p.order.join(', ') : '';
     renderOrderChips();
+    themeOptions($('#edTheme'), 'Theme: same as all songs', savedTheme(p)?.id);
     $('#editor').hidden = false; $('#edText').focus();
   }
   const readOrder = () => $('#edOrder').value.split(',').map(n => n.trim()).filter(Boolean);
@@ -607,8 +608,11 @@ Have a great week!`]
     const order = readOrder().map(n => r.groups.find(g => g.name.toLowerCase() === n.toLowerCase())?.name || n);
     const missing = order.filter(n => !r.groups.some(g => g.name === n));
     if (missing.length) toast(`Not in this song, skipped in the order: ${[...new Set(missing)].join(', ')}`);
-    if (editingId && getPres(editingId)) Object.assign(getPres(editingId), { name, groups: r.groups, bg: r.bg, order });
-    else { const p = { id: uid(), name, groups: r.groups, bg: r.bg, order }; db.presentations.push(p); selectedId = p.id; }
+    const themeId = $('#edTheme').value;
+    let p = editingId && getPres(editingId);
+    if (p) Object.assign(p, { name, groups: r.groups, bg: r.bg, order });
+    else { p = { id: uid(), name, groups: r.groups, bg: r.bg, order }; db.presentations.push(p); selectedId = p.id; }
+    if (themeId) p.themeId = themeId; else delete p.themeId;
     save(); $('#editor').hidden = true; renderAll();
     if (live.presId === editingId && live.slide) { const s = flat(getPres(editingId))[live.idx]; if (s) goLive(editingId, live.idx); }
   }
