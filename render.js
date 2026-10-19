@@ -92,7 +92,30 @@
     return { key, el };
   }
 
-  // live = { bg, slide:{text, image}, msg, logo, theme, logoText, logoImg }
+  // Every window plays a live video from the same moment: play = { startAt (server ms), paused, pos (seconds) }.
+  // A window opened late, or reloaded, joins it part-way through.
+  function syncVideo(v, play, opts) {
+    play = play || {};
+    const now = window.Lumen ? Lumen.now() : Date.now();
+    const at = play.paused ? play.pos || 0 : Math.max(0, (now - (play.startAt || now)) / 1000 + (play.pos || 0));
+    const seek = () => {
+      const t = isFinite(v.duration) ? Math.min(at, v.duration) : at;
+      if (Math.abs(v.currentTime - t) > 0.4) v.currentTime = t;
+    };
+    if (v.readyState >= 1) seek(); else v.addEventListener('loadedmetadata', seek, { once: true });
+    const done = !play.paused && (v.ended || (isFinite(v.duration) && at >= v.duration));
+    v.classList.toggle('pp-done', done);
+    if (play.paused) { v.pause(); return; }
+    if (done) return;
+    v.play().catch(() => {
+      // The browser blocks sound until someone interacts with this window: play silently until then.
+      if (v.muted) return;
+      v.muted = true; v.play().catch(() => {});
+      if (opts.onMuted) opts.onMuted(v);
+    });
+  }
+
+  // live = { bg, slide:{text, image, video, play}, msg, logo, theme, logoText, logoImg }
   function update(screen, live, opts = {}) {
     const st = screen._pp, inner = screen.firstElementChild;
     const fade = !!opts.fade, animate = opts.animate !== false;
@@ -101,15 +124,28 @@
 
     st.bg = swap(bgL, bgKey(live.bg), st.bg, () => makeBg(live.bg, animate), fade);
 
-    // A slide's own picture sits over the background and under its text, letterboxed so nothing is cropped.
-    const ik = live.slide && live.slide.image ? live.slide.image : '';
+    // A slide's own picture or video sits over the background and under its text, letterboxed so nothing is cropped.
+    const sl = live.slide || {};
+    const ik = sl.video ? 'video|' + sl.video + '|' + ((sl.play && sl.play.startAt) || '') : sl.image || '';
     st.img = swap(imgL, ik, st.img, () => {
       const d = document.createElement('div');
       d.className = 'pp-fill pp-slideimg';
-      const img = document.createElement('img'); img.src = ik; img.alt = '';
-      d.appendChild(img);
+      if (sl.video) {
+        const v = document.createElement('video');
+        // Thumbnails show the first frame; only the audience output plays the sound.
+        Object.assign(v, { src: opts.still ? sl.video + '#t=0.1' : sl.video, muted: !opts.sound, playsInline: true,
+          preload: opts.still ? 'metadata' : 'auto' });
+        // When it finishes it fades out to black rather than holding its last frame.
+        d.classList.add('pp-slidevid');
+        v.addEventListener('ended', () => v.classList.add('pp-done'));
+        d.appendChild(v);
+      } else {
+        const img = document.createElement('img'); img.src = ik; img.alt = '';
+        d.appendChild(img);
+      }
       return d;
     }, fade);
+    if (sl.video && !opts.still && st.img.el) syncVideo(st.img.el.firstChild, sl.play, opts);
 
     const tk = live.slide && live.slide.text ? live.slide.text + '§' + JSON.stringify(t) : '';
     st.txt = swap(txtL, tk, st.txt, () => makeText(live.slide.text, t), fade);
