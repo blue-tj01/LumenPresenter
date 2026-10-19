@@ -287,6 +287,27 @@ class Handler(BaseHTTPRequestHandler):
         """A request from this computer itself, not relayed by a proxy on it."""
         return self.from_loopback() and not any(self.headers.get(h) for h in FORWARDED)
 
+    def known_host(self):
+        """DNS rebinding: a web page whose own name is pointed at 127.0.0.1 would reach Lumen from this computer
+        as a page of the same site, so it could read the token and make changes. Only names nobody else can point
+        here are accepted from this computer: IP addresses, localhost, this computer's name, and --allowed-host."""
+        host = self.headers.get('Host', '')
+        m = re.fullmatch(r'\[([0-9a-fA-F:.]+)\](?::\d+)?|([^:]*)(?::\d+)?', host)
+        if not m:
+            return False
+        name = (m.group(1) or m.group(2) or '').lower().rstrip('.')
+        if not name or name == 'localhost' or name.endswith('.localhost') or name in self.server.allowed_hosts:
+            return True
+        try:
+            ipaddress.ip_address(name)
+            return True
+        except ValueError:
+            return False
+
+    def same_origin(self, method):
+        """CSRF: browsers say which site a request comes from; changes are only taken from Lumen's own pages."""
+        return method in ('GET', 'HEAD') or self.headers.get('Sec-Fetch-Site', 'same-origin') in ('same-origin', 'none')
+
     def session(self):
         """The signed-in device this request comes from (its cookie), if any."""
         try:
@@ -347,6 +368,10 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def read_body_json(self):
+        # Another site can send text/plain without asking first, but not application/json (the browser checks
+        # with the server, which doesn't agree).
+        if (self.headers.get('Content-Type') or '').split(';')[0].strip().lower() != 'application/json':
+            raise ValueError('Content-Type must be application/json')
         n = int(self.headers.get('Content-Length') or 0)
         if n <= 0 or n > MAX_JSON:
             raise ValueError('body missing or too large')
@@ -359,6 +384,10 @@ class Handler(BaseHTTPRequestHandler):
         if not self.server.network and not self.from_loopback():
             # Network mode was just switched off; connections made while it was on are turned away.
             return self.error(HTTPStatus.FORBIDDEN, 'network mode is off')
+        if self.from_loopback() and not self.known_host():
+            return self.error(HTTPStatus.FORBIDDEN, 'unknown host name (behind a proxy, add it with --allowed-host)')
+        if not self.same_origin(method):
+            return self.error(HTTPStatus.FORBIDDEN, 'request from another site')
         if self.server.network and self.token_link(url, method):
             return
         if path != '/api/health' and not self.may_read():
@@ -639,8 +668,11 @@ class LumenServer(ThreadingHTTPServer):
     """host=None binds as the saved network mode says; any other host is fixed (--host) and can't be switched."""
     daemon_threads = True
 
-    def __init__(self, addr, data_dir, token='', max_upload_mb=4096, verbose=False):
+    def __init__(self, addr, data_dir, token='', max_upload_mb=4096, verbose=False, allowed_hosts=()):
         host, port = addr
+        name = socket.gethostname().lower()
+        self.allowed_hosts = {h.strip().lower().rstrip('.') for h in allowed_hosts if h.strip()}
+        self.allowed_hosts |= {name, f'{name}.local'}
         self.store = Store(data_dir)
         self.host_locked = host is not None
         if host is None:
@@ -744,6 +776,9 @@ def main(argv=None):
     p.add_argument('--token', default=os.environ.get('LUMEN_TOKEN', ''),
                    help='require this token for any change, even locally '
                         '(default: a generated one, kept in the data directory and required in network mode)')
+    p.add_argument('--allowed-host', action='append', default=os.environ.get('LUMEN_ALLOWED_HOSTS', '').split(','),
+                   help='a host name Lumen is reached by through a reverse proxy, e.g. lumen.example.org '
+                        '(repeatable; IP addresses, localhost and this computer\'s name are always accepted)')
     p.add_argument('--max-upload-mb', type=int, default=int(os.environ.get('LUMEN_MAX_UPLOAD_MB', 4096)))
     p.add_argument('-v', '--verbose', action='store_true', help='log every request')
     a = p.parse_args(argv)
@@ -752,7 +787,7 @@ def main(argv=None):
     mimetypes.add_type('video/mp4', '.mp4')
     mimetypes.add_type('video/webm', '.webm')
     mimetypes.add_type('video/quicktime', '.mov')
-    srv = LumenServer((a.host, a.port), a.data, a.token, a.max_upload_mb, a.verbose)
+    srv = LumenServer((a.host, a.port), a.data, a.token, a.max_upload_mb, a.verbose, a.allowed_host)
     port = srv.server_address[1]
     print(f'Lumen Presenter on http://localhost:{port}  (data: {srv.store.dir})')
     if srv.network:

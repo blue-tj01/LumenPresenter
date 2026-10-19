@@ -30,9 +30,10 @@ The command-line options still work, and take precedence over the console: `--ho
 | `--port` | `LUMEN_PORT` | `8642` |
 | `--data` | `LUMEN_DATA` | `./data` |
 | `--token` | `LUMEN_TOKEN` | the generated one, required in network mode |
+| `--allowed-host` | `LUMEN_ALLOWED_HOSTS` (comma-separated) | none; IP addresses, `localhost` and this computer's name always work |
 | `--max-upload-mb` | `LUMEN_MAX_UPLOAD_MB` | `4096` |
 
-To run it as a service, see `deploy/lumen.service` (systemd). Behind a reverse proxy, pass `--token` (requests relayed by a proxy on the same computer otherwise look local), turn off response buffering for `/api/events` (nginx: `proxy_buffering off;`), and raise the request body limit if you upload videos.
+To run it as a service, see `deploy/lumen.service` (systemd). Behind a reverse proxy, pass `--token` (requests relayed by a proxy on the same computer otherwise look local) and `--allowed-host` with the name the proxy serves Lumen under, if the proxy passes that name on (Caddy does; nginx only with `proxy_set_header Host`), turn off response buffering for `/api/events` (nginx: `proxy_buffering off;`), and raise the request body limit if you upload videos.
 
 ### Without the server
 
@@ -144,6 +145,8 @@ If several operator consoles edit the library at the same time, the last save wi
 | `GET` / `POST /api/network` | Network mode (`{network}`, `{regenerate: true}` for a new token, `{disconnect: <device id> or "all"}`); the token, device list and changes are only for the computer running Lumen |
 | `POST /api/logout` | Sign this device out |
 | `GET /api/events` | Server-Sent Events: `hello`, `state`, `library`, `ping` |
+
+Requests made on the computer running Lumen are only accepted under an IP address, `localhost`, the computer's own name or an `--allowed-host` name, so a web page on another site can't point its own name at this computer to reach Lumen (DNS rebinding). Requests that change data must come from Lumen's own pages: JSON bodies must be sent as `application/json`, and requests a browser marks as coming from another site (`Sec-Fetch-Site`) are refused.
 
 Requests that change data need the token (`X-Lumen-Token`, `Authorization: Bearer`, or the sign-in cookie a token link sets) in network mode, or whenever `--token` is set. In network mode, requests from other devices need it to read as well, except `/api/health`.
 

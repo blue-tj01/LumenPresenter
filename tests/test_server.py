@@ -82,6 +82,41 @@ class ServerTest(unittest.TestCase):
         for path in ('/server.py', '/.git/config', '/data/library.json', '/../etc/passwd', '/tests/test_server.py'):
             self.assertEqual(self.req('GET', path)[0].status, 404, path)
 
+    def test_rebound_host_name_is_turned_away(self):
+        """A page on another site whose name now points at 127.0.0.1 must not reach the token or the library."""
+        for host in ('attacker.example:8642', 'attacker.example', 'evil.localhost.example'):
+            r, body = self.req('GET', '/api/network', headers={'Host': host})
+            self.assertEqual(r.status, 403, host)
+            self.assertNotIn(b'token', body)
+            self.assertEqual(self.req('PUT', '/api/library', {'library': LIB}, {'Host': host})[0].status, 403, host)
+        for host in ('localhost:8642', '127.0.0.1', '[::1]:8642', 'app.localhost', '192.168.1.20:8642',
+                     socket.gethostname(), f'{socket.gethostname()}.local'):
+            self.assertEqual(self.req('GET', '/api/network', headers={'Host': host})[0].status, 200, host)
+
+    def test_allowed_host_for_a_reverse_proxy(self):
+        self.stop()
+        self.srv = server.LumenServer(('127.0.0.1', 0), self.data, allowed_hosts=['Lumen.Example.org'])
+        self.port = self.srv.server_address[1]
+        self.thread = threading.Thread(target=self.srv.serve_forever, daemon=True)
+        self.thread.start()
+        self.assertEqual(self.req('GET', '/api/library', headers={'Host': 'lumen.example.org'})[0].status, 200)
+        self.assertEqual(self.req('GET', '/api/library', headers={'Host': 'other.example.org'})[0].status, 403)
+
+    def test_changes_from_another_site_are_refused(self):
+        live = {'live': {'slide': {'text': 'hijacked'}}}
+        # A plain cross-site form or fetch can only send text/plain without the browser asking first.
+        r, _ = self.req('POST', '/api/live', json.dumps(live).encode(), {'Content-Type': 'text/plain'})
+        self.assertEqual(r.status, 400)
+        r, _ = self.req('POST', '/api/network', b'{"network": true}', {'Content-Type': 'text/plain'})
+        self.assertEqual(r.status, 400)
+        self.assertFalse(self.srv.network)
+        for site in ('cross-site', 'same-site'):
+            self.assertEqual(self.req('POST', '/api/live', live, {'Sec-Fetch-Site': site})[0].status, 403, site)
+            self.assertEqual(self.req('POST', '/api/logout', headers={'Sec-Fetch-Site': site})[0].status, 403, site)
+        self.assertIsNone(json.loads(self.req('GET', '/api/live')[1])['live'])
+        self.assertEqual(self.req('POST', '/api/live', live, {'Sec-Fetch-Site': 'same-origin'})[0].status, 200)
+        self.assertEqual(self.req('GET', '/api/live', headers={'Sec-Fetch-Site': 'cross-site'})[0].status, 200)
+
     def test_library_roundtrip_and_persistence(self):
         r, body = self.req('GET', '/api/library')
         self.assertEqual(json.loads(body), {'rev': 0, 'library': None})
