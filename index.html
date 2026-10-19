@@ -146,7 +146,14 @@
         <p><code>@image: …</code> on a slide shows a picture on it, with any other lines on that slide as text over it.</p>
         <p><code>@video: …</code> on a slide plays a video on it, once, with sound on the audience output.</p>
         <p><b>Add images / videos</b> (or drop files onto the text) adds one slide each, which makes a slideshow.</p>
+        <p><b>Play order</b> lists groups in the order they're sung, e.g. <code>Verse 1, Chorus, Verse 2, Chorus</code>. Click a group below to add it. Leave it empty to play the groups as written.</p>
       </div>
+    </div>
+    <div class="ed-order">
+      <label for="edOrder">Play order</label>
+      <input id="edOrder" placeholder="As written — or e.g. Verse 1, Chorus, Verse 2, Chorus, Bridge">
+      <button id="edOrderClear" class="btn ghost" title="Play the groups as written">Clear</button>
+      <div id="edOrderChips" class="ed-chips"></div>
     </div>
   </div>
 </div>
