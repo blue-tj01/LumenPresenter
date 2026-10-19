@@ -108,7 +108,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 10; }
 .modal[hidden] { display: none; }
 .modal-card { width: min(1000px, 92vw); height: min(720px, 88vh); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
-.modal-h { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.modal-h { flex-wrap: wrap; display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 .ed-name { font-size: 16px; font-weight: 600; background: transparent; border: 0; outline: 0; flex: 1; }
 .ed-body { flex: 1; display: grid; grid-template-columns: 1fr 260px; min-height: 0; }
 #edText { background: var(--bg); border: 0; resize: none; padding: 16px; font: 14px/1.6 ui-monospace, Consolas, monospace; outline: 0; }

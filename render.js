@@ -15,9 +15,10 @@
 
   function createScreen(el) {
     el.classList.add('pp-screen');
-    el.innerHTML = '<div class="pp-inner"><div class="pp-layer pp-bgL"></div><div class="pp-layer pp-txtL"></div>' +
+    el.innerHTML = '<div class="pp-inner"><div class="pp-layer pp-bgL"></div><div class="pp-layer pp-imgL"></div>' +
+      '<div class="pp-layer pp-txtL"></div>' +
       '<div class="pp-layer pp-msgL"></div><div class="pp-layer pp-logoL"></div></div>';
-    el._pp = { bg: null, txt: null, msg: null, logo: null };
+    el._pp = { bg: null, img: null, txt: null, msg: null, logo: null };
     ro.observe(el);
     fit(el);
     return el;
@@ -91,14 +92,24 @@
     return { key, el };
   }
 
-  // live = { bg, slide:{text}, msg, logo, theme, logoText, logoImg }
+  // live = { bg, slide:{text, image}, msg, logo, theme, logoText, logoImg }
   function update(screen, live, opts = {}) {
     const st = screen._pp, inner = screen.firstElementChild;
     const fade = !!opts.fade, animate = opts.animate !== false;
-    const [bgL, txtL, msgL, logoL] = inner.children;
+    const [bgL, imgL, txtL, msgL, logoL] = inner.children;
     const t = live.theme;
 
     st.bg = swap(bgL, bgKey(live.bg), st.bg, () => makeBg(live.bg, animate), fade);
+
+    // A slide's own picture sits over the background and under its text, letterboxed so nothing is cropped.
+    const ik = live.slide && live.slide.image ? live.slide.image : '';
+    st.img = swap(imgL, ik, st.img, () => {
+      const d = document.createElement('div');
+      d.className = 'pp-fill pp-slideimg';
+      const img = document.createElement('img'); img.src = ik; img.alt = '';
+      d.appendChild(img);
+      return d;
+    }, fade);
 
     const tk = live.slide && live.slide.text ? live.slide.text + '§' + JSON.stringify(t) : '';
     st.txt = swap(txtL, tk, st.txt, () => makeText(live.slide.text, t), fade);
