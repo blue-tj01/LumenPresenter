@@ -4,16 +4,21 @@
 const fs = require('fs');
 const path = require('path');
 const electron = require('electron');
-const { app, BrowserWindow, Menu, Tray, dialog, nativeImage, powerSaveBlocker, session, shell } = electron;
+const { app, BrowserWindow, Menu, Notification, Tray, dialog, nativeImage, powerSaveBlocker, session, shell } = electron;
 const { LumenServer } = require('../server.js');
 const { SCREENS, Screens } = require('./screens.js');
+const { Updates } = require('./updates.js');
+const { importDataFolder, isDataFolder } = require('./data.js');
 
 const ROOT = path.join(__dirname, '..');
 const ICON = path.join(__dirname, 'icon.png');
 // Output windows play a video's sound without first being clicked, as a projector window can't be.
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// One settings folder whether Lumen is installed or run from the source (installed, its name would otherwise
+// follow the product name): %APPDATA%\lumen-presenter on Windows, ~/.config/lumen-presenter on Linux.
+app.setPath('userData', path.join(app.getPath('appData'), 'lumen-presenter'));
 
-let srv = null, origin = '', consoleWin = null, screens = null, tray = null, quitting = false, awake = null;
+let srv = null, origin = '', consoleWin = null, screens = null, tray = null, quitting = false, awake = null, updates = null;
 
 /** Where the library, media and settings live. Run from a copy of the source, it is the same ./data folder
  * `node server.js` uses, so an existing library carries straight over; installed, it is in the user's profile. */
@@ -33,6 +38,39 @@ function saveSettings() {
     fs.writeFileSync(settingsPath() + '.tmp', JSON.stringify(settings, null, 2));
     fs.renameSync(settingsPath() + '.tmp', settingsPath());
   } catch (e) { console.error(`warning: could not save ${settingsPath()}: ${e.message}`); }
+}
+
+// ---------- bringing an existing library in ----------
+/** Copy another data folder (the one next to server.js in a copy of the source, say) over this one, then restart
+ * so the server loads it. */
+async function importData() {
+  const { canceled, filePaths } = await dialog.showOpenDialog(consoleWin, { title: 'Import Library From Folder',
+    message: 'Choose the data folder of the Lumen you are moving from (the "data" folder next to server.js).',
+    properties: ['openDirectory'] });
+  if (canceled || !filePaths[0]) return;
+  if (!isDataFolder(filePaths[0]) || path.resolve(filePaths[0]) === srv.store.dir) {
+    dialog.showMessageBox(consoleWin, { type: 'warning', message: 'That folder has no other Lumen library in it.',
+      detail: 'Choose the folder that contains library.json and a media folder.' });
+    return;
+  }
+  const { response } = await dialog.showMessageBox(consoleWin, { type: 'question', buttons: ['Import and Restart', 'Cancel'],
+    defaultId: 0, cancelId: 1, message: 'Replace this library with the one in that folder?',
+    detail: `Its presentations, media, network token and signed-in devices are copied into ${srv.store.dir}, and ` +
+      'Lumen restarts. The library here now is kept in its backups folder.' });
+  if (response !== 0) return;
+  await srv.close();
+  try {
+    importDataFolder(filePaths[0], srv.store.dir);
+  } catch (e) {
+    dialog.showErrorBox('The library could not be imported', e.message);
+  }
+  quitting = true;
+  app.relaunch();
+  app.exit(0);
+}
+
+function notify(title, body) {
+  if (Notification.isSupported()) new Notification({ title, body, icon: ICON }).show();
 }
 
 const sameOrigin = url => { try { return new URL(url).origin === origin; } catch { return false; } };
@@ -115,17 +153,28 @@ function screensMenu() {
 
 function buildMenus() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    ...process.platform === 'darwin' ? [{ role: 'appMenu' }] : [{ label: 'File', submenu: [{ role: 'quit', label: 'Quit Lumen' }] }],
+    ...process.platform === 'darwin' ? [{ role: 'appMenu' }] : [],
+    { label: 'File', submenu: [
+      { label: 'Import Library From Folder…', click: importData },
+      { label: 'Open Data Folder', click: () => shell.openPath(srv.store.dir) },
+      ...process.platform === 'darwin' ? [] : [{ type: 'separator' }, { role: 'quit', label: 'Quit Lumen' }],
+    ] },
     { role: 'editMenu' },
     { role: 'viewMenu' },
     { label: 'Screens', submenu: screensMenu() },
     { role: 'windowMenu' },
+    { label: 'Help', submenu: [
+      ...updates.menu(),
+      { type: 'separator' },
+      { label: 'Lumen on GitHub', click: () => shell.openExternal('https://github.com/blue-tj01/LumenPresenter') },
+    ] },
   ]));
   tray?.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show Console', click: showConsole },
     { type: 'separator' },
     ...screensMenu(),
     { type: 'separator' },
+    ...updates.state === 'ready' ? [...updates.menu(), { type: 'separator' }] : [],
     { label: 'Quit Lumen', click: () => app.quit() },
   ]));
 }
@@ -150,6 +199,7 @@ async function start() {
   });
   app.on('web-contents-created', (_, wc) => { if (wc.getType() === 'window') guard(wc); });
 
+  updates = new Updates({ app, onChange: () => buildMenus(), notify });
   screens = new Screens({ electron, origin, webPreferences, settings, save: saveSettings, icon: ICON });
   for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) electron.screen.on(ev, buildMenus);
   tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'tray.png')));
@@ -160,6 +210,7 @@ async function start() {
 
   openConsole();
   screens.place(); // screens chosen last time come straight back up on their displays
+  updates.start();
 }
 
 if (!app.requestSingleInstanceLock()) {
