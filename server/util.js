@@ -5,7 +5,7 @@ const dgram = require('dgram');
 const fs = require('fs');
 const os = require('os');
 
-const VERSION = 3; // the pages warn when the server is older than they are (updated but not restarted)
+const VERSION = 4; // the pages warn when the server is older than they are (updated but not restarted)
 const COOKIE = 'lumen_session'; // a signed-in device's session id
 const TOKEN_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789'; // no 0/o, 1/l/i, so it can be read off one screen and typed on another
 
