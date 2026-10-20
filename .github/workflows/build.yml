@@ -1,6 +1,6 @@
-# Tests every pull request on Windows and Linux and builds the installers so they can be tried before merging.
-# Pushing a tag such as v0.3.0 (matching "version" in package.json) publishes them as a GitHub release, which
-# installed copies of Lumen update from.
+# Tests every pull request on Windows and Linux. Each push to main also builds the installers, which can be
+# downloaded from the run to try. Pushing a tag such as v0.3.0 (matching "version" in package.json) publishes them
+# as a GitHub release, which installed copies of Lumen update from.
 name: Build
 
 on:
@@ -40,7 +40,7 @@ jobs:
           fi
 
       - name: Build installers
-        if: "!startsWith(github.ref, 'refs/tags/v')"
+        if: github.ref == 'refs/heads/main'
         run: npm run dist
       - name: Build and publish the release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -49,6 +49,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push'
         with:
           name: lumen-${{ runner.os }}
           path: |

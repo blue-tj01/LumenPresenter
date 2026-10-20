@@ -1,4 +1,5 @@
-// Shared 1920x1080 slide renderer used by the operator preview, thumbnails and the audience output.
+// Shared 1920x1080 slide renderer used by the operator preview, thumbnails, the audience output and NDI. A slide
+// arrives as a list of positioned elements, already resolved by the console (console/format.js).
 (function () {
   const W = 1920, H = 1080;
   const FADE_MS = 450;
@@ -13,12 +14,12 @@
     inner.style.transform = `translate(${(w - W * s) / 2}px, ${(h - H * s) / 2}px) scale(${s})`;
   }
 
+  // Layers, back to front: background, the slide's elements, props, message, logo.
   function createScreen(el) {
     el.classList.add('pp-screen');
-    el.innerHTML = '<div class="pp-inner"><div class="pp-layer pp-bgL"></div><div class="pp-layer pp-imgL"></div>' +
-      '<div class="pp-layer pp-txtL"></div>' +
-      '<div class="pp-layer pp-msgL"></div><div class="pp-layer pp-logoL"></div></div>';
-    el._pp = { bg: null, img: null, txt: null, msg: null, logo: null };
+    el.innerHTML = '<div class="pp-inner"><div class="pp-layer pp-bgL"></div><div class="pp-layer pp-slideL"></div>' +
+      '<div class="pp-layer pp-propsL"></div><div class="pp-layer pp-msgL"></div><div class="pp-layer pp-logoL"></div></div>';
+    el._pp = { bg: null, slide: [], msg: null, logo: null };
     ro.observe(el);
     fit(el);
     return el;
@@ -43,32 +44,90 @@
     return d;
   }
 
-  function makeText(text, t) {
+  const FIT = { contain: 'contain', cover: 'cover', stretch: 'fill' };
+
+  // One element of a slide, placed by its frame on the 1920x1080 canvas.
+  function makeElement(e, opts) {
+    const f = e.frame || { x: 0, y: 0, w: W, h: H };
     const d = document.createElement('div');
-    d.className = 'pp-fill pp-text';
-    const v = { top: 'flex-start', middle: 'center', bottom: 'flex-end' }[t.valign] || 'center';
-    Object.assign(d.style, { justifyContent: v, textAlign: t.align, padding: t.margin + 'px' });
-    const span = document.createElement('div');
-    span.className = 'pp-words';
-    span.textContent = text;
-    Object.assign(span.style, {
-      fontFamily: t.font, fontSize: t.size + 'px', color: t.color, fontWeight: t.bold ? 700 : 400,
-      textTransform: t.upper ? 'uppercase' : 'none', lineHeight: t.lineHeight || 1.2,
-      textShadow: t.shadow ? '0 4px 22px rgba(0,0,0,.85),0 2px 4px rgba(0,0,0,.9)' : 'none',
-    });
-    d.appendChild(span);
+    d.className = 'pp-el pp-' + e.type;
+    Object.assign(d.style, { left: f.x + 'px', top: f.y + 'px', width: f.w + 'px', height: f.h + 'px' });
+    if (f.rotate) d.style.transform = `rotate(${f.rotate}deg)`;
+    let inner;
+    if (e.type === 'text') inner = makeText(d, e);
+    else if (e.type === 'image') {
+      inner = document.createElement('img'); inner.src = e.src; inner.alt = '';
+      inner.style.objectFit = FIT[e.fit] || 'contain';
+    } else if (e.type === 'video') inner = makeVideo(e, opts);
+    else if (e.type === 'shape') {
+      inner = document.createElement('div');
+      Object.assign(inner.style, { width: '100%', height: '100%', boxSizing: 'border-box', background: e.fill || 'none',
+        borderRadius: (e.radius || 0) + 'px', border: e.stroke ? `${e.stroke.width || 2}px solid ${e.stroke.color || '#fff'}` : 'none' });
+    }
+    if (e.fill && e.type !== 'shape') d.style.background = e.fill;
+    if (inner) { if (e.opacity != null) inner.style.opacity = e.opacity; d.appendChild(inner); }
     return d;
   }
 
-  // Shrink the font until the words fit inside the safe area.
-  function shrinkToFit(d, t) {
-    const span = d.firstChild;
+  function makeText(d, e) {
+    const t = e.style || {};
+    const v = { top: 'flex-start', middle: 'center', bottom: 'flex-end' }[t.valign] || 'center';
+    Object.assign(d.style, { justifyContent: v, textAlign: t.align || 'center', padding: (t.padding || 0) + 'px' });
+    const span = document.createElement('div');
+    span.className = 'pp-words';
+    span.textContent = e.content;
+    Object.assign(span.style, {
+      fontFamily: t.font, fontSize: t.size + 'px', color: t.color, fontWeight: t.weight || 400,
+      fontStyle: t.italic ? 'italic' : 'normal', textTransform: t.upper ? 'uppercase' : 'none',
+      lineHeight: t.lineHeight || 1.2, letterSpacing: t.letterSpacing ? t.letterSpacing + 'px' : 'normal',
+      textShadow: t.shadow ? '0 4px 22px rgba(0,0,0,.85),0 2px 4px rgba(0,0,0,.9)' : 'none',
+    });
+    if (t.outline) span.style.webkitTextStroke = `${t.outline.width || 2}px ${t.outline.color || '#000'}`;
+    return span;
+  }
+
+  // A video that loops (a background, or a moving element) is muted; one that plays once is the slide's video,
+  // kept in step across windows by the live state's clock, with its sound only where opts.sound says.
+  function makeVideo(e, opts) {
+    const v = document.createElement('video');
+    v.style.objectFit = FIT[e.fit] || 'contain';
+    if (e.loop !== false) {
+      Object.assign(v, { src: e.src, autoplay: !opts.still, loop: true, muted: true, playsInline: true });
+      return v;
+    }
+    // Thumbnails show the first frame. When it finishes it fades out to black rather than holding its last frame.
+    v.classList.add('pp-once');
+    Object.assign(v, { src: opts.still ? e.src + '#t=0.1' : e.src, muted: !opts.sound || !!e.muted, playsInline: true,
+      preload: opts.still ? 'metadata' : 'auto' });
+    v.addEventListener('ended', () => v.classList.add('pp-done'));
+    return v;
+  }
+
+  // Shrink the words until they fit their box.
+  function shrinkToFit(d, e) {
+    const span = d.firstChild, t = e.style || {};
+    if (t.fit === 'none') return;
+    const f = e.frame || { w: W, h: H }, pad = t.padding || 0;
+    const maxH = f.h - pad * 2, maxW = f.w - pad * 2;
     let size = t.size;
-    const maxH = H - t.margin * 2, maxW = W - t.margin * 2;
     while (size > 24 && (span.scrollHeight > maxH || span.scrollWidth > maxW)) {
       size -= 4;
       span.style.fontSize = size + 'px';
     }
+  }
+
+  // Slides saved in the live state before layouts (a restart after updating) still draw, from their theme.
+  function legacyElements(sl, t) {
+    if (!sl || sl.elements) return sl ? sl.elements : [];
+    const out = [];
+    if (sl.video) out.push({ type: 'video', src: sl.video, fit: 'contain', loop: false, fill: '#000' });
+    else if (sl.image) out.push({ type: 'image', src: sl.image, fit: 'contain' });
+    if (sl.text && t) {
+      const m = t.margin || 110;
+      out.push({ type: 'text', content: sl.text, frame: { x: m, y: m, w: W - 2 * m, h: H - 2 * m },
+        style: { ...t, weight: t.bold ? 700 : 400, padding: 0 } });
+    }
+    return out;
   }
 
   function swap(layer, key, current, build, fade) {
@@ -115,41 +174,35 @@
     });
   }
 
-  // live = { bg, slide:{text, image, video, play}, msg, logo, theme, logoText, logoImg }
+  // live = { bg, slide:{elements, play, stageText}, msg, logo, logoText, logoImg }
   function update(screen, live, opts = {}) {
     const st = screen._pp, inner = screen.firstElementChild;
     const fade = !!opts.fade, animate = opts.animate !== false;
-    const [bgL, imgL, txtL, msgL, logoL] = inner.children;
+    const [bgL, slideL, , msgL, logoL] = inner.children;
     const t = live.theme;
 
     st.bg = swap(bgL, bgKey(live.bg), st.bg, () => makeBg(live.bg, animate), fade);
 
-    // A slide's own picture or video sits over the background and under its text, letterboxed so nothing is cropped.
-    const sl = live.slide || {};
-    const ik = sl.video ? 'video|' + sl.video + '|' + ((sl.play && sl.play.startAt) || '') : sl.image || '';
-    st.img = swap(imgL, ik, st.img, () => {
-      const d = document.createElement('div');
-      d.className = 'pp-fill pp-slideimg';
-      if (sl.video) {
-        const v = document.createElement('video');
-        // Thumbnails show the first frame; only the audience output plays the sound.
-        Object.assign(v, { src: opts.still ? sl.video + '#t=0.1' : sl.video, muted: !opts.sound, playsInline: true,
-          preload: opts.still ? 'metadata' : 'auto' });
-        // When it finishes it fades out to black rather than holding its last frame.
-        d.classList.add('pp-slidevid');
-        v.addEventListener('ended', () => v.classList.add('pp-done'));
-        d.appendChild(v);
-      } else {
-        const img = document.createElement('img'); img.src = ik; img.alt = '';
-        d.appendChild(img);
-      }
-      return d;
-    }, fade);
-    if (sl.video && !opts.still && st.img.el) syncVideo(st.img.el.firstChild, sl.play, opts);
-
-    const tk = live.slide && live.slide.text ? live.slide.text + '§' + JSON.stringify(t) : '';
-    st.txt = swap(txtL, tk, st.txt, () => makeText(live.slide.text, t), fade);
-    if (st.txt.el && !st.txt.el._fit) { st.txt.el._fit = true; shrinkToFit(st.txt.el, t); }
+    // The slide's elements: one that is the same as before stays as it is (a picture under changing words, say),
+    // and the rest fade over.
+    const sl = live.slide;
+    const els = legacyElements(sl, t);
+    const keyOf = e => JSON.stringify(e) + (e.type === 'video' && e.loop === false ? '|' + ((sl.play && sl.play.startAt) || '') : '');
+    const old = st.slide, next = [];
+    for (const e of els) {
+      const key = keyOf(e), i = old.findIndex(o => o && o.key === key);
+      if (i >= 0) { next.push(old[i]); old[i] = null; continue; }
+      const item = swap(slideL, key, null, () => makeElement(e, opts), fade);
+      if (e.type === 'text') shrinkToFit(item.el, e);
+      next.push(item);
+    }
+    old.forEach(o => { if (o) swap(slideL, '', o, null, fade); });
+    next.forEach(n => slideL.appendChild(n.el)); // stacking order, back to front
+    st.slide = next;
+    if (!opts.still) for (const n of next) {
+      const v = n.el.querySelector('video.pp-once');
+      if (v) syncVideo(v, sl.play, opts);
+    }
 
     const mk = live.msg ? live.msg : '';
     st.msg = swap(msgL, mk, st.msg, () => {
@@ -170,5 +223,8 @@
     }, fade);
   }
 
-  window.PP = { W, H, createScreen, update, fit, cssUrl };
+  /** The slide's video that plays once, as the screen shows it, for its time and length. */
+  const slideVideo = screen => screen.querySelector('.pp-slideL video.pp-once');
+
+  window.PP = { W, H, createScreen, update, fit, cssUrl, slideVideo };
 })();

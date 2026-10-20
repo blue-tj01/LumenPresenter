@@ -306,6 +306,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
+| `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |
 | `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display |
 | `sync.js` | The pages' link to the server |
 
@@ -317,7 +318,7 @@ npm test
 
 The NDI tests use a stand-in for NDI. To also send real frames, set `LUMEN_NDI_LIB` to the NDI library (for example `libndi.so.6`, or `Processing.NDI.Lib.x64.dll` in the NDI Runtime folder on Windows) before running them.
 
-GitHub Actions runs the tests on Windows and Linux for every pull request and builds the installers, which can be downloaded from the run's **Artifacts** to try before merging. `npm run dist` builds them locally, into `dist/`.
+GitHub Actions runs the tests on Windows and Linux for every pull request. Each push to `main` also builds the installers, which can be downloaded from the run's **Artifacts**. `npm run dist` builds them locally, into `dist/`.
 
 ### Releasing
 

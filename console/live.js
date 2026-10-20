@@ -1,6 +1,7 @@
 // What is on screen: the live state every output window shows, going live, moving through slides, clearing.
 import { $ } from './dom.js';
-import { autoSecs, flat, getPres, slideSummary, state, themeFor } from './library.js';
+import { resolveSlide, slideSummary } from './format.js';
+import { autoSecs, flat, getPres, slideBackground, state, templateFor } from './library.js';
 import { renderAll, renderLiveMarks } from './views.js';
 
 // ---------- live state ----------
@@ -12,8 +13,15 @@ export const adoptLive = l => LIVE_KEYS.forEach(k => { if (k in l) live[k] = l[k
 // Pick up where the output left off, so reloading the console never blanks the screen.
 
 
+// The live slide is drawn again from the library each time it goes out, so a theme or text change shows at once.
 function payload() {
-  return { ...live, theme: themeFor(getPres(live.presId)), logoText: state.db.logoText };
+  const sl = live.slide;
+  if (sl?.quick) sl.elements = resolveSlide({ text: sl.stageText }, { template: templateFor(null) });
+  else if (sl && live.presId) {
+    const s = flat(getPres(live.presId))[live.idx];
+    if (s) Object.assign(sl, { elements: s.elements, stageText: slideSummary(s.slide) });
+  }
+  return { ...live, logoText: state.db.logoText };
 }
 export function refreshLive() {
   PP.update(preview, payload(), { fade: true });
@@ -44,14 +52,35 @@ export function goLive(presId, idx) {
   live.presId = presId; live.idx = idx; live.logo = false;
   // A video slide moves on when the video ends rather than on the clock.
   live.autoAt = autoSecs(p) && !s.video ? Lumen.now() + autoSecs(p) * 1000 : null;
-  live.slide = { text: s.text, image: s.image, label: `${p.name} — ${s.group}`, color: s.color };
-  if (s.video) Object.assign(live.slide, { video: s.video, play: { startAt: Lumen.now(), paused: false, pos: 0 } });
-  if (p.bg && (!live.bg || live._autoBgFrom !== p.id)) { live.bg = p.bg; live._autoBgFrom = p.id; }
+  live.slide = { elements: s.elements, stageText: slideSummary(s.slide), label: `${p.name} — ${s.group}`, color: s.color };
+  if (s.video) Object.assign(live.slide, { video: true, play: { startAt: Lumen.now(), paused: false, pos: 0 } });
+  // The presentation's background (or the slide's own) goes up with it, unless the operator picked another since.
+  const bg = slideBackground(p, s.slide), from = s.slide.background ? `${p.id}|${s.slide.id}` : p.id;
+  if (bg && (!live.bg || live._autoBgFrom !== from)) { live.bg = bg; live._autoBgFrom = from; }
   const nt = autoSecs(p) ? loopTarget(presId, idx) : nextTarget(presId, idx, 1);
-  live.next = nt ? slideSummary(flat(getPres(nt[0]))[nt[1]]) : '';
+  live.next = nt ? slideSummary(flat(getPres(nt[0]))[nt[1]].slide) : '';
   if (state.selectedId !== presId) { state.selectedId = presId; renderAll(); }
   broadcast();
   const el = $(`.slide[data-idx="${idx}"]`); if (el) revealSlide(el);
+}
+/** A slide typed in on the spot, in the all-songs template. */
+export function quickSlide(text) {
+  live.presId = null; live.idx = -1; live.logo = false; live.next = ''; live.autoAt = null;
+  live.slide = { quick: true, stageText: text, label: 'Quick slide', color: '#555' };
+  broadcast();
+}
+/** Live state saved before slides had layouts (after an update) is drawn again from the library. Returns whether
+ * it changed. */
+export function upgradeLive() {
+  const sl = live.slide;
+  if (!sl || sl.elements || sl.quick) return false;
+  const s = flat(getPres(live.presId))[live.idx];
+  const text = s ? s.text : sl.text || '';
+  const elements = s ? s.elements : resolveSlide({ text, media: sl.video || sl.image
+    ? { type: sl.video ? 'video' : 'image', src: sl.video || sl.image } : undefined }, { template: templateFor(null) });
+  live.slide = { elements, stageText: s ? slideSummary(s.slide) : text, label: sl.label, color: sl.color,
+    ...(s ? s.video : sl.video) ? { video: true, play: sl.play } : {} };
+  return true;
 }
 // Scroll only the slide grid, never the page, so the live controls stay where the operator left them.
 function revealSlide(el) {
@@ -67,7 +96,7 @@ export function step(dir) {
 }
 // Seconds into the live video, from its shared clock.
 export const videoPos = play => play.paused ? play.pos : (Lumen.now() - play.startAt) / 1000 + play.pos;
-export const liveVideoEl = () => live.slide && live.slide.video && preview._pp.img && preview._pp.img.el ? preview._pp.img.el.querySelector('video') : null;
+export const liveVideoEl = () => live.slide && live.slide.video ? PP.slideVideo(preview) : null;
 export function videoControl(what) {
   const play = live.slide && live.slide.video && live.slide.play;
   if (!play) return;

@@ -75,13 +75,14 @@ class Store {
   get rev() { return this.lib.rev; }
 
   setLibrary(library) {
-    this._backup();
+    // A library saved in a new format is backed up as it was first, whenever the last backup was.
+    this._backup((library.format || 1) !== (this.lib.library?.format || 1));
     return this.lib.set(library);
   }
 
   /** Before a change, at most every BACKUP_EVERY seconds: the library as it was, as a JSON file that Import reads. */
-  _backup() {
-    if (this.lib.library === null || Date.now() / 1000 - this.lastBackup < BACKUP_EVERY) return;
+  _backup(now = false) {
+    if (this.lib.library === null || (!now && Date.now() / 1000 - this.lastBackup < BACKUP_EVERY)) return;
     this.lastBackup = Date.now() / 1000;
     writeAtomic(path.join(this.backupDir, backupName()), this.lib.snapshot());
     const old = fs.readdirSync(this.backupDir).filter(f => f.startsWith('library-')).sort();

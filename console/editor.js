@@ -1,10 +1,11 @@
 // The presentation editor.
 import { $, toast } from './dom.js';
-import { autoSecs, flat, getPres, save, savedTheme, state } from './library.js';
+import { fromText, orderIds, toText } from './format.js';
+import { autoSecs, flat, getPres, save, savedTemplate, state } from './library.js';
 import { goLive, live } from './live.js';
 import { renderMedia, storeSlideMedia } from './media.js';
-import { groupColor, parseText, serialize, uid } from './slides.js';
-import { themeOptions } from './themes.js';
+import { groupColor, parseText, uid } from './slides.js';
+import { templateOptions } from './themes.js';
 import { renderAll } from './views.js';
 
 // ---------- editor ----------
@@ -14,11 +15,12 @@ export function openEditor(id) {
   editingId = id;
   const p = id ? getPres(id) : null;
   $('#edName').value = p ? p.name : 'Untitled';
-  $('#edText').value = p ? serialize(p) : SAMPLE_TEXT;
-  $('#edOrder').value = p && p.order ? p.order.join(', ') : '';
+  $('#edText').value = p ? toText(p) : SAMPLE_TEXT;
+  const order = p?.arrangements?.[0]?.order || [];
+  $('#edOrder').value = order.map(id => p.groups.find(g => g.id === id)?.name).filter(Boolean).join(', ');
   $('#edAdvance').value = autoSecs(p) || '';
   renderOrderChips();
-  themeOptions($('#edTheme'), 'Theme: same as all songs', savedTheme(p)?.id);
+  templateOptions($('#edTheme'), 'Theme: same as all songs', savedTemplate(p)?.id);
   $('#editor').hidden = false; $('#edText').focus();
 }
 const readOrder = () => $('#edOrder').value.split(',').map(n => n.trim()).filter(Boolean);
@@ -57,16 +59,21 @@ async function addEditorImages(files) {
   toast(`Added ${refs.length} slide${refs.length > 1 ? 's' : ''}`);
 }
 export function saveEditor() {
-  const r = parseText($('#edText').value);
+  const old = editingId && getPres(editingId);
+  const { groups, background } = fromText(parseText($('#edText').value), old || undefined);
   const name = $('#edName').value.trim() || 'Untitled';
-  const order = readOrder().map(n => r.groups.find(g => g.name.toLowerCase() === n.toLowerCase())?.name || n);
-  const missing = order.filter(n => !r.groups.some(g => g.name === n));
+  const names = readOrder(), order = orderIds(groups, names);
+  const missing = names.filter(n => !groups.some(g => g.name.toLowerCase() === n.toLowerCase()));
   if (missing.length) toast(`Not in this song, skipped in the order: ${[...new Set(missing)].join(', ')}`);
-  const themeId = $('#edTheme').value, advance = Math.max(0, +$('#edAdvance').value || 0);
-  let p = editingId && getPres(editingId);
-  if (p) Object.assign(p, { name, groups: r.groups, bg: r.bg, order });
-  else { p = { id: uid(), name, groups: r.groups, bg: r.bg, order }; state.db.presentations.push(p); state.selectedId = p.id; }
-  if (themeId) p.themeId = themeId; else delete p.themeId;
+  const templateId = $('#edTheme').value, advance = Math.max(0, +$('#edAdvance').value || 0);
+  // The play order typed here is the first arrangement (the one that plays); any others a song has are kept.
+  const [first, ...rest] = old?.arrangements || [];
+  const arrangements = order.length || rest.length ? [{ name: 'Default', ...first, id: first?.id || uid(), order }, ...rest] : [];
+  let p = old;
+  if (p) Object.assign(p, { name, groups, arrangements });
+  else { p = { id: uid(), name, groups, arrangements }; state.db.presentations.push(p); state.selectedId = p.id; }
+  if (background) p.background = background; else delete p.background;
+  if (templateId) p.templateId = templateId; else delete p.templateId;
   if (advance) p.advance = advance; else delete p.advance;
   save(); $('#editor').hidden = true; renderAll();
   if (live.presId === editingId && live.slide) { const s = flat(getPres(editingId))[live.idx]; if (s) goLive(editingId, live.idx); }

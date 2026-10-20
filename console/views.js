@@ -1,14 +1,14 @@
 // The library list, playlist, slide grid and messages, and their controls.
 import { $, $$, toast } from './dom.js';
 import { openEditor } from './editor.js';
-import { arrangement, autoSecs, flat, getPres, isVideoPres, save, state, themeFor } from './library.js';
-import { broadcast, clear, goLive, live, step, toggleAuto, videoControl } from './live.js';
+import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackground, state, templateFor } from './library.js';
+import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
 import { renderTheme } from './themes.js';
 
 function renderLibrary() {
   const q = $('#libSearch').value.toLowerCase();
   const ul = $('#libList'); ul.innerHTML = '';
-  state.db.presentations.filter(p => !q || p.name.toLowerCase().includes(q) || p.groups.some(g => g.slides.some(s => s.toLowerCase().includes(q))))
+  state.db.presentations.filter(p => !q || p.name.toLowerCase().includes(q) || p.groups.some(g => g.slides.some(s => (s.text || '').toLowerCase().includes(q))))
     .sort((a, b) => a.name.localeCompare(b.name))
     .forEach(p => {
       const li = document.createElement('li');
@@ -55,9 +55,9 @@ export function renderGrid() {
   const p = getPres(state.selectedId);
   $('#presTitle').textContent = p ? p.name : 'No presentation selected';
   const slides = flat(p);
-  const ordered = p && p.order && p.order.length && arrangement(p).map(gi => p.groups[gi].name);
+  const ordered = p && p.arrangements?.[0]?.order.length && arrangement(p).map(gi => p.groups[gi].name);
   $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides` + (ordered ? ` · Order: ${ordered.join(', ')}` : '')
-    + (autoSecs(p) ? ` · Auto-advance every ${autoSecs(p)}s, looping` : '') + ` · ${themeFor(p).name || 'Default style'}` : '';
+    + (autoSecs(p) ? ` · Auto-advance every ${autoSecs(p)}s, looping` : '') + ` · ${templateFor(p).name || 'Default style'}` : '';
   if (!p || !slides.length) { grid.innerHTML = '<div class="empty">No slides yet — click ✎ Edit to add some.</div>'; return; }
   // One continuous grid; each card's coloured label names its group.
   slides.forEach((s, i) => {
@@ -70,7 +70,7 @@ export function renderGrid() {
     card.onclick = () => goLive(p.id, i);
     grid.appendChild(card);
     PP.createScreen(scr);
-    PP.update(scr, { bg: p.bg || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { text: s.text, image: s.image, video: s.video }, theme: themeFor(p) }, { animate: false, still: true });
+    PP.update(scr, { bg: slideBackground(p, s.slide) || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { elements: s.elements } }, { animate: false, still: true });
   });
   renderLiveMarks();
 }
@@ -139,8 +139,6 @@ export function setupViews() {
   };
   $('#msgInput').onkeydown = e => { if (e.key === 'Enter') $('#msgShow').click(); };
   $('#quickGo').onclick = () => {
-    const v = $('#quickText').value.trim(); if (!v) return;
-    live.presId = null; live.idx = -1; live.logo = false; live.next = ''; live.autoAt = null;
-    live.slide = { text: v, label: 'Quick slide', color: '#555' }; broadcast();
+    const v = $('#quickText').value.trim(); if (v) quickSlide(v);
   };
 }

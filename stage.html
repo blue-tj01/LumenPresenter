@@ -33,7 +33,7 @@
   let live = null;
   Lumen.on('state', d => {
     live = d.live;
-    $('cur').textContent = live.slide ? live.slide.text || (live.slide.video ? '[Video]' : live.slide.image ? '[Image]' : '') : '';
+    $('cur').textContent = live.slide ? live.slide.stageText ?? live.slide.text ?? '' : '';
     $('group').textContent = live.slide ? '· ' + live.slide.label : '';
     $('next').textContent = live.next || '—';
     $('msg').textContent = live.stageMsg || '';

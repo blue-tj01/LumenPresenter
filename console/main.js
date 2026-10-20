@@ -2,9 +2,10 @@
 import { $, toast } from './dom.js';
 import { saveEditor, setupEditor } from './editor.js';
 import { getPres, KEY, normalize, save, state, valid } from './library.js';
-import { adoptLive, broadcast, clear, refreshLive, step } from './live.js';
+import { adoptLive, broadcast, clear, refreshLive, step, upgradeLive } from './live.js';
 import { loadFolders, renderMedia, setupMedia } from './media.js';
 import { setupNetwork } from './network.js';
+import { migrateLibrary } from './format.js';
 import { seed } from './seed.js';
 import { renderTheme, setupThemes } from './themes.js';
 import { setupTimer } from './timer.js';
@@ -21,6 +22,7 @@ state.db = normalize(state.db);
 
 const restored = Lumen.online ? (await Lumen.getLive().catch(() => null))?.live : null;
 if (restored) adoptLive(restored);
+const upgraded = upgradeLive();
 state.selectedId = (state.db.playlist[0] || state.db.presentations[0]?.id) ?? null;
 
 setupViews(); setupEditor(); setupMedia(); setupThemes(); setupTimer(); setupNetwork();
@@ -35,11 +37,11 @@ $('#btnExport').onclick = () => {
 $('#btnImport').onclick = () => $('#importFile').click();
 $('#importFile').onchange = e => {
   const f = e.target.files[0]; if (!f) return;
-  f.text().then(t => { const d = JSON.parse(t); if (!d.presentations) throw 0; state.db = { ...seed(), ...d }; save(); state.selectedId = state.db.presentations[0]?.id; renderAll(); renderMedia(); renderMessages(); renderTheme(); toast('Library imported'); })
+  f.text().then(t => { const d = JSON.parse(t); if (!valid(d)) throw 0; state.db = normalize({ ...seed(), ...migrateLibrary(d) }); save(); state.selectedId = state.db.presentations[0]?.id; renderAll(); renderMedia(); renderMessages(); renderTheme(); toast('Library imported'); })
     .catch(() => toast('That file is not a Lumen library'));
   e.target.value = '';
 };
-$('#btnReset').onclick = () => { if (confirm('Reset library to the demo content? Your changes will be lost.')) { state.db = seed(); save(); state.selectedId = state.db.playlist[0]; clear('all'); renderAll(); renderMedia(); renderMessages(); renderTheme(); } };
+$('#btnReset').onclick = () => { if (confirm('Reset library to the demo content? Your changes will be lost.')) { state.db = normalize(seed()); save(); state.selectedId = state.db.playlist[0]; clear('all'); renderAll(); renderMedia(); renderMessages(); renderTheme(); } };
 
 document.addEventListener('keydown', e => {
   if (!$('#editor').hidden) { if (e.key === 'Escape') $('#editor').hidden = true; if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveEditor(); } return; }
@@ -74,7 +76,7 @@ Lumen.on('status', renderStatus);
 renderStatus({ online: Lumen.online, streaming: Lumen.streaming });
 
 renderAll(); renderMedia(); renderMessages(); renderTheme(); loadFolders();
-if (Lumen.online) refreshLive(); else broadcast();
+if (Lumen.online && !upgraded) refreshLive(); else broadcast();
 if (fresh || !Lumen.online) save();
 if (Lumen.outdated) setTimeout(() => toast('The server is older than this page. Restart Lumen to finish updating.'), 2500);
 if (loadFailed) toast('Could not load the library from the server — showing this browser\'s copy');

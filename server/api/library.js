@@ -12,6 +12,8 @@ module.exports = {
     if (!('library' in body)) throw bad('library is missing');
     const lib = body.library;
     if (!isObject(lib) || !Array.isArray(lib.presentations)) throw bad('library.presentations must be a list');
+    // A page from before an update would write the library back in its older format, losing what the newer one added.
+    if ((lib.format || 1) < (this.store.library?.format || 1)) throw bad('this page is older than the library; reload it');
     const origin = String(body.client ?? '');
     const rev = this.store.setLibrary(lib);
     this.sendJson({ rev });
