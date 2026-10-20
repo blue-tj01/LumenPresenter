@@ -4,7 +4,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const RUNTIME_URL = 'https://ndi.video/tools/';
+/** What to install for NDI: NDI Tools has no Linux version, so on Linux it's the NDI SDK, which holds libndi.so.6. */
+function download(platform = process.platform) {
+  return platform === 'linux'
+    ? { name: 'the NDI SDK', url: 'https://ndi.video/for-developers/ndi-sdk/' }
+    : { name: 'NDI Tools', url: 'https://ndi.video/tools/' };
+}
 
 /** Where the NDI library may be on this computer, most specific first. */
 function candidates(env = process.env, platform = process.platform, list = dir => fs.readdirSync(dir)) {
@@ -31,16 +36,16 @@ function candidates(env = process.env, platform = process.platform, list = dir =
 }
 
 /** Load NDI and return what Lumen uses of it, or throw an Error whose message suits the menu. */
-function open({ env = process.env, koffi = require('koffi') } = {}) {
+function open({ env = process.env, koffi = require('koffi'), platform = process.platform } = {}) {
   let lib = null, failed = null;
-  for (const file of candidates(env)) {
+  for (const file of candidates(env, platform)) {
     try { lib = koffi.load(file); break; } catch (e) {
       // There, but Windows or the system wouldn't load it: say so, rather than that NDI isn't installed.
       if (!failed && path.isAbsolute(file) && fs.existsSync(file)) failed = `NDI is installed but could not be loaded: ${e.message}`;
     }
   }
   if (!lib) {
-    const e = new Error(failed || 'Install NDI Tools to send over NDI');
+    const e = new Error(failed || `Install ${download(platform).name} to send over NDI`);
     if (!failed) e.code = 'NDI_MISSING';
     throw e;
   }
@@ -94,4 +99,4 @@ function open({ env = process.env, koffi = require('koffi') } = {}) {
   };
 }
 
-module.exports = { open, candidates, RUNTIME_URL };
+module.exports = { open, candidates, download };

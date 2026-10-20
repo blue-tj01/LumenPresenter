@@ -34,9 +34,12 @@ it('says when NDI is there but will not load, rather than that it is not install
     e => e.code === undefined && /installed but could not be loaded: %1 is not/.test(e.message));
 });
 
-it('says to install NDI Tools when there is no NDI library', () => {
+it('says to install NDI Tools when there is no NDI library, or the NDI SDK on Linux', () => {
   const koffi = { load() { throw new Error('cannot open shared object file'); } };
-  assert.throws(() => open({ env: {}, koffi }), e => e.code === 'NDI_MISSING' && /NDI Tools/.test(e.message));
+  assert.throws(() => open({ env: {}, koffi, platform: 'win32' }),
+    e => e.code === 'NDI_MISSING' && e.message === 'Install NDI Tools to send over NDI');
+  assert.throws(() => open({ env: {}, koffi, platform: 'linux' }),
+    e => e.code === 'NDI_MISSING' && e.message === 'Install the NDI SDK to send over NDI');
 });
 
 // ---------- the output, with stand-ins for Electron and NDI ----------
@@ -85,11 +88,11 @@ function fakeNdi() {
   return ndi;
 }
 
-function output({ settings = {}, load } = {}) {
+function output({ settings = {}, load, platform = 'win32' } = {}) {
   const electron = fakeElectron(), ndi = fakeNdi();
   let saves = 0, changes = 0;
   const out = new NdiOutput({ electron, origin: 'http://127.0.0.1:8642', webPreferences: { sandbox: true }, settings,
-    save: () => saves++, onChange: () => changes++, load: load || (() => ({ ndi })) });
+    save: () => saves++, onChange: () => changes++, load: load || (() => ({ ndi })), platform });
   return { out, electron, ndi, settings, saves: () => saves, changes: () => changes };
 }
 
@@ -208,6 +211,15 @@ it('offers NDI Tools when NDI is not installed, and stays off', async () => {
   assert.equal(out.start(), false);
   assert.equal(out.on, false);
   assert.equal(electron.opened.length, 0);
+});
+
+it('offers the NDI SDK on Linux, where there is no NDI Tools', () => {
+  const { out, electron } = output({ platform: 'linux',
+    load: () => ({ error: 'Install the NDI SDK to send over NDI', missing: true }) });
+  const menu = out.menu(() => {}).submenu;
+  assert.ok(menu.some(i => i.label === 'The NDI SDK isn’t installed on this computer'));
+  menu.find(i => i.label === 'Get the NDI SDK…').click();
+  assert.deepEqual(electron.external, ['https://ndi.video/for-developers/ndi-sdk/']);
 });
 
 it('finds NDI installed while Lumen is open', async () => {
