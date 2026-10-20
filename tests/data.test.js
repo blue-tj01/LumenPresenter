@@ -33,6 +33,25 @@ it('copies the library, settings and media over, keeping what was there', () => 
   assert.equal(read(old, 'library.json'), 'old library'); // the source is left alone
 });
 
+it('moves the database here aside, so an older library.json coming in is not mixed with it', () => {
+  const old = folder({ 'library.json': 'old library' });
+  const app = folder({ 'lumen.db': 'db', 'lumen.db-wal': 'wal', 'settings.json': 'token' });
+  const keep = importDataFolder(old, app, 7);
+  assert.deepEqual(fs.readdirSync(app).filter(f => f.startsWith('lumen.db')), []);
+  assert.equal(read(app, 'library.json'), 'old library');
+  assert.equal(read(keep, 'lumen.db'), 'db');
+  assert.equal(read(keep, 'lumen.db-wal'), 'wal');
+  assert.equal(read(app, 'settings.json'), 'token');
+});
+
+it('brings a database across with the files beside it', () => {
+  const old = folder({ 'lumen.db': 'new db', 'lumen.db-wal': 'new wal' });
+  const app = folder({ 'lumen.db': 'db' });
+  importDataFolder(old, app, 8);
+  assert.equal(read(app, 'lumen.db'), 'new db');
+  assert.equal(read(app, 'lumen.db-wal'), 'new wal');
+});
+
 it('refuses a folder with no library, or the folder already in use', () => {
   const app = folder({ 'library.json': 'x' });
   assert.throws(() => importDataFolder(folder({ 'notes.txt': 'x' }), app), /no Lumen library/);

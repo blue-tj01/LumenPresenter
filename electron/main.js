@@ -51,7 +51,7 @@ async function importData() {
   if (canceled || !filePaths[0]) return;
   if (!isDataFolder(filePaths[0]) || path.resolve(filePaths[0]) === srv.store.dir) {
     dialog.showMessageBox(consoleWin, { type: 'warning', message: 'That folder has no other Lumen library in it.',
-      detail: 'Choose the folder that contains library.json and a media folder.' });
+      detail: 'Choose the folder that contains lumen.db (or library.json) and a media folder.' });
     return;
   }
   const { response } = await dialog.showMessageBox(consoleWin, { type: 'question', buttons: ['Import and Restart', 'Cancel'],

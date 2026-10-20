@@ -11,7 +11,7 @@
   "scripts": {
     "start": "electron .",
     "server": "node server.js",
-    "test": "node --test tests/server.test.js tests/screens.test.js tests/data.test.js tests/ndi.test.js",
+    "test": "node --test tests/server.test.js tests/screens.test.js tests/data.test.js tests/ndi.test.js tests/library.test.js tests/slides.test.js",
     "dist": "electron-builder --publish never",
     "release": "electron-builder --publish always"
   },
@@ -43,7 +43,8 @@
       "electron/**",
       "*.html",
       "*.css",
-      "app.js",
+      "console/**",
+      "server/**",
       "render.js",
       "sync.js"
     ],

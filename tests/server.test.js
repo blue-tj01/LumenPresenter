@@ -92,8 +92,11 @@ describe('server', () => {
     assert.equal(r.status, 200);
     assert.match(r.body.toString(), /Lumen Presenter/);
     assert.equal((await t.req('GET', '/sync.js')).status, 200);
-    for (const p of ['/server.js', '/server.py', '/.git/config', '/data/library.json', '/../etc/passwd', '/tests/server.test.js',
-      '/package.json', '/electron/main.js']) {
+    const mod = await t.req('GET', '/console/main.js');
+    assert.equal(mod.status, 200);
+    assert.match(mod.headers['content-type'], /^application\/javascript/); // browsers load modules only as JavaScript
+    for (const p of ['/server.js', '/server.py', '/.git/config', '/data/library.json', '/data/lumen.db', '/../etc/passwd',
+      '/tests/server.test.js', '/package.json', '/electron/main.js', '/server/util.js', '/console/package.json', '/app.js']) {
       assert.equal((await t.req('GET', p)).status, 404, p);
     }
   });

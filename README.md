@@ -254,13 +254,15 @@ With the app or the server, everything lives in the data directory. For the inst
 
 | Path | Contents |
 | --- | --- |
-| `library.json` | Presentations, playlist, media list, themes and messages (written atomically) |
+| `lumen.db` | The library: presentations, playlist, media list, themes and messages, in an SQLite database (with `lumen.db-wal` and `lumen.db-shm` beside it while Lumen is running) |
 | `live.json` | What is on screen right now, so windows recover after a restart |
 | `settings.json` | Network mode, the access token, signed-in devices and media folders (readable only by the account running the server) |
 | `media/` | Uploaded images and videos |
-| `backups/` | Snapshots of `library.json`, at most one every 10 minutes, newest 50 kept |
+| `backups/` | Snapshots of the library as JSON, at most one every 10 minutes, newest 50 kept |
 
-Back up the data directory to back up everything. **Export** / **Import** in the console produce and read a portable JSON library.
+Back up the data directory to back up everything (with Lumen closed, so the database is in one file).
+
+Earlier versions kept the library in `library.json`. When Lumen starts and finds one there, it moves it into the database and keeps the file in `backups/before-database-<time>/`, so copying an old `library.json` into the data directory is still a way to restore it. **Export** / **Import** in the console produce and read a portable JSON library.
 
 > **Note:** If several operator consoles edit the library at the same time, the last save wins.
 
@@ -288,18 +290,22 @@ Back up the data directory to back up everything. **Export** / **Import** in the
 
 ## Development
 
-There is no build step: edit the HTML, CSS and JavaScript files and reload.
+There is no build step: edit the HTML, CSS and JavaScript files and reload. The console's scripts are ES modules, loaded by the browser as they are.
 
 | File | Contents |
 | --- | --- |
-| `server.js` | The server: storage, the HTTP API, live updates and network mode, using Node's standard library only |
+| `server.js` | Starts the server, using Node's standard library only |
+| `server/lumen-server.js`, `server/request.js` | Listening, network mode, and handling each request: sign-in, checks and files |
+| `server/api/` | The HTTP API, one file per area (library and live state, media and folders, network, events) |
+| `server/store.js`, `server/library.js` | Settings, live state and backups, and the library's SQLite database |
+| `server/folders.js`, `server/hub.js`, `server/media.js` | Media folders, live updates to open pages, and media file types |
 | `electron/main.js` | The desktop app: starts the server in-process, opens the console window, and sets up the menus and tray icon |
 | `electron/screens.js` | The desktop app's full-screen output and stage windows, and which display each goes on |
 | `electron/ndi.js`, `electron/ndi-lib.js` | Sending the audience output over NDI, and the calls into the NDI Runtime |
 | `electron/updates.js`, `electron/data.js` | Updates for the installed app, and importing a library from another data folder |
 | `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
-| `index.html`, `app.js`, `app.css` | The operator console |
+| `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
 | `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display |
 | `sync.js` | The pages' link to the server |
 
