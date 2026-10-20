@@ -4,6 +4,7 @@ import { openEditor } from './editor.js';
 import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackground, state, templateFor } from './library.js';
 import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
 import { addService, duplicateService, nextSunday, openService, removeService, serviceLabel, sortedServices, switchService, updateService } from './services.js';
+import { decode, findSame, parseSongSelect } from './songselect.js';
 import { renderTheme } from './themes.js';
 
 // With the server, search is the library database's song search, which ranks matches and shows the words that
@@ -175,6 +176,30 @@ export function renderMessages() {
 }
 
 
+/** Songs from CCLI SongSelect files (.usr or .txt) added to the library. A song already there, by its CCLI song
+ * number (or its title, for one without), is left as it is. */
+async function importSongs(files) {
+  const added = [], kept = [], failed = [];
+  for (const f of [...files]) { // a copy: the file input is cleared while these are read
+    if (!/\.(usr|txt)$/i.test(f.name)) { failed.push(f.name); continue; }
+    try {
+      const p = parseSongSelect(f.name, decode(await f.arrayBuffer()));
+      if (findSame([...state.db.presentations, ...added], p)) { kept.push(p.name); continue; }
+      added.push(p);
+    } catch { failed.push(f.name); }
+  }
+  if (added.length) {
+    state.db.presentations.push(...added);
+    state.selectedId = added[added.length - 1].id;
+    save(); renderAll();
+  }
+  const n = (k, one) => `${k.length} ${one}${k.length === 1 ? '' : 's'}`;
+  toast([added.length === 1 ? `Imported “${added[0].name}”` : added.length && `Imported ${n(added, 'song')}`,
+    kept.length && `${kept.length === 1 ? `“${kept[0]}” is` : `${n(kept, 'song')} are`} already in the library`,
+    failed.length && `${failed.length === 1 ? failed[0] : n(failed, 'file')} could not be read as SongSelect`]
+    .filter(Boolean).join(' · ') || 'No songs found');
+}
+
 export function renderAll() { renderLibrary(); renderPlaylist(); renderGrid(); renderTheme(); }
 
 /** Wire up the library, playlist, slide grid, live controls, tabs and messages; called once the library has loaded. */
@@ -182,6 +207,11 @@ export function setupViews() {
   let typing;
   $('#libSearch').oninput = () => { clearTimeout(typing); typing = setTimeout(renderLibrary, 120); };
   $('#btnNewPres').onclick = () => openEditor(null);
+  $('#btnImportSongs').onclick = () => $('#songFile').click();
+  $('#songFile').onchange = e => { importSongs(e.target.files); e.target.value = ''; };
+  const songFiles = e => [...e.dataTransfer.items].some(i => i.kind === 'file');
+  $('#libList').addEventListener('dragover', e => { if (songFiles(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  $('#libList').addEventListener('drop', e => { if (e.dataTransfer.files.length) { e.preventDefault(); importSongs(e.dataTransfer.files); } });
   $('#btnEdit').onclick = () => state.selectedId && openEditor(state.selectedId);
   $('#btnAddPlaylist').onclick = () => { if (state.selectedId && !state.db.playlist.includes(state.selectedId)) { state.db.playlist.push(state.selectedId); save(); renderPlaylist(); toast('Added to playlist'); } };
   $('#btnDelete').onclick = () => {
