@@ -318,7 +318,7 @@ npm test
 
 The NDI tests use a stand-in for NDI. To also send real frames, set `LUMEN_NDI_LIB` to the NDI library (for example `libndi.so.6`, or `Processing.NDI.Lib.x64.dll` in the NDI Runtime folder on Windows) before running them.
 
-GitHub Actions runs the tests on Windows and Linux for every pull request and builds the installers, which can be downloaded from the run's **Artifacts** to try before merging. `npm run dist` builds them locally, into `dist/`.
+GitHub Actions runs the tests on Windows and Linux for every pull request. Each push to `main` also builds the installers, which can be downloaded from the run's **Artifacts**. `npm run dist` builds them locally, into `dist/`.
 
 ### Releasing
 
