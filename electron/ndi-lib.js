@@ -1,17 +1,28 @@
 // The NDI library, called directly. Lumen doesn't ship it: it uses the NDI Runtime that NDI Tools (or the NDI
 // redistributable) installs, found as the NDI SDK says to, through the NDI_RUNTIME_DIR_V6 folder.
 'use strict';
+const fs = require('fs');
 const path = require('path');
 
 const RUNTIME_URL = 'https://ndi.video/tools/';
 
 /** Where the NDI library may be on this computer, most specific first. */
-function candidates(env = process.env, platform = process.platform) {
+function candidates(env = process.env, platform = process.platform, list = dir => fs.readdirSync(dir)) {
   const dir = env.NDI_RUNTIME_DIR_V6;
   if (env.LUMEN_NDI_LIB) return [env.LUMEN_NDI_LIB];
   if (platform === 'win32') {
+    const p = path.win32;
     const name = `Processing.NDI.Lib.${process.arch === 'ia32' ? 'x86' : 'x64'}.dll`;
-    return [...dir ? [path.join(dir, name)] : [], name];
+    // NDI_RUNTIME_DIR_V6 is missing from a Lumen that was already running (in the tray, say) when NDI was
+    // installed, so the folders NDI installs into are looked through too: NDI\NDI 6 Runtime\v6, and the like.
+    const found = [];
+    for (const root of new Set([env.ProgramW6432, env.ProgramFiles].filter(Boolean))) {
+      let folders = [];
+      try { folders = list(p.join(root, 'NDI')); } catch {}
+      folders.sort((a, b) => /runtime/i.test(b) - /runtime/i.test(a) || b.localeCompare(a));
+      for (const f of folders) for (const sub of ['v6', '', 'Runtime']) found.push(p.join(root, 'NDI', f, sub, name));
+    }
+    return [...dir ? [p.join(dir, name)] : [], ...found, name];
   }
   if (platform === 'darwin') {
     return [...dir ? [path.join(dir, 'libndi.dylib')] : [], '/Library/NDI SDK for Apple/lib/macOS/libndi.dylib', '/usr/local/lib/libndi.dylib'];
@@ -21,13 +32,16 @@ function candidates(env = process.env, platform = process.platform) {
 
 /** Load NDI and return what Lumen uses of it, or throw an Error whose message suits the menu. */
 function open({ env = process.env, koffi = require('koffi') } = {}) {
-  let lib = null;
+  let lib = null, failed = null;
   for (const file of candidates(env)) {
-    try { lib = koffi.load(file); break; } catch {}
+    try { lib = koffi.load(file); break; } catch (e) {
+      // There, but Windows or the system wouldn't load it: say so, rather than that NDI isn't installed.
+      if (!failed && path.isAbsolute(file) && fs.existsSync(file)) failed = `NDI is installed but could not be loaded: ${e.message}`;
+    }
   }
   if (!lib) {
-    const e = new Error('Install NDI Tools to send over NDI');
-    e.code = 'NDI_MISSING';
+    const e = new Error(failed || 'Install NDI Tools to send over NDI');
+    if (!failed) e.code = 'NDI_MISSING';
     throw e;
   }
 

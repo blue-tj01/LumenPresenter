@@ -79,7 +79,7 @@ Closing the console while a screen is showing or NDI is sending keeps Lumen runn
 
 The desktop app can send the audience output over the network as an [NDI®](https://ndi.video) source, which vMix, Wirecast, OBS, NDI Studio Monitor and other NDI receivers pick up directly. It sends exactly what the audience output shows, at a steady frame rate, whether or not an output window is open.
 
-1. Install the free [NDI Tools](https://ndi.video/tools/) on the computer running Lumen, which installs the NDI Runtime Lumen uses. Restart Lumen after installing.
+1. Install the free [NDI Tools](https://ndi.video/tools/) on the computer running Lumen, which installs the NDI Runtime Lumen uses. If Lumen was open while you installed it, choose **Screens → NDI Output → Look for NDI Again**.
 2. Turn on **Screens → NDI Output → Send Audience Output over NDI**. The source appears on the network as *COMPUTER-NAME (Lumen Presenter)*. The same menu shows how many receivers are watching.
 3. Choose the size (720p, 1080p or 4K) and frame rate (25, 30, 50 or 60) in the same menu. 1080p at 30 is the default. Higher settings use more processor time and network bandwidth.
 

@@ -10,12 +10,28 @@ const { candidates, open } = require('../electron/ndi-lib.js');
 
 // ---------- finding the NDI library ----------
 it('looks for NDI where NDI Tools puts it, then on the usual library path', () => {
-  const dir = path.join('C:', 'Program Files', 'NDI', 'NDI 6 Runtime', 'v6');
-  assert.deepEqual(candidates({ NDI_RUNTIME_DIR_V6: dir }, 'win32').map(f => path.basename(f)),
-    [`Processing.NDI.Lib.${process.arch === 'ia32' ? 'x86' : 'x64'}.dll`, `Processing.NDI.Lib.${process.arch === 'ia32' ? 'x86' : 'x64'}.dll`]);
-  assert.equal(path.dirname(candidates({ NDI_RUNTIME_DIR_V6: dir }, 'win32')[0]), dir);
+  const dll = `Processing.NDI.Lib.${process.arch === 'ia32' ? 'x86' : 'x64'}.dll`;
+  const dir = 'C:\\Program Files\\NDI\\NDI 6 Runtime\\v6';
+  const none = () => { throw new Error('ENOENT'); };
+  assert.deepEqual(candidates({ NDI_RUNTIME_DIR_V6: dir }, 'win32', none), [`${dir}\\${dll}`, dll]);
   assert.deepEqual(candidates({}, 'linux'), ['libndi.so.6', 'libndi.so']);
   assert.deepEqual(candidates({ LUMEN_NDI_LIB: '/opt/ndi/libndi.so' }, 'linux'), ['/opt/ndi/libndi.so']);
+});
+
+it('finds NDI in its install folder when Lumen started before NDI was installed', () => {
+  const dll = `Processing.NDI.Lib.${process.arch === 'ia32' ? 'x86' : 'x64'}.dll`;
+  const list = dir => { assert.equal(dir, 'C:\\Program Files\\NDI'); return ['NDI 6 Tools', 'NDI 6 Runtime']; };
+  const found = candidates({ ProgramFiles: 'C:\\Program Files', ProgramW6432: 'C:\\Program Files' }, 'win32', list);
+  assert.equal(found[0], `C:\\Program Files\\NDI\\NDI 6 Runtime\\v6\\${dll}`);
+  assert.ok(found.includes(`C:\\Program Files\\NDI\\NDI 6 Tools\\Runtime\\${dll}`));
+  assert.equal(found.at(-1), dll);
+});
+
+it('says when NDI is there but will not load, rather than that it is not installed', () => {
+  const file = __filename; // any file that exists
+  const koffi = { load() { throw new Error('%1 is not a valid Win32 application'); } };
+  assert.throws(() => open({ env: { LUMEN_NDI_LIB: file }, koffi }),
+    e => e.code === undefined && /installed but could not be loaded: %1 is not/.test(e.message));
 });
 
 it('says to install NDI Tools when there is no NDI library', () => {
@@ -188,9 +204,23 @@ it('offers NDI Tools when NDI is not installed, and stays off', async () => {
   assert.ok(menu.some(i => i.label === 'NDI Tools isn’t installed on this computer'));
   menu.find(i => i.label === 'Get NDI Tools…').click();
   assert.deepEqual(electron.external, ['https://ndi.video/tools/']);
+  assert.ok(menu.some(i => i.label === 'Look for NDI Again'));
   assert.equal(out.start(), false);
   assert.equal(out.on, false);
   assert.equal(electron.opened.length, 0);
+});
+
+it('finds NDI installed while Lumen is open', async () => {
+  let installed = false;
+  const ndi = fakeNdi();
+  const { out } = output({ load: () => installed ? { ndi } : { error: 'Install NDI Tools to send over NDI', missing: true } });
+  let rebuilt = 0;
+  const again = out.menu(() => rebuilt++).submenu.find(i => i.label === 'Look for NDI Again');
+  assert.equal(out.lib(), null);
+  installed = true;
+  await again.click();
+  assert.equal(rebuilt, 1);
+  assert.equal(out.menu(() => {}).submenu[0].enabled, true);
 });
 
 it('comes back on at launch when it was on last time', () => {

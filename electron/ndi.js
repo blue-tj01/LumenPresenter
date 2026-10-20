@@ -32,9 +32,10 @@ class NdiOutput {
   get config() { return this.settings.ndi; }
   get on() { return !!this.sender; }
 
-  /** The library, loaded once. An NDI installed while Lumen is open is found the next time Lumen starts. */
+  /** The library, loaded once found. Until then it is looked for again each time, so NDI installed while Lumen
+   * is open is found without restarting. */
   lib() {
-    if (this.loaded === undefined) {
+    if (this.loaded === undefined || (this.loaded === null && this.missing)) {
       const { ndi, error, missing } = this.load();
       this.loaded = ndi || null;
       this.missing = !!missing;
@@ -147,7 +148,8 @@ class NdiOutput {
     const available = this.lib() !== null;
     const status = !available
       ? [{ label: this.missing ? 'NDI Tools isn’t installed on this computer' : this.error, enabled: false },
-        ...this.missing ? [{ label: 'Get NDI Tools…', click: () => this.electron.shell.openExternal(ndiLib.RUNTIME_URL) }] : []]
+        ...this.missing ? [{ label: 'Get NDI Tools…', click: () => this.electron.shell.openExternal(ndiLib.RUNTIME_URL) },
+          { label: 'Look for NDI Again', click: then(() => this.lib()) }] : []]
       : this.error ? [{ label: this.error, enabled: false }]
       : this.on ? [{ label: `Sending as ${this.sourceName()}`, enabled: false },
         { label: this.receivers ? `Seen by ${this.receivers} receiver${this.receivers === 1 ? '' : 's'}` : 'No receivers yet', enabled: false }]
