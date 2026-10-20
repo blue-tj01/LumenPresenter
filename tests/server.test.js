@@ -317,6 +317,18 @@ describe('server', () => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(t.data, 'backups', backups[0]))).rev, 1);
   });
 
+  it('backs the library up before it is saved in a new format, and refuses the old format after', async () => {
+    await t.req('PUT', '/api/library', { library: LIB });
+    await t.req('PUT', '/api/library', { library: LIB });
+    await t.req('PUT', '/api/library', { library: { ...LIB, format: 2 } });
+    const backups = fs.readdirSync(path.join(t.data, 'backups')).sort();
+    assert.equal(JSON.parse(fs.readFileSync(path.join(t.data, 'backups', backups.at(-1)))).rev, 2); // the format 1 library
+    const r = await t.req('PUT', '/api/library', { library: LIB });
+    assert.equal(r.status, 400);
+    assert.match(r.json.error, /older than the library/);
+    assert.equal((await t.req('GET', '/api/library')).json.library.format, 2);
+  });
+
   it('keeps a client dropping the connection out of the log', async () => {
     const out = await captureStderr(async () => {
       const s = net.connect(t.port, '127.0.0.1');

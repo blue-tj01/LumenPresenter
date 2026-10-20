@@ -1,4 +1,5 @@
-// What a new library starts with: public-domain hymns, background colours and themes.
+// What a new library starts with: public-domain hymns, background colours and templates.
+import { BUILTIN_THEMES_V1, DEFAULT_THEME_V1, migrateLibrary } from './format.js';
 import { makePres, uid } from './slides.js';
 
 // ---------- seed data (public-domain hymns) ----------
@@ -106,26 +107,19 @@ const BUILTIN_MEDIA = [
   { name: 'Lavender (motion)', type: 'motion', src: 'linear-gradient(-45deg,#41295a,#2f0743,#5b3a8a,#1d1a4a)' },
 ];
 
-export const DEFAULT_THEME = { font: "'Segoe UI', system-ui, sans-serif", size: 92, color: '#ffffff', bold: true, shadow: true,
-  upper: false, align: 'center', valign: 'middle', margin: 110, lineHeight: 1.2 };
-// Saved themes a presentation can use instead of the default style. Fixed ids so every console agrees
-// on them before the library is first saved.
-export const BUILTIN_THEMES = [
-  { id: 'classic', name: 'Classic', ...DEFAULT_THEME },
-  { id: 'lower-third', name: 'Lower third', ...DEFAULT_THEME, size: 64, valign: 'bottom', margin: 80 },
-  { id: 'scripture', name: 'Scripture', ...DEFAULT_THEME, font: 'Georgia, serif', size: 68, bold: false, align: 'left' },
-  { id: 'big-bold', name: 'Big & bold', ...DEFAULT_THEME, font: "Impact, 'Arial Black', sans-serif", size: 120, bold: false, upper: true },
-];
+/** The templates a library starts with: Classic, Lower third, Scripture and Big & bold. Fixed ids, so every console
+ * agrees on them before the library is first saved. */
+export const BUILTIN_TEMPLATES = () => migrateLibrary({ presentations: [] }).templates;
 
 export function seed() {
   const pres = SEED_SONGS.map(([n, t]) => makePres(n, t));
-  return {
+  return migrateLibrary({
     presentations: pres,
     playlist: [pres[4].id, pres[0].id, pres[2].id, pres[3].id],
     media: BUILTIN_MEDIA.map(m => ({ id: uid(), builtin: true, ...m })),
-    theme: { ...DEFAULT_THEME },
-    themes: BUILTIN_THEMES.map(t => ({ ...t })),
+    theme: { ...DEFAULT_THEME_V1 },
+    themes: BUILTIN_THEMES_V1.map(t => ({ ...t })),
     messages: ['Welcome! Please silence your phones.', 'Nursery parents: please come to the nursery.', 'The parking lot lights are on — car ABC-123.'],
     logoText: 'WELCOME',
-  };
+  });
 }

@@ -1,6 +1,7 @@
 // The media bin, media folders on the computer running Lumen, and videos in the playlist.
 import { $, $$, toast } from './dom.js';
 import { readDataUrl } from './editor.js';
+import { slideRefs, toRef } from './format.js';
 import { save, state } from './library.js';
 import { broadcast, live } from './live.js';
 import { uid } from './slides.js';
@@ -35,10 +36,11 @@ export function renderMedia() {
         return;
       }
       if (e.target.classList.contains('x')) {
-        const onSlide = state.db.presentations.some(p => p.groups.some(g => g.slides.some(s => s.includes('#' + m.id))));
+        const refs = p => [p.background?.src, ...p.groups.flatMap(g => g.slides.flatMap(slideRefs))];
+        const onSlide = state.db.presentations.some(p => refs(p).includes('bin:' + m.id));
         if (onSlide) { toast(`“${m.name}” is used on a slide — remove it there first`); return; }
         state.db.media = state.db.media.filter(x => x !== m); save(); renderMedia();
-        const used = state.db.presentations.some(p => (p.bg && p.bg.src === m.src) || p.groups.some(g => g.slides.some(s => s.includes(m.src))));
+        const used = state.db.presentations.some(p => refs(p).includes(toRef(m.src)));
         if (!used) Lumen.deleteMedia(m.src);
         return;
       }
@@ -153,7 +155,7 @@ export async function storeSlideMedia(f) {
 }
 // A video in the playlist is a one-slide presentation, so it plays in turn and Next moves past it.
 function addVideoToPlaylist(name, ref, at = state.db.playlist.length) {
-  const p = { id: uid(), name, groups: [{ name: 'Video', slides: ['@video: ' + ref] }], bg: null };
+  const p = { id: uid(), name, kind: 'media', groups: [{ id: uid(), name: 'Video', slides: [{ id: uid(), text: '', media: { type: 'video', src: toRef(ref) } }] }], arrangements: [] };
   state.db.presentations.push(p); state.db.playlist.splice(at, 0, p.id);
   return p;
 }

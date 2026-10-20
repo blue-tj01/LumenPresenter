@@ -25,11 +25,6 @@ function toBg(v) {
   if (/\.(mp4|webm|mov)(\?|$)/i.test(v)) return { type: 'video', src: v };
   return { type: 'image', src: v };
 }
-export function serialize(p) {
-  let out = p.bg && !p.bg.src.startsWith('blob:') && !p.bg.src.startsWith('data:') ? `@bg: ${p.bg.src}\n` : '';
-  out += p.groups.map(g => `[${g.name}]\n` + g.slides.join('\n\n')).join('\n\n');
-  return out;
-}
 // A slide line "@image: <src>" puts a picture on that slide, and "@video: <src>" a video that plays once,
 // with sound on the audience output. <src> is a URL, a server media path, or "#<id>" for a file kept in the
 // media bin (how pictures and videos are stored when running without the server).

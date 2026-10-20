@@ -24,16 +24,6 @@ it('puts slides before any heading in a group called Slides, and reads the backg
   assert.deepEqual(slides.parseText('@bg: photo.jpg').bg, { type: 'image', src: 'photo.jpg' });
 });
 
-it('writes a presentation back as the text it came from', () => {
-  const text = '@bg: photo.jpg\n[Verse 1]\nOne\ntwo\n\nThree\n\n[Chorus]\nFour';
-  const p = slides.makePres('Song', text);
-  assert.equal(p.name, 'Song');
-  assert.match(p.id, /^[a-z0-9]+$/);
-  assert.equal(slides.serialize(p), text);
-  // Files kept only in this browser can't be written as text.
-  assert.equal(slides.serialize({ ...p, bg: { type: 'image', src: 'blob:x' } }), text.replace('@bg: photo.jpg\n', ''));
-});
-
 it('takes picture and video lines out of a slide', () => {
   assert.deepEqual(slides.splitSlide('@image: #m1\nHello\n@VIDEO: /media/a.mp4'), { text: 'Hello', image: '#m1', video: '/media/a.mp4' });
   assert.deepEqual(slides.splitSlide('Just words'), { text: 'Just words', image: null, video: null });
