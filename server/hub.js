@@ -19,7 +19,16 @@ class Hub {
     }
   }
   get count() { return this.clients.size; }
-}
 
+  /** The console that takes the phone remote's taps: one on this computer if any (the desktop app's), otherwise
+   * the one opened last. Only one moves the slides, so a tap never moves two places. */
+  console() {
+    const open = [...this.clients].filter(c => c.page === 'Console' && c.check());
+    return open.findLast(c => c.local) || open.at(-1) || null;
+  }
+  sendTo(client, event, data) {
+    client.res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+}
 
 module.exports = { Hub };

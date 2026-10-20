@@ -137,6 +137,38 @@ describe('server', () => {
     assert.equal((await t.req('GET', '/api/live', undefined, { 'Sec-Fetch-Site': 'cross-site' })).status, 200);
   });
 
+  it('hands a phone remote tap to one open console', async () => {
+    const page = name => ({ Referer: `http://127.0.0.1:${t.port}/${name}` });
+    assert.equal((await t.req('GET', '/remote.html')).status, 200);
+    assert.equal((await t.req('POST', '/api/remote', { action: 'next' })).status, 409); // nothing to move the slides
+
+    const output = await t.events(page('output.html')), remote = await t.events(page('remote.html'));
+    await output.next(); await remote.next();
+    assert.equal((await t.req('POST', '/api/remote', { action: 'next' })).status, 409); // neither is a console
+
+    const consoles = [await t.events(page('')), await t.events(page('index.html'))];
+    for (const c of consoles) await c.next();
+    for (const bad of [{}, { action: 'jump' }, { action: 'go', presId: 'a' }, { action: 'go', presId: 'a', idx: -1 },
+      { action: 'clear', what: 'everything' }]) {
+      assert.equal((await t.req('POST', '/api/remote', bad)).status, 400, JSON.stringify(bad));
+    }
+    assert.equal((await t.req('POST', '/api/remote', { action: 'go', presId: 'a', idx: 2, extra: 1 })).status, 200);
+    let [ev, data] = await consoles[1].next(); // the console opened last
+    assert.equal(ev, 'remote');
+    assert.deepEqual({ ...data, time: 0 }, { action: 'go', presId: 'a', idx: 2, time: 0 });
+
+    // Only that one gets it: the next thing every other window hears is the slide the console then puts live.
+    await t.req('POST', '/api/live', { client: 'c', live: { idx: 2 } });
+    for (const s of [output, remote, consoles[0], consoles[1]]) assert.equal((await s.next())[0], 'state');
+
+    consoles[1].close();
+    await delay(50);
+    assert.equal((await t.req('POST', '/api/remote', { action: 'clear', what: 'logo' })).status, 200);
+    [ev, data] = await consoles[0].next(); // the other console takes over
+    assert.deepEqual([ev, data.action, data.what], ['remote', 'clear', 'logo']);
+    for (const s of [output, remote, consoles[0]]) s.close();
+  });
+
   it('keeps the library across a restart', async () => {
     assert.deepEqual((await t.req('GET', '/api/library')).json, { rev: 0, library: null });
     assert.equal((await t.req('PUT', '/api/library', { client: 'x', library: LIB })).json.rev, 1);
@@ -501,6 +533,24 @@ describe('network mode', () => {
     assert.equal((await t.req('GET', '/api/library', undefined, laptop)).status, 401);
     devices = (await t.req('GET', '/api/network', undefined, { 'X-Lumen-Token': token })).json.devices;
     assert.deepEqual(devices, []);
+  });
+
+  it('gives remote taps to the console on this computer before one on another device', async () => {
+    const token = (await t.req('POST', '/api/network', { network: true })).json.token;
+    const phone = await signIn(token, '/remote.html');
+    const page = name => ({ Referer: `http://127.0.0.1:${t.port}/${name}` });
+    const here = await t.events(page(''));
+    const laptop = await t.events({ ...await signIn(token, '/'), ...page('') }); // opened later, on another device
+    await here.next(); await laptop.next();
+
+    assert.equal((await t.req('POST', '/api/remote', { action: 'next' }, { 'X-Forwarded-For': '192.168.1.20' })).status, 401);
+    assert.equal((await t.req('POST', '/api/remote', { action: 'next' }, phone)).status, 200);
+    assert.deepEqual((await here.next())[1].action, 'next');
+    here.close();
+    await delay(50);
+    assert.equal((await t.req('POST', '/api/remote', { action: 'prev' }, phone)).status, 200);
+    assert.deepEqual((await laptop.next())[1].action, 'prev');
+    laptop.close();
   });
 
   it('lets a device sign itself out', async () => {

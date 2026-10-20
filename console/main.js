@@ -2,7 +2,7 @@
 import { $, toast } from './dom.js';
 import { saveEditor, setupEditor } from './editor.js';
 import { getPres, KEY, normalize, save, state, valid } from './library.js';
-import { adoptLive, broadcast, clear, refreshLive, step, upgradeLive } from './live.js';
+import { adoptLive, broadcast, clear, goLive, refreshLive, step, upgradeLive } from './live.js';
 import { loadFolders, renderMedia, setupMedia } from './media.js';
 import { setupNetwork } from './network.js';
 import { setupPowerPoint } from './powerpoint.js';
@@ -58,6 +58,13 @@ document.addEventListener('keydown', e => {
 Lumen.on('hello', broadcast); // a same-browser window opened without the server
 Lumen.on('error', toast);
 Lumen.on('state', d => { adoptLive(d.live); refreshLive(); renderMessages(); }); // another operator console
+// A tap on the phone remote; the server hands each one to a single console.
+Lumen.on('remote', d => {
+  if (d.action === 'next') step(1);
+  else if (d.action === 'prev') step(-1);
+  else if (d.action === 'go' && getPres(d.presId)) goLive(d.presId, d.idx);
+  else if (d.action === 'clear') clear(d.what);
+});
 Lumen.on('library', async () => {
   const d = await Lumen.loadLibrary().catch(() => null);
   if (!valid(d)) return;

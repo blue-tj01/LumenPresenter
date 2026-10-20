@@ -34,9 +34,11 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Auto-advance and looping.** Let a presentation run by itself, ideal for announcement loops.
 - **Song search.** Find a song by any words in it, its title, its writers or its CCLI song number, as you type.
 - **CCLI details.** Each song keeps its writers, copyright and CCLI song number, shown with your church's CCLI licence number on its last slide.
+- **SongSelect import.** Bring in songs downloaded from CCLI SongSelect (`.usr` or `.txt`), words and CCLI details included.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
 - **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between.
+- **Phone remote.** Step through the service from a phone: next and previous, the playlist and its slides, and clearing the screen.
 - **Network mode.** Drive screens on other devices through one-time token links, with device sign-in and sign-out.
 - **Never loses the show.** Library, media and live state are saved on disk, so reloading a window or restarting the server never blanks the projector.
 
@@ -119,6 +121,7 @@ Earlier versions ran on a Python server. The Node server reads and writes the sa
 | `index.html` | **Operator console:** library, playlist, slide grid, live preview, media bin, themes, messages and timer |
 | `output.html` | **Audience output:** open it on the projector and double-click (or press <kbd>F</kbd>) for full screen |
 | `stage.html` | **Stage display:** clock, countdown, current and next slide, and stage-only messages |
+| `remote.html` | **Phone remote:** next and previous, what is on screen and next, the service's playlist with its slides, and clear buttons |
 
 With the server running, any of these pages can be opened on any device that can reach it.
 
@@ -189,7 +192,7 @@ Welcome to Youth Camp!
 
 ### PowerPoint and PDF slides
 
-**＋ PowerPoint** above the library imports a PowerPoint (`.pptx`, `.ppt`, `.ppsx`, `.pps`), LibreOffice Impress (`.odp`) or PDF file as a presentation, with each slide as a picture. Dropping the file onto the library does the same, and dropping it onto the playlist also puts it in the service at that point. The presentation is named after the file and marked ▤, and plays like any other: click a slide or use Next and Previous, and Next carries on into the next playlist item after the last slide.
+**⤓ Slides** above the library imports a PowerPoint (`.pptx`, `.ppt`, `.ppsx`, `.pps`), LibreOffice Impress (`.odp`) or PDF file as a presentation, with each slide as a picture. Dropping the file onto the library does the same, and dropping it onto the playlist also puts it in the service at that point. The presentation is named after the file and marked ▤, and plays like any other: click a slide or use Next and Previous, and Next carries on into the next playlist item after the last slide.
 
 Each slide becomes a 1920-pixel-wide picture, on black, so it looks exactly as it was designed, with its own fonts, pictures and layout, and doesn't take on Lumen's theme. Hidden slides are left out. Animations, slide transitions, and video or sound inside a slide aren't kept; put a video on a slide of its own with `@video:` instead. To bring in a new version of a deck, import it again and delete the old one.
 
@@ -233,6 +236,12 @@ In the editor, **Written by**, **Copyright** and **CCLI song #** hold a song's d
 
 Enter your church's licence number once, in **CCLI licence #** under **Song credits** on the **Theme** tab, and every song shows it. **Show credits on each song's last slide** turns them off. A presentation with no song details, such as an announcement loop, never shows credits. A theme that places the song's copyright or CCLI number itself (a text box bound to `pres.credits` or a `pres.meta` field) is shown as it is, without the credits line added.
 
+### Importing from SongSelect
+
+Songs downloaded from [CCLI SongSelect](https://songselect.ccli.com) come straight into the library. Click **⤓ SongSelect** above the library and choose one or more files, or drop them onto the library list. Both of SongSelect's lyric downloads work: the `.usr` file and the plain text (`.txt`) download.
+
+Each song arrives with its title, its sections as groups (Verse 1, Chorus, Bridge and so on, colour-coded as usual) split into slides of two lines, and its writers, copyright and CCLI song number filled in, so its credits show on its last slide straight away. A section the download writes out more than once, such as a repeated chorus, becomes one group played in each place it comes, in the song's play order. A song already in the library, matched by its CCLI song number, is left as it is rather than added twice; delete the old one first to bring in a fresh copy.
+
 ## Themes
 
 The **Theme** tab has two lists:
@@ -261,6 +270,8 @@ The font, size, colour and alignment controls edit the theme the selected song i
 Lumen starts local-only. To drive screens from other machines (a stage display on a laptop, the output on a second computer, a second operator console), open the console's **Network** tab and turn on **Network mode**. The change takes effect immediately, with no restart.
 
 **Token links.** The Network tab shows a link for the operator console, the audience output and the stage display, each carrying the access token. Opening a link once signs that device in with a cookie that stands for the device rather than the token, and the token is removed from the address bar.
+
+**Phone remote.** The **Phone remote** link opens a page sized for a phone: big **Prev** and **Next** buttons, what is on screen and what comes next, and the open service's playlist. Tap a song to see its slides and tap a slide to put it live. **Clear slide**, **Clear all** and **Logo** work as they do in the console. The remote moves the slides through the console, so the console must be open on the computer running Lumen (the desktop app's window counts even when it is hidden to the tray). With several consoles open, the one on that computer takes the remote's taps.
 
 **Access.** In network mode other devices need the token to see anything, not just to change it; a device that opens Lumen without a link is asked for it. The computer running Lumen never is. The network setting and token can only be viewed or changed on that computer.
 
@@ -327,6 +338,7 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | `GET` / `PUT /api/library` | Read / replace the library (`{library}`) |
 | `GET /api/search?q=<words>` | Song search, best match first (`{results: [{id, name, snippet}]}`); in `snippet`, the matching words are between `\u0002` and `\u0003` |
 | `GET` / `POST /api/live` | Read / set the live state (`{live}`) |
+| `POST /api/remote` | What the phone remote sends to the open console: `{action: "next"}`, `{action: "prev"}`, `{action: "go", presId, idx}` or `{action: "clear", what: "all"/"slide"/"bg"/"msg"/"logo"}`; 409 when no console is open |
 | `POST /api/media` | Upload an image or video (raw body, `X-Filename` header) |
 | `DELETE /api/media/<file>` | Remove an uploaded file |
 | `POST /api/slides` | Convert a PowerPoint, Impress or PDF file (raw body, `X-Filename` header) into one picture per slide (`{name, slides: ['media/<file>.png', ...], via}`) |

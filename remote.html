@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101216">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Lumen Remote</title>
+<style>
+  :root { --bg: #15171c; --panel: #1d2027; --panel2: #252933; --line: #323744; --text: #e6e8ee; --muted: #8b92a3;
+    --accent: #4f8cff; --live: #ff3b4e; --ok: #2ecc71; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font: 15px/1.35 "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column; overscroll-behavior: none; }
+  button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+
+  header { display: flex; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background: #101216; border-bottom: 1px solid var(--line); }
+  .dot { width: 14px; height: 14px; border-radius: 4px; flex: none; background: linear-gradient(135deg, #ffb347, #ff3b4e 50%, #4f8cff); }
+  header strong { white-space: nowrap; }
+  #service { flex: 1; min-width: 0; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #conn { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+  #conn.ok { background: var(--ok); } #conn.down { background: var(--live); }
+
+  .now { margin: 12px 16px 0; padding: 12px 14px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
+  .lbl { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .lbl.live { color: var(--live); }
+  #curLabel { font-size: 13px; color: #ffcf7a; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #cur { white-space: pre-wrap; font-size: 17px; font-weight: 600; margin-top: 6px; max-height: 5.4em; overflow: hidden; }
+  #cur:empty::before { content: 'Nothing on screen'; color: var(--muted); font-weight: 400; }
+  .next { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+  #next { white-space: pre-wrap; color: #9ec1ff; font-size: 14px; max-height: 2.8em; overflow: hidden; margin-top: 2px; }
+  #next:empty::before { content: '—'; color: var(--muted); }
+
+  main { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px 16px; -webkit-overflow-scrolling: touch; }
+  .msg { color: var(--muted); text-align: center; padding: 24px 8px; }
+  .item { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); margin-bottom: 8px; overflow: hidden; }
+  .item.live { border-color: var(--live); }
+  .item > button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 13px 14px; background: none; border: 0; text-align: left; }
+  .item .name { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .count { color: var(--muted); font-size: 12px; }
+  .item .tag { color: var(--live); font-size: 11px; font-weight: 700; letter-spacing: .08em; }
+  .chev { color: var(--muted); transition: transform .15s; }
+  .item.open .chev { transform: rotate(90deg); }
+  .slides { display: none; list-style: none; margin: 0; padding: 0 8px 8px; }
+  .item.open .slides { display: grid; gap: 6px; }
+  .slides button { width: 100%; display: block; text-align: left; padding: 8px 10px 9px; border-radius: 8px;
+    background: var(--panel2); border: 1px solid transparent; border-left: 4px solid var(--c, var(--line)); }
+  .slides button.live { border-color: var(--live); border-left-color: var(--live); background: #3a1d24; }
+  .slides .grp { font-size: 11px; color: var(--muted); }
+  .slides .txt { white-space: pre-wrap; font-size: 14px; max-height: 2.8em; overflow: hidden; }
+
+  footer { padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); background: #101216; border-top: 1px solid var(--line); }
+  .clears { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .clears button { padding: 9px 4px; border-radius: 8px; background: var(--panel2); border: 1px solid var(--line); font-size: 13px; }
+  .clears button.on { border-color: var(--accent); color: var(--accent); }
+  .nav { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
+  .nav button { height: 76px; border-radius: 12px; font-size: 20px; font-weight: 700; border: 1px solid var(--line); background: var(--panel2); }
+  #btnNext { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:active { filter: brightness(1.25); }
+  button:disabled { opacity: .45; }
+
+  #toast { position: fixed; left: 50%; bottom: calc(190px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    max-width: calc(100% - 32px); padding: 9px 14px; border-radius: 8px; background: #2b3550; font-size: 14px;
+    opacity: 0; pointer-events: none; transition: opacity .2s; text-align: center; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<header><span class="dot"></span><strong>Lumen Remote</strong><span id="service"></span><span id="conn" title="Connecting…"></span></header>
+<section class="now">
+  <div class="lbl" id="curLbl">On screen</div>
+  <div id="curLabel"></div>
+  <div id="cur"></div>
+  <div class="next"><div class="lbl">Next</div><div id="next"></div></div>
+</section>
+<main id="list"><p class="msg">Loading…</p></main>
+<footer>
+  <div class="clears">
+    <button data-clear="slide" title="Take the words off, keep the background">Clear slide</button>
+    <button data-clear="all" title="Clear everything from the screen">Clear all</button>
+    <button data-clear="logo" id="btnLogo" title="Show or hide the logo">Logo</button>
+  </div>
+  <div class="nav"><button id="btnPrev" aria-label="Previous slide">‹ Prev</button><button id="btnNext" aria-label="Next slide">Next ›</button></div>
+</footer>
+<div id="toast" role="status"></div>
+<script src="sync.js"></script>
+<script type="module">
+  // The phone remote: what is on screen, the service's playlist, and buttons that move through it. Taps go to the
+  // server, which hands them to the open console; the new slide comes back as live state like any other window's.
+  import { arrangement, migrateLibrary, slideSummary } from './console/format.js';
+  import { serviceLabel } from './console/services.js';
+  import { groupColor } from './console/slides.js';
+
+  const $ = id => document.getElementById(id);
+  let lib = null, live = null;
+  const open = new Set(); // presentations whose slides are showing
+  let shownLive = '';      // the live slide last scrolled to
+
+  let tt;
+  const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2600); };
+
+  async function send(cmd) {
+    navigator.vibrate?.(10);
+    try { await Lumen.remote(cmd); }
+    catch (e) { toast(e.status === 409 ? 'No console is open. Open Lumen on the computer running it.' : `Not sent: ${e.message}`); }
+  }
+
+  // The slides of a presentation in play order, as the console numbers them.
+  const slidesOf = p => arrangement(p).flatMap(gi => p.groups[gi].slides.map(slide => ({ group: p.groups[gi].name, text: slideSummary(slide) })));
+  const getPres = id => lib?.presentations.find(p => p.id === id);
+
+  function renderList() {
+    const list = $('list'); list.innerHTML = '';
+    if (!lib) { list.innerHTML = '<p class="msg">Loading…</p>'; return; }
+    const s = lib.services?.find(x => x.id === lib.serviceId);
+    $('service').textContent = s ? serviceLabel(s) : '';
+    const ids = lib.playlist.filter(getPres);
+    // Something put live from the library rather than the service is shown first, so it can still be stepped through.
+    if (live?.presId && getPres(live.presId) && !ids.includes(live.presId)) ids.unshift(live.presId);
+    if (!ids.length) { list.innerHTML = '<p class="msg">The service is empty. Add songs to the playlist in the console.</p>'; return; }
+    for (const id of ids) {
+      const p = getPres(id), slides = slidesOf(p), isLive = live?.slide && live.presId === id;
+      const item = document.createElement('section');
+      item.className = 'item' + (isLive ? ' live' : '') + (open.has(id) ? ' open' : '');
+      const head = document.createElement('button');
+      head.innerHTML = '<span class="chev">›</span><span class="name"></span><span class="tag"></span><span class="count"></span>';
+      head.querySelector('.name').textContent = p.name;
+      head.querySelector('.tag').textContent = isLive ? 'LIVE' : '';
+      head.querySelector('.count').textContent = lib.playlist.includes(id) ? slides.length : 'library';
+      head.onclick = () => { open.has(id) ? open.delete(id) : open.add(id); item.classList.toggle('open'); };
+      const ul = document.createElement('ul'); ul.className = 'slides';
+      slides.forEach((sl, idx) => {
+        const li = document.createElement('li'), b = document.createElement('button');
+        b.style.setProperty('--c', groupColor(sl.group));
+        if (isLive && live.idx === idx) b.className = 'live';
+        b.dataset.live = `${id}|${idx}`;
+        const g = document.createElement('div'); g.className = 'grp'; g.textContent = sl.group;
+        const t = document.createElement('div'); t.className = 'txt'; t.textContent = sl.text || ' ';
+        b.append(g, t);
+        b.onclick = () => send({ action: 'go', presId: id, idx });
+        li.append(b); ul.append(li);
+      });
+      item.append(head, ul); list.append(item);
+    }
+    revealLive();
+  }
+
+  // Follow the live slide down the list, opening its presentation, but only when it moves.
+  function revealLive() {
+    const key = live?.slide && live.presId ? `${live.presId}|${live.idx}` : '';
+    if (!key || key === shownLive) return;
+    if (!open.has(live.presId)) { open.add(live.presId); renderList(); return; }
+    shownLive = key;
+    document.querySelector(`[data-live="${key}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  function renderNow() {
+    const sl = live?.slide;
+    $('curLbl').textContent = sl ? 'Live' : 'On screen';
+    $('curLbl').className = 'lbl' + (sl ? ' live' : '');
+    $('curLabel').textContent = sl?.label || '';
+    $('cur').textContent = sl ? sl.stageText ?? sl.text ?? '' : '';
+    $('next').textContent = live?.next || '';
+    $('btnLogo').classList.toggle('on', !!live?.logo);
+  }
+
+  async function loadLibrary() {
+    const d = await Lumen.loadLibrary().catch(() => null);
+    if (d && Array.isArray(d.presentations)) { lib = migrateLibrary(d); lib.playlist ||= []; }
+    renderList();
+  }
+
+  $('btnNext').onclick = () => send({ action: 'next' });
+  $('btnPrev').onclick = () => send({ action: 'prev' });
+  for (const b of document.querySelectorAll('[data-clear]')) b.onclick = () => send({ action: 'clear', what: b.dataset.clear });
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight', 'ArrowDown', ' ', 'PageDown'].includes(e.key)) { e.preventDefault(); send({ action: 'next' }); }
+    if (['ArrowLeft', 'ArrowUp', 'PageUp'].includes(e.key)) { e.preventDefault(); send({ action: 'prev' }); }
+  });
+
+  Lumen.on('state', d => { live = d.live; renderNow(); renderList(); });
+  Lumen.on('library', loadLibrary);
+  Lumen.on('status', s => {
+    $('conn').className = s.streaming ? 'ok' : 'down';
+    $('conn').title = s.streaming ? 'Connected' : 'Reconnecting…';
+  });
+
+  if (await Lumen.init()) {
+    live = (await Lumen.getLive().catch(() => null))?.live ?? live;
+    renderNow();
+    await loadLibrary();
+  } else {
+    $('list').innerHTML = '<p class="msg">The remote needs the Lumen server. Open it from the link in the Network tab of the console.</p>';
+    for (const b of document.querySelectorAll('footer button')) b.disabled = true;
+  }
+
+  // Keep the phone awake while the remote is open, where the browser allows it.
+  let lock = null;
+  const keepAwake = () => { if (document.visibilityState === 'visible' && !lock) navigator.wakeLock?.request('screen').then(l => { lock = l; l.onrelease = () => { lock = null; }; }).catch(() => {}); };
+  document.addEventListener('visibilitychange', keepAwake);
+  keepAwake();
+</script>
+</body>
+</html>
