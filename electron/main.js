@@ -8,6 +8,7 @@ const { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeIma
 const { LumenServer } = require('../server.js');
 const { SCREENS, Screens } = require('./screens.js');
 const { Updates } = require('./updates.js');
+const { NdiOutput } = require('./ndi.js');
 const { importDataFolder, isDataFolder } = require('./data.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -18,7 +19,7 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // follow the product name): %APPDATA%\lumen-presenter on Windows, ~/.config/lumen-presenter on Linux.
 app.setPath('userData', path.join(app.getPath('appData'), 'lumen-presenter'));
 
-let srv = null, origin = '', consoleWin = null, screens = null, tray = null, quitting = false, awake = null, updates = null;
+let srv = null, origin = '', consoleWin = null, screens = null, ndi = null, tray = null, quitting = false, awake = null, updates = null;
 
 /** Where the library, media and settings live. Run from a copy of the source, it is the same ./data folder
  * `node server.js` uses, so an existing library carries straight over; installed, it is in the user's profile. */
@@ -124,8 +125,9 @@ function openConsole() {
     backgroundColor: '#14161b', show: false, icon: ICON, webPreferences });
   consoleWin.once('ready-to-show', () => consoleWin.show());
   consoleWin.on('close', e => {
-    // With a screen still showing, closing the console must not blank the projector: Lumen stays in the tray.
-    if (quitting || !Object.keys(screens.windows).length) return;
+    // With a screen still showing or NDI still sending, closing the console must not blank the output: Lumen
+    // stays in the tray.
+    if (quitting || (!Object.keys(screens.windows).length && !ndi.on)) return;
     e.preventDefault();
     consoleWin.hide();
     if (!settings.trayHintShown && process.platform === 'win32') {
@@ -154,6 +156,8 @@ const canStartAtLogin = process.platform === 'win32' || process.platform === 'da
 function screensMenu() {
   return [
     ...screens.menu(buildMenus),
+    { type: 'separator' },
+    ndi.menu(buildMenus),
     { type: 'separator' },
     { label: 'Identify Screens', click: () => screens.identify() },
     { type: 'separator' },
@@ -215,12 +219,13 @@ async function start() {
   session.defaultSession.setPermissionRequestHandler((wc, permission, done) => {
     done(sameOrigin(wc.getURL()) && ['fullscreen', 'clipboard-sanitized-write'].includes(permission));
   });
-  app.on('web-contents-created', (_, wc) => { if (wc.getType() === 'window') guard(wc); });
+  app.on('web-contents-created', (_, wc) => { if (['window', 'offscreen'].includes(wc.getType())) guard(wc); });
   // Only the console, on Lumen's own page, may open the folder picker.
   ipcMain.handle('lumen:pick-folder', e => e.sender === consoleWin?.webContents && sameOrigin(e.senderFrame.url) ? pickFolder() : '');
 
   updates = new Updates({ app, onChange: () => buildMenus(), notify });
   screens = new Screens({ electron, origin, webPreferences, settings, save: saveSettings, icon: ICON });
+  ndi = new NdiOutput({ electron, origin, webPreferences, settings, save: saveSettings, onChange: () => buildMenus() });
   for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) electron.screen.on(ev, buildMenus);
   tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'tray.png')));
   tray.setToolTip('Lumen Presenter');
@@ -230,6 +235,7 @@ async function start() {
 
   openConsole();
   screens.place(); // screens chosen last time come straight back up on their displays
+  if (settings.ndi.on) ndi.start();
   updates.start();
 }
 
@@ -239,5 +245,5 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', showConsole);
   app.whenReady().then(start);
   app.on('window-all-closed', () => app.quit());
-  app.on('before-quit', () => { quitting = true; srv?.close(); });
+  app.on('before-quit', () => { quitting = true; ndi?.stop(); srv?.close(); });
 }
