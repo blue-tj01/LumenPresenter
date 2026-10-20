@@ -33,6 +33,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Auto-advance and looping.** Let a presentation run by itself, ideal for announcement loops.
 - **Song search.** Find a song by any words in it, its title, its writers or its CCLI song number, as you type.
 - **CCLI details.** Each song keeps its writers, copyright and CCLI song number, shown with your church's CCLI licence number on its last slide.
+- **SongSelect import.** Bring in songs downloaded from CCLI SongSelect (`.usr` or `.txt`), words and CCLI details included.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
 - **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between.
@@ -217,6 +218,12 @@ In the editor, **Written by**, **Copyright** and **CCLI song #** hold a song's d
 > Public Domain · CCLI Song # 22025 · CCLI Licence # 123456
 
 Enter your church's licence number once, in **CCLI licence #** under **Song credits** on the **Theme** tab, and every song shows it. **Show credits on each song's last slide** turns them off. A presentation with no song details, such as an announcement loop, never shows credits. A theme that places the song's copyright or CCLI number itself (a text box bound to `pres.credits` or a `pres.meta` field) is shown as it is, without the credits line added.
+
+### Importing from SongSelect
+
+Songs downloaded from [CCLI SongSelect](https://songselect.ccli.com) come straight into the library. Click **⤓ SongSelect** above the library and choose one or more files, or drop them onto the library list. Both of SongSelect's lyric downloads work: the `.usr` file and the plain text (`.txt`) download.
+
+Each song arrives with its title, its sections as groups (Verse 1, Chorus, Bridge and so on, colour-coded as usual) split into slides of two lines, and its writers, copyright and CCLI song number filled in, so its credits show on its last slide straight away. A section the download writes out more than once, such as a repeated chorus, becomes one group played in each place it comes, in the song's play order. A song already in the library, matched by its CCLI song number, is left as it is rather than added twice; delete the old one first to bring in a fresh copy.
 
 ## Themes
 
