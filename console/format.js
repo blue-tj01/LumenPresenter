@@ -121,7 +121,7 @@ const media = (ref, ctx) => refUrl(ref, ctx.bin);
 /** What a text element shows: its own words, or the field it is bound to. */
 function boundText(el, ctx) {
   if (!el.bind) return el.content || '';
-  const v = { 'slide.text': ctx.slide?.text, 'pres.name': ctx.pres?.name, 'group.name': ctx.group,
+  const v = { 'slide.text': ctx.slide?.text, 'slide.reference': ctx.slide?.reference, 'pres.name': ctx.pres?.name, 'group.name': ctx.group,
     'pres.meta.copyright': ctx.pres?.meta?.copyright, 'pres.meta.author': ctx.pres?.meta?.author,
     'pres.meta.ccli': ctx.pres?.meta?.ccli && `CCLI ${ctx.pres.meta.ccli}` }[el.bind];
   return v || '';

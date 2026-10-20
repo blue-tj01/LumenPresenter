@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { newToken, nowMs, writeAtomic, readJson, isObject } = require('./util.js');
 const { Library } = require('./library.js');
+const { Bibles } = require('./bible/bibles.js');
 
 const BACKUP_EVERY = 600; // seconds between library snapshots in data/backups
 const BACKUP_KEEP = 50;
@@ -27,6 +28,7 @@ class Store {
     this.livePath = path.join(this.dir, 'live.json');
 
     this.lib = new Library(this.dir, this.backupDir);
+    this.bibles = new Bibles(this.dir);
     const live = readJson(this.livePath);
     this.live = isObject(live) ? live.live ?? null : null;
     this.liveOrigin = null;
@@ -97,6 +99,7 @@ class Store {
 
   close() {
     this.lib.close();
+    this.bibles.close();
   }
 }
 
