@@ -18,6 +18,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - [Data and backups](#data-and-backups)
 - [HTTP API](#http-api)
 - [Development](#development)
+- [License](#license)
 
 ## Features
 
@@ -322,5 +323,11 @@ The tag's build publishes the Windows and Linux installers as a GitHub release, 
 ### macOS
 
 Not built yet. Lumen runs on a Mac from the source, but a downloadable Mac app needs an Apple Developer account (about $99 a year) to sign and notarise it, or macOS refuses to open it and it can't update itself. Adding it later is a `mac` target in `package.json` and a macOS runner in the workflow.
+
+## License
+
+Lumen Presenter is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See [`LICENSE`](LICENSE) for the full text.
+
+It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 NDI® is a registered trademark of Vizrt NDI AB.
