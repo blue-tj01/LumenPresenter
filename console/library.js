@@ -47,7 +47,8 @@ export const flat = p => {
     color: groupColor(p.groups[gi].name) })));
   const template = templateFor(p);
   return list.map((s, index) => ({ ...s, text: s.slide.text || '', video: s.slide.media?.type === 'video',
-    elements: resolveSlide(s.slide, { template, pres: p, group: s.group, index, count: list.length, bin }) }));
+    elements: resolveSlide(s.slide, { template, pres: p, group: s.group, index, count: list.length, bin,
+      licence: state.db.ccliLicence, showCredits: state.db.showCredits !== false }) }));
 };
 export const isVideoPres = p => { const sl = flat(p); return sl.length > 0 && sl.every(s => s.video); };
 /** The background a slide brings with it: its own, or its presentation's. */

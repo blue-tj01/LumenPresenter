@@ -26,6 +26,13 @@ export function renderTheme() {
   $$('#thAlign button').forEach(b => b.classList.toggle('on', b.dataset.v === s.align));
   $$('#thVAlign button').forEach(b => b.classList.toggle('on', b.dataset.v === s.valign));
   $('#logoText').value = state.db.logoText;
+  if (document.activeElement !== $('#ccliLicence')) $('#ccliLicence').value = state.db.ccliLicence || '';
+  $('#showCredits').checked = state.db.showCredits !== false;
+}
+// The church's CCLI licence number and whether songs show their credits; both change what the last slide shows.
+function creditsChanged() {
+  save(); broadcast();
+  clearTimeout(themeTimer); themeTimer = setTimeout(renderGrid, 120);
 }
 let themeTimer;
 function setStyle(patch) {
@@ -88,4 +95,13 @@ export function setupThemes() {
   $('#thRename').onclick = renameTemplate;
   $('#thDelete').onclick = deleteTemplate;
   $('#logoText').oninput = e => { state.db.logoText = e.target.value; save(); broadcast(); };
+  $('#ccliLicence').oninput = e => {
+    const v = e.target.value.trim();
+    if (v) state.db.ccliLicence = v; else delete state.db.ccliLicence;
+    creditsChanged();
+  };
+  $('#showCredits').onchange = e => {
+    if (e.target.checked) delete state.db.showCredits; else state.db.showCredits = false;
+    creditsChanged();
+  };
 }

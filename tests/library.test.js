@@ -98,3 +98,49 @@ it('leaves the library alone when library.json is not a library', () => {
   assert.deepEqual(again.library.presentations.map(p => p.name), ['Mine']);
   again.close();
 });
+
+const hymn = (id, name, lines, meta) => ({ id, name, meta, groups: [{ id: 'g', name: 'Verse 1',
+  slides: lines.map((text, i) => ({ id: `s${i}`, text })) }] });
+
+it('searches titles, words and song details, best match first', () => {
+  const dir = folder();
+  const lib = open(dir);
+  lib.set({ format: 2, presentations: [
+    hymn('a', 'Amazing Grace', ['Amazing grace how sweet the sound\nThat saved a wretch like me'],
+      { author: 'John Newton', copyright: 'Public Domain', ccli: '22025' }),
+    hymn('b', 'How Great Thou Art', ['O Lord my God when I in awesome wonder'], { author: 'Stuart K. Hine', ccli: '14181' }),
+    hymn('c', 'Notices', ['Coffee after the service', '@image: media:abc.jpg']),
+  ] });
+  assert.deepEqual(lib.search('grace').map(r => r.id), ['a']);
+  assert.deepEqual(lib.search('how').map(r => r.id), ['b', 'a']); // the title counts most
+  assert.deepEqual(lib.search('newt').map(r => r.id), ['a']);     // a word still being typed
+  assert.deepEqual(lib.search('22025').map(r => r.id), ['a']);
+  assert.deepEqual(lib.search('lord awesome').map(r => r.id), ['b']);
+  assert.deepEqual(lib.search('lord grace'), []);
+  assert.deepEqual(lib.search('am gr sw').map(r => r.id), ['a']);
+  assert.deepEqual(lib.search('media abc'), [], 'media lines are not words');
+  assert.deepEqual(lib.search('"NEAR( OR -'), []);
+  assert.deepEqual(lib.search('  '), []);
+  const [hit] = lib.search('wretch');
+  assert.deepEqual(hit, { id: 'a', name: 'Amazing Grace',
+    snippet: 'Amazing grace how sweet the sound / That saved a \u0002wretch\u0003…' });
+  assert.equal(lib.search('stuart')[0].snippet, '\u0002Stuart\u0003 K. Hine');
+  lib.close();
+});
+
+it('keeps the search index up to date, and builds it for a database from before search', () => {
+  const dir = folder();
+  let lib = open(dir);
+  lib.set({ presentations: [song('a', 'Café'), song('b', 'Two')] });
+  lib.set({ presentations: [song('b', 'Two renamed')] });
+  assert.deepEqual(lib.search('cafe'), []);
+  assert.deepEqual(lib.search('renamed').map(r => r.id), ['b']);
+  assert.deepEqual(lib.search('line').map(r => r.id), ['b'], 'format 1 slides are searched too');
+  lib.close();
+  const raw = new DatabaseSync(path.join(dir, 'lumen.db'));
+  raw.exec('DELETE FROM search');
+  raw.close();
+  lib = open(dir);
+  assert.deepEqual(lib.search('two').map(r => r.id), ['b']);
+  lib.close();
+});

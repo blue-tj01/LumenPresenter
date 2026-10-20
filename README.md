@@ -11,6 +11,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - [Pages](#pages)
 - [Writing slides](#writing-slides)
 - [Images and videos](#images-and-videos)
+- [Song search and CCLI](#song-search-and-ccli)
 - [Themes](#themes)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Network mode](#network-mode)
@@ -27,6 +28,8 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Images and slideshows.** Drop in photos to make picture slides or a whole slideshow in a few clicks.
 - **Videos.** Add videos to the playlist or to any slide, with synchronised playback across every output window.
 - **Auto-advance and looping.** Let a presentation run by itself, ideal for announcement loops.
+- **Song search.** Find a song by any words in it, its title, its writers or its CCLI song number, as you type.
+- **CCLI details.** Each song keeps its writers, copyright and CCLI song number, shown with your church's CCLI licence number on its last slide.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
 - **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between.
@@ -182,6 +185,17 @@ Instead of uploading, Lumen can play pictures and videos straight from a folder 
 
 Lumen serves only pictures and videos from inside each folder. Other files, other folders and links out of the folder aren't reachable.
 
+## Song search and CCLI
+
+The search box above the library finds songs by their title, any of their words, who wrote them, their copyright or their CCLI song number. Type the start of a few words in any order (`am gr sweet` finds Amazing Grace); every word has to match, accents and capitals don't matter, and the best matches come first, titles before words. Each result shows the line that matched. With the server, search uses the library database's full-text index; opened without it, the console matches the words as typed.
+
+In the editor, **Written by**, **Copyright** and **CCLI song #** hold a song's details. A song with any of them shows its credits on its last slide, small along the bottom:
+
+> “Amazing Grace” · John Newton
+> Public Domain · CCLI Song # 22025 · CCLI Licence # 123456
+
+Enter your church's licence number once, in **CCLI licence #** under **Song credits** on the **Theme** tab, and every song shows it. **Show credits on each song's last slide** turns them off. A presentation with no song details, such as an announcement loop, never shows credits. A theme that places the song's copyright or CCLI number itself (a text box bound to `pres.credits` or a `pres.meta` field) is shown as it is, without the credits line added.
+
 ## Themes
 
 The **Theme** tab has two lists:
@@ -272,6 +286,7 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | --- | --- |
 | `GET /api/health` | Status, server time and connected clients |
 | `GET` / `PUT /api/library` | Read / replace the library (`{library}`) |
+| `GET /api/search?q=<words>` | Song search, best match first (`{results: [{id, name, snippet}]}`); in `snippet`, the matching words are between `\u0002` and `\u0003` |
 | `GET` / `POST /api/live` | Read / set the live state (`{live}`) |
 | `POST /api/media` | Upload an image or video (raw body, `X-Filename` header) |
 | `DELETE /api/media/<file>` | Remove an uploaded file |
