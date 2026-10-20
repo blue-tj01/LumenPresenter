@@ -70,6 +70,23 @@ npm start
 
 Run this way, Lumen uses the `data` folder next to `server.js`, and doesn't update itself: pull the new code with git instead.
 
+**Ubuntu 24.04 and later.** If `npm start` stops with *The SUID sandbox helper binary was found, but is not configured correctly*, AppArmor is stopping Electron from setting up its sandbox. Allow it once, from the project folder:
+
+```bash
+sudo tee /etc/apparmor.d/lumen-electron >/dev/null <<EOF
+abi <abi/4.0>,
+include <tunables/global>
+
+profile lumen-electron $PWD/node_modules/electron/dist/electron flags=(unconfined) {
+  userns,
+  include if exists <local/lumen-electron>
+}
+EOF
+sudo apparmor_parser -r /etc/apparmor.d/lumen-electron
+```
+
+This lasts through `npm install`, but if you move the project folder, run it again from the new folder. Don't use `--no-sandbox` to get round the error: it turns off the sandbox the app's windows rely on. The `.deb` sets this up itself when it installs. The AppImage may need the same kind of profile, pointing at the AppImage file.
+
 ### Using the app
 
 The operator console opens in its own window, and **Audience Output** and **Stage Display** open further windows. Output windows play a video's sound straight away, without first being clicked. Only one copy of the app runs at a time; starting it again brings the console to the front.
