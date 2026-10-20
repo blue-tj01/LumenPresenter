@@ -50,6 +50,50 @@ it('writes only the presentations that changed, and drops removed ones and field
   again.close();
 });
 
+it('keeps services a row each, writing only the ones that changed', () => {
+  const dir = folder();
+  const lib = open(dir);
+  const svc = (id, name, date, items) => ({ id, name, date, items });
+  lib.set({ presentations: [song('a', 'One')], playlist: ['a'], serviceId: 's2',
+    services: [svc('s1', 'Morning', '2026-10-18', ['a']), svc('s2', 'Morning', '2026-10-25', ['a'])] });
+  const raw = new DatabaseSync(path.join(dir, 'lumen.db'));
+  raw.exec("UPDATE services SET name = name || '*'");
+  const saved = { presentations: [song('a', 'One')], playlist: [], serviceId: 's2',
+    services: [svc('s1', 'Morning', '2026-10-18', ['a']), svc('s2', 'Evening', '2026-10-25', [])] };
+  lib.set(saved);
+  assert.deepEqual(raw.prepare('SELECT pos, id, name, date FROM services ORDER BY pos').all().map(r => ({ ...r })),
+    [{ pos: 0, id: 's1', name: 'Morning*', date: '2026-10-18' }, { pos: 1, id: 's2', name: 'Evening', date: '2026-10-25' }]);
+  assert.equal(raw.prepare("SELECT count(*) AS n FROM meta WHERE key = 'library.services'").get().n, 0);
+  lib.close();
+  let again = open(dir);
+  assert.deepEqual(again.library, saved);
+  // A library without services (saved by an older console) leaves none behind.
+  again.set({ presentations: [song('a', 'One')], playlist: [] });
+  assert.equal(raw.prepare('SELECT count(*) AS n FROM services').get().n, 0);
+  raw.close();
+  again.close();
+  again = open(dir);
+  assert.deepEqual(again.library, { presentations: [song('a', 'One')], playlist: [] });
+  again.close();
+});
+
+it('adds the services table to a database made before it', () => {
+  const dir = folder();
+  const old = new DatabaseSync(path.join(dir, 'lumen.db'));
+  old.exec(`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
+    CREATE TABLE presentations (pos INTEGER PRIMARY KEY, id TEXT, name TEXT, data TEXT NOT NULL) STRICT;
+    PRAGMA user_version = 1;`);
+  old.prepare('INSERT INTO meta VALUES (?, ?)').run('saved', '1');
+  old.prepare('INSERT INTO meta VALUES (?, ?)').run('library.playlist', '["a"]');
+  old.prepare('INSERT INTO presentations VALUES (0, ?, ?, ?)').run('a', 'One', JSON.stringify(song('a', 'One')));
+  old.close();
+  const lib = open(dir);
+  assert.deepEqual(lib.library, { presentations: [song('a', 'One')], playlist: ['a'] });
+  lib.set({ ...lib.library, services: [{ id: 's1', name: 'Service', date: '2026-10-25', items: ['a'] }] });
+  lib.close();
+  assert.deepEqual(open(dir).library.services, [{ id: 's1', name: 'Service', date: '2026-10-25', items: ['a'] }]);
+});
+
 it('copes with presentations the console never makes', () => {
   const dir = folder();
   const lib = open(dir);

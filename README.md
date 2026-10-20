@@ -24,6 +24,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 ## Features
 
 - **Library and playlist.** Build presentations, queue them in a playlist, and step through them with one key.
+- **Services.** Keep a dated playlist for each service, and copy last week's to start the next one.
 - **Plain-text slide editor.** Groups, colour-coded sections and a custom **play order**, so a chorus is written once and sung as often as needed.
 - **Images and slideshows.** Drop in photos to make picture slides or a whole slideshow in a few clicks.
 - **Videos.** Add videos to the playlist or to any slide, with synchronised playback across every output window.
@@ -141,6 +142,12 @@ Chorus line
 | `@bg:` | Sets the presentation's default background: a colour, CSS gradient, or image or video URL. |
 | `@image:` | Shows a picture on that slide, letterboxed over the background. Other lines on the slide appear as text on top. |
 | `@video:` | Plays a video on that slide, once, with sound on the audience output. |
+
+### Services
+
+The playlist belongs to a **service**: a name and a date, such as *Sun 26 Oct 2026 · Morning service*. The list above the playlist holds every saved service, newest first, and picking one opens its playlist. The buttons beside **Service** make a new, empty service (**＋**), copy the open one to a week later (**⧉**, for building next week's from this week's), rename it or change its date (**✎**), and delete it (**✕**; its songs stay in the library). To add a song, drag it from the library onto the playlist (dropping it on an item puts it before that one), double-click it, or use **＋ Playlist** above the slides. Every console on the network shows the same open service.
+
+A library from before services opens with its playlist as one service, dated the coming Sunday.
 
 ### Play order
 
@@ -268,7 +275,7 @@ With the app or the server, everything lives in the data directory. For the inst
 
 | Path | Contents |
 | --- | --- |
-| `lumen.db` | The library: presentations, playlist, media list, themes and messages, in an SQLite database (with `lumen.db-wal` and `lumen.db-shm` beside it while Lumen is running) |
+| `lumen.db` | The library: presentations, services, media list, themes and messages, in an SQLite database (with `lumen.db-wal` and `lumen.db-shm` beside it while Lumen is running) |
 | `live.json` | What is on screen right now, so windows recover after a restart |
 | `settings.json` | Network mode, the access token, signed-in devices and media folders (readable only by the account running the server) |
 | `media/` | Uploaded images and videos |
