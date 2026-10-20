@@ -29,6 +29,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Auto-advance and looping.** Let a presentation run by itself, ideal for announcement loops.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
+- **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between.
 - **Network mode.** Drive screens on other devices through one-time token links, with device sign-in and sign-out.
 - **Never loses the show.** Library, media and live state are saved on disk, so reloading a window or restarting the server never blanks the projector.
 
@@ -67,11 +68,24 @@ The operator console opens in its own window, and **Audience Output** and **Stag
 The **Screens** menu, also on the Lumen icon in the taskbar's notification area, sets the app up for a service:
 
 - **Audience output** and **Stage display**: choose a display for each, and it opens full screen there, with no window frame and above notifications. The choice is remembered, so both come straight back up the next time Lumen starts. If a display is unplugged its screen closes rather than landing on the operator's screen, and it reopens when the display is reconnected. **In a window** goes back to an ordinary window.
+- **NDI Output** sends the audience output over the network as an NDI source. See [NDI output](#ndi-output).
 - **Identify Screens** shows each display's number on it for a few seconds.
 - **Keep Screens Awake** (on by default) stops the computer and its displays going to sleep while Lumen runs.
 - **Start Lumen When Windows Starts** opens Lumen when you sign in to Windows. Not yet available on Linux.
 
-Closing the console while a screen is showing keeps Lumen running, so the projector isn't blanked by mistake. Click the Lumen icon to bring the console back, or right-click it and choose **Quit Lumen**. With no screens showing, closing the console quits Lumen.
+Closing the console while a screen is showing or NDI is sending keeps Lumen running, so the output isn't blanked by mistake. Click the Lumen icon to bring the console back, or right-click it and choose **Quit Lumen**. With no screens showing, closing the console quits Lumen.
+
+### NDI output
+
+The desktop app can send the audience output over the network as an [NDI®](https://ndi.video) source, which vMix, Wirecast, OBS, NDI Studio Monitor and other NDI receivers pick up directly. It sends exactly what the audience output shows, at a steady frame rate, whether or not an output window is open.
+
+1. Install the free [NDI Tools](https://ndi.video/tools/) on the computer running Lumen, which installs the NDI Runtime Lumen uses. If Lumen was open while you installed it, choose **Screens → NDI Output → Look for NDI Again**.
+2. Turn on **Screens → NDI Output → Send Audience Output over NDI**. The source appears on the network as *COMPUTER-NAME (Lumen Presenter)*. The same menu shows how many receivers are watching.
+3. Choose the size (720p, 1080p or 4K) and frame rate (25, 30, 50 or 60) in the same menu. 1080p at 30 is the default. Higher settings use more processor time and network bandwidth.
+
+NDI carries the picture only. Video sound plays from the computer running Lumen, as it does now. NDI stays on, and comes back on the next time Lumen starts, until it's turned off. The first time, Windows may ask whether Lumen can use the network: allow it on private networks so receivers can find the source.
+
+On Linux, install the NDI SDK for Linux (which includes `libndi.so.6`) or set `NDI_RUNTIME_DIR_V6` to the folder holding it.
 
 These choices belong to the computer, not the library, so they are kept in Lumen's own settings folder (`%APPDATA%\lumen-presenter\desktop.json` on Windows, `~/.config/lumen-presenter/desktop.json` on Linux) rather than in the data folder.
 
@@ -281,6 +295,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload.
 | `server.js` | The server: storage, the HTTP API, live updates and network mode, using Node's standard library only |
 | `electron/main.js` | The desktop app: starts the server in-process, opens the console window, and sets up the menus and tray icon |
 | `electron/screens.js` | The desktop app's full-screen output and stage windows, and which display each goes on |
+| `electron/ndi.js`, `electron/ndi-lib.js` | Sending the audience output over NDI, and the calls into the NDI Runtime |
 | `electron/updates.js`, `electron/data.js` | Updates for the installed app, and importing a library from another data folder |
 | `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
@@ -293,6 +308,8 @@ Run the tests with:
 ```bash
 npm test
 ```
+
+The NDI tests use a stand-in for NDI. To also send real frames, set `LUMEN_NDI_LIB` to the NDI library (for example `libndi.so.6`, or `Processing.NDI.Lib.x64.dll` in the NDI Runtime folder on Windows) before running them.
 
 GitHub Actions runs the tests on Windows and Linux for every pull request and builds the installers, which can be downloaded from the run's **Artifacts** to try before merging. `npm run dist` builds them locally, into `dist/`.
 
@@ -312,3 +329,5 @@ Not built yet. Lumen runs on a Mac from the source, but a downloadable Mac app n
 Lumen Presenter is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. See [`LICENSE`](LICENSE) for the full text.
 
 It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+NDI® is a registered trademark of Vizrt NDI AB.
