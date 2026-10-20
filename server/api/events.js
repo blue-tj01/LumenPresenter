@@ -2,7 +2,7 @@
 'use strict';
 const { nowMs, VERSION } = require('../util.js');
 
-const PAGES = { 'output.html': 'Audience output', 'stage.html': 'Stage display' };
+const PAGES = { 'output.html': 'Audience output', 'stage.html': 'Stage display', 'remote.html': 'Phone remote' };
 
 module.exports = {
   'GET health'() {
@@ -17,7 +17,7 @@ module.exports = {
     page = PAGES[page] || 'Console';
     if (sid) srv.streams.set(sid, [...(srv.streams.get(sid) || []), page]);
     const local = this.fromLoopback();
-    const client = { res, check: () => (local || srv.network) && this.mayRead() };
+    const client = { res, page, local: this.isLocal(), check: () => (local || srv.network) && this.mayRead() };
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store',
       'X-Accel-Buffering': 'no', // don't let nginx buffer the stream
       Connection: 'close' });

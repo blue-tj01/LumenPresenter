@@ -7,4 +7,5 @@ module.exports = {
   ...require('./library.js'),
   ...require('./media.js'),
   ...require('./scripture.js'),
+  ...require('./remote.js'),
 };

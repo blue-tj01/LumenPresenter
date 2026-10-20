@@ -36,6 +36,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
 - **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between.
+- **Phone remote.** Step through the service from a phone: next and previous, the playlist and its slides, and clearing the screen.
 - **Network mode.** Drive screens on other devices through one-time token links, with device sign-in and sign-out.
 - **Never loses the show.** Library, media and live state are saved on disk, so reloading a window or restarting the server never blanks the projector.
 
@@ -118,6 +119,7 @@ Earlier versions ran on a Python server. The Node server reads and writes the sa
 | `index.html` | **Operator console:** library, playlist, slide grid, live preview, media bin, themes, messages and timer |
 | `output.html` | **Audience output:** open it on the projector and double-click (or press <kbd>F</kbd>) for full screen |
 | `stage.html` | **Stage display:** clock, countdown, current and next slide, and stage-only messages |
+| `remote.html` | **Phone remote:** next and previous, what is on screen and next, the service's playlist with its slides, and clear buttons |
 
 With the server running, any of these pages can be opened on any device that can reach it.
 
@@ -245,6 +247,8 @@ Lumen starts local-only. To drive screens from other machines (a stage display o
 
 **Token links.** The Network tab shows a link for the operator console, the audience output and the stage display, each carrying the access token. Opening a link once signs that device in with a cookie that stands for the device rather than the token, and the token is removed from the address bar.
 
+**Phone remote.** The **Phone remote** link opens a page sized for a phone: big **Prev** and **Next** buttons, what is on screen and what comes next, and the open service's playlist. Tap a song to see its slides and tap a slide to put it live. **Clear slide**, **Clear all** and **Logo** work as they do in the console. The remote moves the slides through the console, so the console must be open on the computer running Lumen (the desktop app's window counts even when it is hidden to the tray). With several consoles open, the one on that computer takes the remote's taps.
+
 **Access.** In network mode other devices need the token to see anything, not just to change it; a device that opens Lumen without a link is asked for it. The computer running Lumen never is. The network setting and token can only be viewed or changed on that computer.
 
 **Devices.** The Network tab lists signed-in devices and what each is showing. **Disconnect** (or **Disconnect all**) signs a device out and returns it to the token page. A console on another device has **Sign out of this device** in its own Network tab.
@@ -309,6 +313,7 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | `GET` / `PUT /api/library` | Read / replace the library (`{library}`) |
 | `GET /api/search?q=<words>` | Song search, best match first (`{results: [{id, name, snippet}]}`); in `snippet`, the matching words are between `\u0002` and `\u0003` |
 | `GET` / `POST /api/live` | Read / set the live state (`{live}`) |
+| `POST /api/remote` | What the phone remote sends to the open console: `{action: "next"}`, `{action: "prev"}`, `{action: "go", presId, idx}` or `{action: "clear", what: "all"/"slide"/"bg"/"msg"/"logo"}`; 409 when no console is open |
 | `POST /api/media` | Upload an image or video (raw body, `X-Filename` header) |
 | `DELETE /api/media/<file>` | Remove an uploaded file |
 | `GET` / `POST /api/network` | Network mode (`{network}`, `{regenerate: true}` for a new token, `{disconnect: <device id> or "all"}`); local computer only |

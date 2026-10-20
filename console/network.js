@@ -17,7 +17,8 @@ function renderNetwork(n) {
   renderDevices(n.devices || []);
   $('#netToken').textContent = n.token || '';
   const list = $('#netLinks'); list.innerHTML = '';
-  const pages = [['Operator console', ''], ['Audience output', 'output.html'], ['Stage display', 'stage.html']];
+  const pages = [['Operator console', ''], ['Audience output', 'output.html'], ['Stage display', 'stage.html'],
+    ['Phone remote', 'remote.html']];
   for (const addr of n.addresses?.length ? n.addresses : ['<this computer\'s address>']) {
     for (const [what, page] of pages) {
       const url = `http://${addr}:${n.port}/${page}?token=${encodeURIComponent(n.token || '')}`;
