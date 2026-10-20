@@ -18,8 +18,9 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 class NdiOutput {
   /** onChange is called when what the menu shows changes (on, off, receivers connected). */
-  constructor({ electron, origin, webPreferences, settings, save, onChange, load = loadNdi, name = 'Lumen Presenter' }) {
-    Object.assign(this, { electron, origin, webPreferences, settings, save, onChange, load, name });
+  constructor({ electron, origin, webPreferences, settings, save, onChange, load = loadNdi, name = 'Lumen Presenter',
+    platform = process.platform }) {
+    Object.assign(this, { electron, origin, webPreferences, settings, save, onChange, load, name, platform });
     this.settings.ndi = { ...DEFAULTS, ...this.settings.ndi };
     this.sender = null;
     this.win = null;
@@ -146,9 +147,11 @@ class NdiOutput {
   menu(rebuild) {
     const then = fn => async () => { await fn(); rebuild(); };
     const available = this.lib() !== null;
+    const get = ndiLib.download(this.platform);
+    const Name = get.name[0].toUpperCase() + get.name.slice(1);
     const status = !available
-      ? [{ label: this.missing ? 'NDI Tools isn’t installed on this computer' : this.error, enabled: false },
-        ...this.missing ? [{ label: 'Get NDI Tools…', click: () => this.electron.shell.openExternal(ndiLib.RUNTIME_URL) },
+      ? [{ label: this.missing ? `${Name} isn’t installed on this computer` : this.error, enabled: false },
+        ...this.missing ? [{ label: `Get ${get.name}…`, click: () => this.electron.shell.openExternal(get.url) },
           { label: 'Look for NDI Again', click: then(() => this.lib()) }] : []]
       : this.error ? [{ label: this.error, enabled: false }]
       : this.on ? [{ label: `Sending as ${this.sourceName()}`, enabled: false },

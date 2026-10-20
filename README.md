@@ -111,7 +111,13 @@ The desktop app can send the audience output over the network as an [NDI®](http
 
 NDI carries the picture only. Video sound plays from the computer running Lumen, as it does now. NDI stays on, and comes back on the next time Lumen starts, until it's turned off. The first time, Windows may ask whether Lumen can use the network: allow it on private networks so receivers can find the source.
 
-On Linux, install the NDI SDK for Linux (which includes `libndi.so.6`) or set `NDI_RUNTIME_DIR_V6` to the folder holding it.
+**On Linux.** NDI Tools isn't made for Linux, so step 1 is different: download the [NDI SDK for Linux](https://ndi.video/for-developers/ndi-sdk/) and run its installer, which unpacks a `NDI SDK for Linux` folder. Lumen needs `libndi.so.6` from its `lib/x86_64-linux-gnu` folder. Either copy it to where the system finds libraries:
+
+```bash
+sudo cp -P "NDI SDK for Linux/lib/x86_64-linux-gnu/"libndi.so* /usr/local/lib/ && sudo ldconfig
+```
+
+or set `NDI_RUNTIME_DIR_V6` to that folder before starting Lumen. NDI Studio Monitor isn't made for Linux either: to watch the source on the same computer, use OBS with the DistroAV plugin, or watch from a Windows or Mac computer on the network. Receivers find the source only on the same network segment, so guest Wi-Fi or a router that keeps devices apart can hide it.
 
 These choices belong to the computer, not the library, so they are kept in Lumen's own settings folder (`%APPDATA%\lumen-presenter\desktop.json` on Windows, `~/.config/lumen-presenter/desktop.json` on Linux) rather than in the data folder.
 
