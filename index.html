@@ -238,6 +238,11 @@
 </div>
 <input id="importFile" type="file" accept="application/json" hidden>
 <div id="toast" class="toast"></div>
+<div id="errBox" class="err-box" role="alert" hidden>
+  <div class="err-h">Something went wrong <span class="spacer"></span>
+    <button id="errCopy" class="btn small-btn" title="Copy the error, to report it">Copy</button><button id="errClose" class="icon" title="Close">✕</button></div>
+  <div id="errList"></div>
+</div>
 
 <script src="render.js"></script>
 <script src="sync.js"></script>

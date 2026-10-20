@@ -18,7 +18,8 @@ const UNO_SCRIPT = path.join(__dirname, 'slides-uno.py');
 const run = (cmd, args, opts = {}) => new Promise((resolve, reject) => {
   execFile(cmd, args, { timeout: TIMEOUT, windowsHide: true, maxBuffer: 16 * 1024 * 1024, ...opts }, (err, stdout, stderr) => {
     if (!err) return resolve(String(stdout));
-    err.detail = String(stderr || '').trim().split('\n').pop() || err.message;
+    err.output = String(stderr || '').trim();
+    err.detail = err.output.split('\n').pop() || err.message;
     reject(err);
   });
 });
@@ -51,6 +52,7 @@ function findPython(soffice, env = process.env, platform = process.platform) {
 // Through PowerPoint, so a deck looks exactly as it does there. Paths go in the environment, never in the script.
 const POWERPOINT_SCRIPT = `
 $ErrorActionPreference = 'Stop'
+trap { [Console]::Error.WriteLine("$($_.Exception.Message) (line $($_.InvocationInfo.ScriptLineNumber))"); exit 1 }
 $app = New-Object -ComObject PowerPoint.Application
 $security = $app.AutomationSecurity
 $app.AutomationSecurity = 3 # never run the file's macros
@@ -117,10 +119,11 @@ async function convert(src, work) {
   const soffice = findSoffice();
   if (soffice) ways.push(['LibreOffice', () => viaLibreOffice(soffice, src, out, work)]);
   if (!ways.length) {
-    throw new Error(process.platform === 'win32' ? 'importing slides needs Microsoft PowerPoint or LibreOffice on the computer running Lumen'
-      : 'importing slides needs LibreOffice on the computer running Lumen');
+    throw new Error(process.platform !== 'win32' ? 'importing slides needs LibreOffice on the computer running Lumen'
+      : ext === 'pdf' ? 'importing a PDF needs LibreOffice on the computer running Lumen (PowerPoint can’t open PDFs)'
+      : 'importing slides needs Microsoft PowerPoint or LibreOffice on the computer running Lumen');
   }
-  const failed = [];
+  const failed = [], log = [];
   for (const [via, fn] of ways) {
     fs.rmSync(out, { recursive: true, force: true });
     fs.mkdirSync(out, { recursive: true });
@@ -131,9 +134,12 @@ async function convert(src, work) {
       failed.push(`${via}: no slides`);
     } catch (e) {
       failed.push(`${via}: ${e.killed ? 'took too long' : e.detail || e.message}`);
+      const why = e.killed ? 'took too long' : typeof e.code === 'number' ? `stopped with exit code ${e.code}` : e.message;
+      log.push(`${via}: ${why}${e.output ? '\n' + e.output : ''}`);
     }
   }
-  throw new Error(`could not convert the slides (${failed.join('; ')})`);
+  // The message is shown in the console; the log, with everything each converter said, goes in the import log.
+  throw Object.assign(new Error(`could not convert the slides (${failed.join('; ')})`), { log: log.join('\n') });
 }
 
 // One at a time: each conversion starts its own PowerPoint or LibreOffice, and they are heavy.

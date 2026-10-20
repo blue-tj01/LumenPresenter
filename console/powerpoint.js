@@ -1,6 +1,6 @@
 // PowerPoint, Impress and PDF files as presentations: the server turns each slide into a picture, so the slides
 // look exactly as they were made, and each picture becomes a slide.
-import { $, toast } from './dom.js';
+import { $, errorBox, hideToast, toast } from './dom.js';
 import { toRef } from './format.js';
 import { save, state } from './library.js';
 import { uid } from './slides.js';
@@ -22,9 +22,13 @@ export async function importSlides(files, at = null) {
   if (!files.length) return;
   if (!Lumen.online) { toast('Importing slides needs the server (the desktop app or server.js)'); return; }
   for (const f of files) {
-    toast(`Converting ${f.name}… a long deck can take a minute`);
+    toast(`Converting ${f.name}… a long deck can take a minute`, 0);
     let r;
-    try { r = await Lumen.importSlides(f); } catch (e) { toast(`Could not import ${f.name}: ${e.message}`); continue; }
+    try { r = await Lumen.importSlides(f); } catch (e) {
+      hideToast();
+      errorBox(`Could not import ${f.name}`, `${e.message}\n\nThis is also in slides-import.log in Lumen's data folder${window.lumenDesktop ? ' (File → Open Data Folder)' : ''}.`);
+      continue;
+    }
     const p = slidesPresentation(r.name || 'Slides', r.slides);
     state.db.presentations.push(p);
     if (at !== null) state.db.playlist.splice(at++, 0, p.id);

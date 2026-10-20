@@ -8,6 +8,18 @@ const { pipeline } = require('stream/promises');
 const { HttpError, bad, unquote } = require('../util.js');
 const { SLIDE_EXT, convert } = require('../slides.js');
 
+const LOG = 'slides-import.log';
+const LOG_MAX = 1024 * 1024;
+/** A line in the data folder's slides-import.log for each import, with all a failed converter said, so an error
+ * can be looked at after the console has stopped showing it. Started afresh when it gets large. */
+function logImport(dir, name, text) {
+  const file = path.join(dir, LOG);
+  try {
+    if (fs.existsSync(file) && fs.statSync(file).size > LOG_MAX) fs.rmSync(file);
+    fs.appendFileSync(file, `${new Date().toISOString()} ${name}: ${text}\n`);
+  } catch {}
+}
+
 module.exports = {
   /** The file as the body, its name in X-Filename. Answers {name, slides: ['media/<name>.png', ...], via}; the
    * console makes the presentation, as it does a slideshow of uploaded pictures. */
@@ -25,7 +37,11 @@ module.exports = {
       try { await pipeline(this.req, fs.createWriteStream(src)); } catch { throw bad('upload interrupted'); }
       if (fs.statSync(src).size !== n) throw bad('upload interrupted');
       let result;
-      try { result = await convert(src, work); } catch (e) { throw new HttpError(422, e.message); }
+      try { result = await convert(src, work); } catch (e) {
+        logImport(this.store.dir, name, `${e.message}${e.log ? '\n' + e.log : ''}`);
+        throw new HttpError(422, e.message);
+      }
+      logImport(this.store.dir, name, `${result.files.length} slides, through ${result.via}`);
       const slides = result.files.map(f => {
         const fname = `${crypto.randomBytes(8).toString('hex')}.png`;
         fs.copyFileSync(f, path.join(this.store.mediaDir, fname)); // the temporary folder may be on another drive

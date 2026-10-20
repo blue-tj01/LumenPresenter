@@ -206,6 +206,8 @@ The pictures are made on the computer running Lumen, with what it has:
 
 Lumen finds LibreOffice where its installer puts it; set `LUMEN_SOFFICE` to the full path of `soffice` if it is somewhere else. A deck takes a few seconds to a minute to convert, one file at a time. Lumen opens the file read-only and never runs macros in it.
 
+If an import fails, the console keeps the error on screen until it is closed, with a **Copy** button to report it, and every import, with everything a failed converter said, is written to `slides-import.log` in the data folder.
+
 ### Videos in the playlist
 
 **＋ Video** in the playlist header (or dropping video files onto the playlist) adds each video to the queue as its own item, marked ▶. A video already in the media bin has a **＋ Playlist** button. Each one is a one-slide presentation, so it plays in turn and **Next** moves on to the following item.
