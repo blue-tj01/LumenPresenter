@@ -159,3 +159,20 @@ it('finds a song already in the library by its song number, or by title when it 
   assert.equal(s.findSame(lib, { name: 'Amazing Grace', meta: { ccli: '1' } }), undefined);
   assert.equal(s.findSame(lib, { name: 'notices' }), lib[1]);
 });
+
+// Real SongSelect downloads (public domain hymns): the writers sit just above the song number, with no blank line.
+const fixture = name => require('fs').readFileSync(require('path').join(__dirname, 'fixtures', name));
+
+it('reads real SongSelect text downloads', () => {
+  const hark = s.parseSongSelect('songselect-hark.txt', s.decode(fixture('songselect-hark.txt')));
+  assert.equal(hark.name, 'Hark The Herald Angels Sing (Mendelssohn)');
+  assert.deepEqual(hark.meta, { author: 'Charles Wesley, Felix Mendelssohn-Bartholdy',
+    copyright: '© Words: Public Domain; Music: Public Domain', ccli: '27738' });
+  assert.deepEqual(hark.groups.map(g => [g.name, g.slides.length]), [['Verse 1', 5], ['Verse 2', 5], ['Verse 3', 5], ['Verse 4', 5]]);
+  assert.equal(hark.groups[3].slides[4].text, 'Hark the herald angels sing\nGlory to the newborn King');
+  const holy = s.parseSongSelect('songselect-holy.txt', s.decode(fixture('songselect-holy.txt')));
+  assert.deepEqual(holy.meta, { author: 'John Bacchus Dykes, Reginald Heber',
+    copyright: '© Words: Public Domain; Music: Public Domain', ccli: '1156' });
+  assert.deepEqual(holy.groups.map(g => g.slides.length), [4, 4, 4, 4]);
+  assert.equal(holy.groups[3].slides[3].text, 'God in three persons\nBlessed Trinity');
+});
