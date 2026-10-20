@@ -4,6 +4,7 @@
   "private": true,
   "description": "A presentation app for worship services and live events.",
   "author": "Tom",
+  "license": "GPL-3.0-or-later",
   "homepage": "https://github.com/blue-tj01/LumenPresenter",
   "desktopName": "lumen-presenter.desktop",
   "main": "electron/main.js",
@@ -33,6 +34,7 @@
     "productName": "Lumen Presenter",
     "files": [
       "package.json",
+      "LICENSE",
       "server.js",
       "electron/**",
       "*.html",
@@ -63,6 +65,7 @@
     },
     "nsis": {
       "oneClick": false,
+      "license": "LICENSE",
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false,
       "artifactName": "Lumen-Presenter-Setup-${version}.${ext}"
