@@ -29,6 +29,7 @@ async function renderLibrary() {
     li.dataset.id = p.id;
     li.innerHTML = '<span class="ico">♪</span><span class="nm"></span>';
     if (isVideoPres(p)) li.firstChild.textContent = '▶';
+    else if (p.kind === 'slides') li.firstChild.textContent = '▤';
     li.querySelector('.nm').textContent = li.title = p.name;
     if (snippet) li.appendChild(highlighted(snippet));
     li.onclick = () => { state.selectedId = p.id; renderAll(); };

@@ -29,6 +29,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Plain-text slide editor.** Groups, colour-coded sections and a custom **play order**, so a chorus is written once and sung as often as needed.
 - **Scripture.** Find a passage by reference or by its words in the KJV, WEB or BSB, or in a Bible you import, and put it on slides in one click.
 - **Images and slideshows.** Drop in photos to make picture slides or a whole slideshow in a few clicks.
+- **PowerPoint slides.** Import a PowerPoint, Impress or PDF file, such as the week's sermon slides, and step through it like any other presentation, exactly as it was designed.
 - **Videos.** Add videos to the playlist or to any slide, with synchronised playback across every output window.
 - **Auto-advance and looping.** Let a presentation run by itself, ideal for announcement loops.
 - **Song search.** Find a song by any words in it, its title, its writers or its CCLI song number, as you type.
@@ -186,6 +187,22 @@ In the editor, **🖼 Add images** (or dropping pictures onto the text) uploads 
 Welcome to Youth Camp!
 ```
 
+### PowerPoint and PDF slides
+
+**＋ PowerPoint** above the library imports a PowerPoint (`.pptx`, `.ppt`, `.ppsx`, `.pps`), LibreOffice Impress (`.odp`) or PDF file as a presentation, with each slide as a picture. Dropping the file onto the library does the same, and dropping it onto the playlist also puts it in the service at that point. The presentation is named after the file and marked ▤, and plays like any other: click a slide or use Next and Previous, and Next carries on into the next playlist item after the last slide.
+
+Each slide becomes a 1920-pixel-wide picture, on black, so it looks exactly as it was designed, with its own fonts, pictures and layout, and doesn't take on Lumen's theme. Hidden slides are left out. Animations, slide transitions, and video or sound inside a slide aren't kept; put a video on a slide of its own with `@video:` instead. To bring in a new version of a deck, import it again and delete the old one.
+
+The pictures are made on the computer running Lumen, with what it has:
+
+| | Used for |
+| --- | --- |
+| Microsoft PowerPoint (Windows) | PowerPoint files, so they look exactly as they do in PowerPoint |
+| [LibreOffice](https://www.libreoffice.org) | Any of the files, when PowerPoint isn't installed or can't open one. On Linux, install its Python support too (`python3-uno` on Debian and Ubuntu), or `poppler-utils`. |
+| `pdftoppm` (`poppler-utils`) | PDF files, when it is installed |
+
+Lumen finds LibreOffice where its installer puts it; set `LUMEN_SOFFICE` to the full path of `soffice` if it is somewhere else. A deck takes a few seconds to a minute to convert, one file at a time. Lumen opens the file read-only and never runs macros in it.
+
 ### Videos in the playlist
 
 **＋ Video** in the playlist header (or dropping video files onto the playlist) adds each video to the queue as its own item, marked ▶. A video already in the media bin has a **＋ Playlist** button. Each one is a one-slide presentation, so it plays in turn and **Next** moves on to the following item.
@@ -266,6 +283,7 @@ These options are for `node server.js`; the desktop app reads the same environme
 | `--allowed-host` | `LUMEN_ALLOWED_HOSTS` (comma-separated) | None; IP addresses, `localhost` and this computer's name always work |
 | `--media-folder` | `LUMEN_MEDIA_FOLDERS` (separated by `;` on Windows, `:` elsewhere) | None; folders added in the console are kept in `settings.json`, and these can't be removed there |
 | `--max-upload-mb` | `LUMEN_MAX_UPLOAD_MB` | `4096` |
+| | `LUMEN_SOFFICE` | LibreOffice's `soffice`, for [importing slides](#powerpoint-and-pdf-slides); found in its usual install folders |
 
 ### Running as a service
 
@@ -311,6 +329,7 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | `GET` / `POST /api/live` | Read / set the live state (`{live}`) |
 | `POST /api/media` | Upload an image or video (raw body, `X-Filename` header) |
 | `DELETE /api/media/<file>` | Remove an uploaded file |
+| `POST /api/slides` | Convert a PowerPoint, Impress or PDF file (raw body, `X-Filename` header) into one picture per slide (`{name, slides: ['media/<file>.png', ...], via}`) |
 | `GET` / `POST /api/network` | Network mode (`{network}`, `{regenerate: true}` for a new token, `{disconnect: <device id> or "all"}`); local computer only |
 | `POST /api/logout` | Sign this device out |
 | `GET /api/folders` | Media folders and the pictures and videos in each (`{folders: [{id, name, files}]}`); each folder's path only on the local computer |
@@ -340,6 +359,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `server/store.js`, `server/library.js` | Settings, live state and backups, and the library's SQLite database |
 | `server/bible/` | Bible translations: reading Zefania, OSIS and USFX files, references, and the translations database with its full-text search |
 | `bibles/`, `scripts/bundle-bible.js` | The public-domain translations that come with Lumen, and the script that makes them from a Bible file |
+| `server/slides.js`, `server/slides-uno.py` | Importing PowerPoint, Impress and PDF files as pictures, through PowerPoint, LibreOffice or pdftoppm |
 | `server/folders.js`, `server/hub.js`, `server/media.js` | Media folders, live updates to open pages, and media file types |
 | `electron/main.js` | The desktop app: starts the server in-process, opens the console window, and sets up the menus and tray icon |
 | `electron/screens.js` | The desktop app's full-screen output and stage windows, and which display each goes on |

@@ -183,6 +183,7 @@
     folders: () => request('GET', 'api/folders'),        // {folders: [{id, name, files: [{path, name, type}]}], local}
     setFolders: change => request('POST', 'api/folders', change), // {add: '<path>'} or {remove: id}
     bibles: () => request('GET', 'api/bibles'),           // {bibles: [{id, name, abbrev, language, rights, bundled}]}
+    importSlides: file => request('POST', 'api/slides', file), // {name, slides: ['media/<file>.png', ...], via}
     importBible: file => request('POST', 'api/bibles', new File([file], file.name, { type: /gzip/.test(file.type) ? 'application/gzip' : 'application/xml' })),
     deleteBible: id => request('DELETE', 'api/bibles/' + encodeURIComponent(id)),
     // {type: 'passage', reference, verses} for a reference, or {type: 'search', verses} for words
