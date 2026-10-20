@@ -1,6 +1,6 @@
 // The Bible tab: pick a translation, type a reference or some words, and make slides of the passage.
 import { $, toast } from './dom.js';
-import { getPres, save, state } from './library.js';
+import { save, state } from './library.js';
 import { goLive } from './live.js';
 import { DEFAULTS, passagePresentation, scriptureTemplate } from './passage.js';
 import { renderAll } from './views.js';
@@ -67,17 +67,34 @@ function options() {
     numbers: $('#scNumbers').checked };
 }
 
-/** Make the passage a presentation with the Scripture theme; returns it. */
-function addPassage() {
-  if (found?.type !== 'passage' || !found.verses.length) return null;
+/** The passage as a presentation with the Scripture theme. */
+function makePassage() {
   const opts = options();
   keepPrefs(opts);
-  const p = passagePresentation({ reference: found.reference, verses: found.verses, bible: found.bible, abbrev: found.abbrev },
+  return passagePresentation({ reference: found.reference, verses: found.verses, bible: found.bible, abbrev: found.abbrev },
     opts, scriptureTemplate(state.db));
+}
+const hasPassage = () => found?.type === 'passage' && found.verses.length > 0;
+const isShowing = p => p?.scripture?.bible === found.bible && p.scripture.reference === found.reference;
+
+/** Show the passage without adding it to the library: it replaces the last one shown this way, and is gone after a
+ * reload unless Add to library keeps it. */
+function showPassage() {
+  if (!hasPassage()) return;
+  state.preview = makePassage();
+  save(); // the Scripture template may have gained its reference box
+  goLive(state.preview.id, 0);
+}
+
+/** Keep the passage in the library: the one on screen if that is it, so it stays live, or else a new one. */
+function addPassage() {
+  if (!hasPassage()) return;
+  let p = state.preview;
+  if (isShowing(p)) state.preview = null; else p = makePassage();
   state.db.presentations.push(p);
   state.selectedId = p.id;
   save(); renderAll();
-  return p;
+  toast(`Added “${p.name}” to the library`);
 }
 
 async function importBible(file) {
@@ -102,8 +119,8 @@ export function setupScripture() {
   $('#scBible').onchange = () => { keepPrefs({ bible: $('#scBible').value }); renderBible(); };
   $('#scQuery').oninput = () => { clearTimeout(timer); timer = setTimeout(find, 250); };
   $('#scQuery').onkeydown = e => { if (e.key === 'Enter') { clearTimeout(timer); find(); } };
-  $('#scAdd').onclick = () => { const pres = addPassage(); if (pres) toast(`Added “${pres.name}”`); };
-  $('#scLive').onclick = () => { const pres = addPassage(); if (pres && getPres(pres.id)) goLive(pres.id, 0); };
+  $('#scAdd').onclick = addPassage;
+  $('#scLive').onclick = showPassage;
   $('#scImport').onclick = () => $('#scFile').click();
   $('#scFile').onchange = e => { const f = e.target.files[0]; if (f) importBible(f); e.target.value = ''; };
   $('#scRemove').onclick = async () => {
