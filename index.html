@@ -28,8 +28,9 @@
   <!-- Library + Playlist -->
   <aside class="side">
     <section class="panel grow">
-      <div class="panel-h">Library <span><button id="btnImportSongs" class="icon txt" title="Import songs from CCLI SongSelect (.usr or .txt files), or drop them on the library">⤓ SongSelect</button><button id="btnNewPres" class="icon" title="New presentation">＋</button></span>
-        <input id="songFile" type="file" accept=".usr,.txt,text/plain" multiple hidden></div>
+      <div class="panel-h">Library <span><button id="btnImportSongs" class="icon txt" title="Import songs from CCLI SongSelect (.usr or .txt files), or drop them on the library">⤓ SongSelect</button><button id="btnImportSlides" class="icon txt" title="Import a PowerPoint, Impress or PDF file: each slide becomes a picture">⤓ Slides</button><button id="btnNewPres" class="icon" title="New presentation">＋</button></span>
+        <input id="songFile" type="file" accept=".usr,.txt,text/plain" multiple hidden>
+        <input id="slidesFile" type="file" accept=".pptx,.ppt,.ppsx,.pps,.odp,.pdf" multiple hidden></div>
       <input id="libSearch" class="search" placeholder="Search songs…" title="Titles, words, writers or CCLI song number">
       <ul id="libList" class="list"></ul>
     </section>
@@ -37,7 +38,7 @@
       <div class="panel-h">Service
         <span class="svc-tools"><button id="svcNew" class="icon" title="New service">＋</button><button id="svcDuplicate" class="icon" title="Duplicate this service for the next week">⧉</button><button id="svcEdit" class="icon" title="Rename this service or change its date">✎</button><button id="svcDelete" class="icon" title="Delete this service (its songs stay in the library)">✕</button></span></div>
       <select id="svcSelect" class="search svc-select" title="Open a saved service"></select>
-      <div class="panel-h">Playlist <span class="muted small">drag songs in · drag to reorder · drop videos</span>
+      <div class="panel-h">Playlist <span class="muted small">drag songs in · drag to reorder · drop videos or PowerPoint</span>
         <button id="btnAddVideo" class="icon txt" title="Add videos to the playlist">＋ Video</button>
         <input id="playlistFile" type="file" accept="video/*" multiple hidden></div>
       <ul id="playList" class="list"></ul>
@@ -237,6 +238,11 @@
 </div>
 <input id="importFile" type="file" accept="application/json" hidden>
 <div id="toast" class="toast"></div>
+<div id="errBox" class="err-box" role="alert" hidden>
+  <div class="err-h">Something went wrong <span class="spacer"></span>
+    <button id="errCopy" class="btn small-btn" title="Copy the error, to report it">Copy</button><button id="errClose" class="icon" title="Close">✕</button></div>
+  <div id="errList"></div>
+</div>
 
 <script src="render.js"></script>
 <script src="sync.js"></script>

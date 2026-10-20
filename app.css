@@ -170,6 +170,10 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 4px; color: #ffcf
 .srv.ok { color: #3ecf8e; } .srv.down { color: #ffb347; } .srv.local { color: #8b92a3; }
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translate(-50%, 30px); opacity: 0; background: #2b3550; padding: 8px 16px; border-radius: 8px; transition: .25s; pointer-events: none; z-index: 20; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+.err-box { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); width: min(560px, 92vw); max-height: 50vh; overflow: auto; background: #3a1d24; border: 1px solid #a33a4c; border-radius: 8px; padding: 10px 14px; z-index: 21; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+.err-h { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 6px; }
+.err-item { user-select: text; white-space: pre-wrap; word-break: break-word; font-size: 13px; padding: 6px 0; border-top: 1px solid rgba(255,255,255,.08); }
+.err-item b { display: block; margin-bottom: 2px; }
 
 @media (max-width: 1150px) {
   .layout { grid-template-columns: 190px minmax(0, 1fr) 300px; }

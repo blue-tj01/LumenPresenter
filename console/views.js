@@ -5,6 +5,7 @@ import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackgroun
 import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
 import { addService, duplicateService, nextSunday, openService, removeService, serviceLabel, sortedServices, switchService, updateService } from './services.js';
 import { decode, findSame, parseSongSelect } from './songselect.js';
+import { slideFiles } from './powerpoint.js';
 import { renderTheme } from './themes.js';
 
 // With the server, search is the library database's song search, which ranks matches and shows the words that
@@ -30,6 +31,7 @@ async function renderLibrary() {
     li.dataset.id = p.id;
     li.innerHTML = '<span class="ico">♪</span><span class="nm"></span>';
     if (isVideoPres(p)) li.firstChild.textContent = '▶';
+    else if (p.kind === 'slides') li.firstChild.textContent = '▤';
     li.querySelector('.nm').textContent = li.title = p.name;
     if (snippet) li.appendChild(highlighted(snippet));
     li.onclick = () => { state.selectedId = p.id; renderAll(); };
@@ -211,7 +213,12 @@ export function setupViews() {
   $('#songFile').onchange = e => { importSongs(e.target.files); e.target.value = ''; };
   const songFiles = e => [...e.dataTransfer.items].some(i => i.kind === 'file');
   $('#libList').addEventListener('dragover', e => { if (songFiles(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
-  $('#libList').addEventListener('drop', e => { if (e.dataTransfer.files.length) { e.preventDefault(); importSongs(e.dataTransfer.files); } });
+  $('#libList').addEventListener('drop', e => {
+    if (!e.dataTransfer.files.length) return;
+    e.preventDefault();
+    const slides = slideFiles(e.dataTransfer.files), songs = [...e.dataTransfer.files].filter(f => !slides.includes(f));
+    if (songs.length) importSongs(songs); // PowerPoint and PDF files are imported by powerpoint.js
+  });
   $('#btnEdit').onclick = () => state.selectedId && openEditor(state.selectedId);
   $('#btnAddPlaylist').onclick = () => { if (state.selectedId && !state.db.playlist.includes(state.selectedId)) { state.db.playlist.push(state.selectedId); save(); renderPlaylist(); toast('Added to playlist'); } };
   $('#btnDelete').onclick = () => {

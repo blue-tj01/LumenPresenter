@@ -4,6 +4,7 @@ import { readDataUrl } from './editor.js';
 import { slideRefs, toRef } from './format.js';
 import { save, state } from './library.js';
 import { broadcast, live } from './live.js';
+import { importSlides } from './powerpoint.js';
 import { uid } from './slides.js';
 import { renderAll, renderLiveMarks } from './views.js';
 
@@ -182,6 +183,7 @@ export function setupMedia() {
     e.preventDefault();
     const li = e.target.closest('li'), at = li ? [...pl.children].indexOf(li) : state.db.playlist.length;
     addPlaylistVideos(e.dataTransfer.files, at);
+    importSlides(e.dataTransfer.files, at);
   };
 
   $('#btnAddMedia').onclick = () => $('#mediaFile').click();
