@@ -220,3 +220,12 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 4px; color: #ffcf
   .panel.grow { flex: none; height: 260px; }
   .clr { font-size: 10px; }
 }
+/* Bible tab */
+.pane input.sc-query { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.sc-results { max-height: 260px; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; }
+.sc-results:empty { display: none; }
+.sc-results li { display: block; white-space: normal; line-height: 1.35; font-size: 12px; }
+.sc-results li b { color: var(--muted); font-weight: 600; margin-right: 2px; }
+.sc-results li.passage { cursor: default; }
+.sc-results li.passage:hover { background: none; }
+.pane .row label input[type=number] { width: 64px; }

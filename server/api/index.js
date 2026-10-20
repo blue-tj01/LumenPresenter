@@ -6,4 +6,5 @@ module.exports = {
   ...require('./network.js'),
   ...require('./library.js'),
   ...require('./media.js'),
+  ...require('./scripture.js'),
 };

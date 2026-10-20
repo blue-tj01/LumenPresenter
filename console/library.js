@@ -6,8 +6,9 @@ import { BUILTIN_TEMPLATES } from './seed.js';
 import { ensureServices, stashPlaylist } from './services.js';
 import { groupColor } from './slides.js';
 
-/** What the modules share: the library, and the presentation selected in the console. */
-export const state = { db: null, selectedId: null };
+/** What the modules share: the library, the presentation selected in the console, and a passage the Bible tab put
+ * on screen without adding it to the library (kept in memory only, until it is added or replaced). */
+export const state = { db: null, selectedId: null, preview: null };
 
 export const KEY = 'lumen.db.v1';
 
@@ -38,7 +39,7 @@ export const save = () => {
 };
 
 
-export const getPres = id => state.db.presentations.find(p => p.id === id);
+export const getPres = id => state.db.presentations.find(p => p.id === id) || (state.preview?.id === id ? state.preview : undefined);
 const bin = id => state.db.media.find(m => m.id === id)?.src || null;
 export const mediaUrl = ref => refUrl(ref, bin);
 export { arrangement };

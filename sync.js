@@ -5,7 +5,7 @@
   const chan = new BroadcastChannel('lumen-live');
   const client = Math.random().toString(36).slice(2, 10);
   const TOKEN_KEY = 'lumen.token';
-  const listeners = { state: [], library: [], hello: [], status: [], error: [], folders: [] };
+  const listeners = { state: [], library: [], hello: [], status: [], error: [], folders: [], bibles: [] };
   const emit = (type, data) => listeners[type].forEach(fn => fn(data));
 
   let online = false;    // the page was served by a reachable Lumen server
@@ -142,6 +142,7 @@
     });
     es.addEventListener('ping', e => syncClock(JSON.parse(e.data).time));
     es.addEventListener('folders', () => emit('folders'));
+    es.addEventListener('bibles', () => emit('bibles'));
   }
 
   async function init() {
@@ -181,6 +182,11 @@
     uploadMedia: file => request('POST', 'api/media', file),
     folders: () => request('GET', 'api/folders'),        // {folders: [{id, name, files: [{path, name, type}]}], local}
     setFolders: change => request('POST', 'api/folders', change), // {add: '<path>'} or {remove: id}
+    bibles: () => request('GET', 'api/bibles'),           // {bibles: [{id, name, abbrev, language, rights, bundled}]}
+    importBible: file => request('POST', 'api/bibles', new File([file], file.name, { type: /gzip/.test(file.type) ? 'application/gzip' : 'application/xml' })),
+    deleteBible: id => request('DELETE', 'api/bibles/' + encodeURIComponent(id)),
+    // {type: 'passage', reference, verses} for a reference, or {type: 'search', verses} for words
+    scripture: (bible, q) => request('GET', `api/scripture?bible=${encodeURIComponent(bible)}&q=${encodeURIComponent(q)}`),
     deleteMedia: src => /^media\/[a-z0-9.]+$/.test(src) ? request('DELETE', 'api/' + src).catch(() => {}) : Promise.resolve(),
     now: () => Date.now() + offset,
     get online() { return online; },

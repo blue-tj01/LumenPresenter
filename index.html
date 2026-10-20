@@ -90,6 +90,7 @@
     </div>
     <nav class="tabs">
       <button data-tab="theme" class="on">Theme</button>
+      <button data-tab="bible">Bible</button>
       <button data-tab="msg">Messages</button>
       <button data-tab="timer">Timer</button>
       <button data-tab="stage">Stage</button>
@@ -124,6 +125,19 @@
         <label>CCLI licence # <input id="ccliLicence" type="text" inputmode="numeric" placeholder="Your church's licence number"></label>
         <label class="chk"><input id="showCredits" type="checkbox"> Show credits on each song's last slide</label>
         <p class="muted small">A song's writers, copyright and CCLI song number are set in its editor.</p>
+      </div>
+      <div data-pane="bible" class="pane">
+        <div class="row"><select id="scBible" title="Translation"></select>
+          <button id="scImport" class="btn small-btn" title="Add a translation from a Zefania, OSIS or USFX file">Import…</button>
+          <button id="scRemove" class="btn small-btn ghost danger" title="Remove this translation" hidden>Remove</button>
+          <input id="scFile" type="file" accept=".xml,.osis,.usfx,.gz,application/xml,text/xml" hidden></div>
+        <input id="scQuery" type="search" class="sc-query" placeholder="John 3:16-18, Ps 23, or words…" autocomplete="off" spellcheck="false">
+        <div id="scInfo" class="muted small"></div>
+        <ul id="scResults" class="list compact sc-results"></ul>
+        <div class="row small"><label>Verses per slide <input id="scPer" type="number" min="1" max="20"></label>
+          <label>Characters <input id="scChars" type="number" min="40" max="1000" step="10" title="A verse longer than this is split across slides"></label></div>
+        <label class="chk"><input id="scNumbers" type="checkbox"> Verse numbers</label>
+        <div class="row"><button id="scAdd" class="btn" disabled title="Keep the passage in the library to use again">Add to library</button><button id="scLive" class="btn primary" disabled title="Show the passage now, without adding it to the library">Go Live</button></div>
       </div>
       <div data-pane="msg" class="pane">
         <div class="row"><input id="msgInput" type="text" placeholder="Lower-third message…"><button id="msgShow" class="btn primary">Show</button></div>

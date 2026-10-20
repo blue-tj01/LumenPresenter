@@ -10,6 +10,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - [Quick start](#quick-start)
 - [Pages](#pages)
 - [Writing slides](#writing-slides)
+- [Scripture](#scripture)
 - [Images and videos](#images-and-videos)
 - [Song search and CCLI](#song-search-and-ccli)
 - [Themes](#themes)
@@ -26,6 +27,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Library and playlist.** Build presentations, queue them in a playlist, and step through them with one key.
 - **Services.** Keep a dated playlist for each service, and copy last week's to start the next one.
 - **Plain-text slide editor.** Groups, colour-coded sections and a custom **play order**, so a chorus is written once and sung as often as needed.
+- **Scripture.** Find a passage by reference or by its words in the KJV, WEB or BSB, or in a Bible you import, and put it on slides in one click.
 - **Images and slideshows.** Drop in photos to make picture slides or a whole slideshow in a few clicks.
 - **Videos.** Add videos to the playlist or to any slide, with synchronised playback across every output window.
 - **Auto-advance and looping.** Let a presentation run by itself, ideal for announcement loops.
@@ -159,6 +161,17 @@ Set **Auto-advance every … seconds** in the editor to have a presentation move
 
 Clicking a slide or pressing Next/Previous restarts the count from there. The **❚❚ Auto** button under Prev / Next shows the time left and pauses or resumes it. Leave the box empty to advance by hand.
 
+## Scripture
+
+The **Bible** tab finds passages and makes slides of them. It needs the server (the desktop app or `server.js`).
+
+- **Translations.** The King James Version, World English Bible and Berean Standard Bible come with Lumen. All three are in the public domain. **Import…** adds another from a Zefania XML, OSIS or USFX file (gzipped is fine), the formats most free Bible downloads use. **Remove** takes an imported one out again.
+- **Finding a passage.** Type a reference the way you'd write it: `John 3:16`, `Jn 3:16-18`, `1 Cor 13:4-7, 13`, `Ps 23`, `Gen 1:1-2:3`, `Jude 3`, or several at once with `;`. An imported translation's own book names work too.
+- **Finding words.** Anything that isn't a reference searches the words of the translation, best matches first, with the last word matched as you type it. Put a phrase in quotes to find it exactly. Click a verse to use it.
+- **Making slides.** **Go Live** puts the passage up straight away, as slides with the Scripture theme, without adding it to the library: step through it as usual, and the next passage shown replaces it. **Add to library** keeps it (the one on screen, if that's the passage) to use again later. Each slide carries its reference (for example `John 3:16 KJV`), shown small under the verse. **Verses per slide** puts more than one verse on a slide while they fit, and a verse longer than **Characters** is split across slides at the end of a sentence or clause. **Verse numbers** puts each verse's number in front of it.
+
+The first time a slide is made from the Scripture theme, the theme gets a box for the reference. Songs shown with the Scripture theme don't change, because they carry no reference.
+
 ## Images and videos
 
 ### Slideshows and picture slides
@@ -278,6 +291,7 @@ With the app or the server, everything lives in the data directory. For the inst
 | `lumen.db` | The library: presentations, services, media list, themes and messages, in an SQLite database (with `lumen.db-wal` and `lumen.db-shm` beside it while Lumen is running) |
 | `live.json` | What is on screen right now, so windows recover after a restart |
 | `settings.json` | Network mode, the access token, signed-in devices and media folders (readable only by the account running the server) |
+| `bibles.db` | The Bible translations in use and the ones imported, with their search index, in a database of their own |
 | `media/` | Uploaded images and videos |
 | `backups/` | Snapshots of the library as JSON, at most one every 10 minutes, newest 50 kept |
 
@@ -302,7 +316,11 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | `GET /api/folders` | Media folders and the pictures and videos in each (`{folders: [{id, name, files}]}`); each folder's path only on the local computer |
 | `POST /api/folders` | Add a media folder (`{add: <path>}`) or remove one (`{remove: <id>}`); local computer only |
 | `GET /folders/<id>/<path>` | A picture or video in a media folder |
-| `GET /api/events` | Server-Sent Events: `hello`, `state`, `library`, `folders`, `ping` |
+| `GET /api/bibles` | The translations (`{bibles: [{id, name, abbrev, language, rights, bundled}]}`) |
+| `POST /api/bibles` | Import a Zefania, OSIS or USFX Bible (raw XML or gzip body, `X-Filename` header) |
+| `DELETE /api/bibles/<id>` | Remove an imported translation |
+| `GET /api/scripture?bible=<id>&q=<text>` | The passage a reference names (`{type: "passage", reference, verses}`), or verses with those words (`{type: "search", verses}`) |
+| `GET /api/events` | Server-Sent Events: `hello`, `state`, `library`, `folders`, `bibles`, `ping` |
 
 ### Authentication and security
 
@@ -320,6 +338,8 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `server/lumen-server.js`, `server/request.js` | Listening, network mode, and handling each request: sign-in, checks and files |
 | `server/api/` | The HTTP API, one file per area (library and live state, media and folders, network, events) |
 | `server/store.js`, `server/library.js` | Settings, live state and backups, and the library's SQLite database |
+| `server/bible/` | Bible translations: reading Zefania, OSIS and USFX files, references, and the translations database with its full-text search |
+| `bibles/`, `scripts/bundle-bible.js` | The public-domain translations that come with Lumen, and the script that makes them from a Bible file |
 | `server/folders.js`, `server/hub.js`, `server/media.js` | Media folders, live updates to open pages, and media file types |
 | `electron/main.js` | The desktop app: starts the server in-process, opens the console window, and sets up the menus and tray icon |
 | `electron/screens.js` | The desktop app's full-screen output and stage windows, and which display each goes on |
@@ -328,6 +348,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
+| `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
 | `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |
 | `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display |
 | `sync.js` | The pages' link to the server |

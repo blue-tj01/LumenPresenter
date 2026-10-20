@@ -128,7 +128,7 @@ export function renderGrid() {
   const slides = flat(p);
   const ordered = p && p.arrangements?.[0]?.order.length && arrangement(p).map(gi => p.groups[gi].name);
   $('#presMeta').textContent = p ? `${p.groups.length} groups · ${slides.length} slides` + (ordered ? ` · Order: ${ordered.join(', ')}` : '')
-    + (autoSecs(p) ? ` · Auto-advance every ${autoSecs(p)}s, looping` : '') + ` · ${templateFor(p).name || 'Default style'}` : '';
+    + (autoSecs(p) ? ` · Auto-advance every ${autoSecs(p)}s, looping` : '') + ` · ${templateFor(p).name || 'Default style'}` + (p === state.preview ? ' · Not in the library: Add to library in the Bible tab keeps it' : '') : '';
   if (!p || !slides.length) { grid.innerHTML = '<div class="empty">No slides yet — click ✎ Edit to add some.</div>'; return; }
   // One continuous grid; each card's coloured label names its group.
   slides.forEach((s, i) => {
@@ -186,6 +186,7 @@ export function setupViews() {
   $('#btnAddPlaylist').onclick = () => { if (state.selectedId && !state.db.playlist.includes(state.selectedId)) { state.db.playlist.push(state.selectedId); save(); renderPlaylist(); toast('Added to playlist'); } };
   $('#btnDelete').onclick = () => {
     const p = getPres(state.selectedId); if (!p || !confirm(`Delete “${p.name}”?`)) return;
+    if (state.preview === p) state.preview = null;
     state.db.presentations = state.db.presentations.filter(x => x !== p); state.db.playlist = state.db.playlist.filter(id => id !== p.id);
     if (live.presId === p.id) clear('slide');
     state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id; save(); renderAll();
