@@ -196,13 +196,14 @@ Welcome to Youth Camp!
 
 Each slide becomes a 1920-pixel-wide picture, on black, so it looks exactly as it was designed, with its own fonts, pictures and layout, and doesn't take on Lumen's theme. Hidden slides are left out. Animations, slide transitions, and video or sound inside a slide aren't kept; put a video on a slide of its own with `@video:` instead. To bring in a new version of a deck, import it again and delete the old one.
 
-The pictures are made on the computer running Lumen, with what it has:
+**PDFs need nothing installed.** The console draws each page itself with [pdf.js](https://mozilla.github.io/pdf.js/), the PDF reader in Firefox, and uploads it. So the simplest way to bring in sermon slides on any computer is to ask for them as a PDF (in PowerPoint, **File → Save As → PDF**).
+
+PowerPoint and Impress files are made into pictures on the computer running Lumen, with what it has:
 
 | | Used for |
 | --- | --- |
 | Microsoft PowerPoint (Windows) | PowerPoint files, so they look exactly as they do in PowerPoint |
 | [LibreOffice](https://www.libreoffice.org) | Any of the files, when PowerPoint isn't installed or can't open one. On Linux, install its Python support too (`python3-uno` on Debian and Ubuntu), or `poppler-utils`. |
-| `pdftoppm` (`poppler-utils`) | PDF files, when it is installed |
 
 Lumen finds LibreOffice where its installer puts it; set `LUMEN_SOFFICE` to the full path of `soffice` if it is somewhere else. A deck takes a few seconds to a minute to convert, one file at a time. Lumen opens the file read-only and never runs macros in it.
 
@@ -374,6 +375,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `server/bible/` | Bible translations: reading Zefania, OSIS and USFX files, references, and the translations database with its full-text search |
 | `bibles/`, `scripts/bundle-bible.js` | The public-domain translations that come with Lumen, and the script that makes them from a Bible file |
 | `server/slides.js`, `server/slides-uno.py` | Importing PowerPoint, Impress and PDF files as pictures, through PowerPoint, LibreOffice or pdftoppm |
+| `console/powerpoint.js`, `vendor/pdfjs/` | Importing slides in the console; PDFs are drawn there with pdf.js |
 | `server/folders.js`, `server/hub.js`, `server/media.js` | Media folders, live updates to open pages, and media file types |
 | `electron/main.js` | The desktop app: starts the server in-process, opens the console window, and sets up the menus and tray icon |
 | `electron/screens.js` | The desktop app's full-screen output and stage windows, and which display each goes on |

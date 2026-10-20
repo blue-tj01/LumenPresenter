@@ -16,6 +16,36 @@ export const slidesPresentation = (name, srcs) => ({
   arrangements: [],
 });
 
+const WIDTH = 1920;
+// PDFs are drawn here with pdf.js (vendor/pdfjs), so they need nothing installed on the computer running Lumen.
+// Each page is uploaded as a picture, as the server's conversion would have made it.
+async function pdfSlides(f) {
+  const pdfjs = await import('../vendor/pdfjs/pdf.min.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL('../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url).href;
+  const task = pdfjs.getDocument({ data: new Uint8Array(await f.arrayBuffer()), isEvalSupported: false });
+  const doc = await task.promise.catch(e => { task.destroy(); throw e; });
+  const base = f.name.replace(/\.[^.]+$/, ''), slides = [];
+  try {
+    for (let i = 1; i <= doc.numPages; i++) {
+      toast(`Converting ${f.name}: page ${i} of ${doc.numPages}…`, 0);
+      const page = await doc.getPage(i);
+      const viewport = page.getViewport({ scale: WIDTH / page.getViewport({ scale: 1 }).width });
+      const canvas = document.createElement('canvas');
+      canvas.width = WIDTH; canvas.height = Math.round(viewport.height);
+      await page.render({ canvas, canvasContext: canvas.getContext('2d'), viewport }).promise;
+      page.cleanup();
+      const blob = await new Promise(done => canvas.toBlob(done, 'image/png'));
+      slides.push((await Lumen.uploadMedia(new File([blob], `${base} ${i}.png`, { type: 'image/png' }))).src);
+    }
+  } catch (e) {
+    slides.forEach(Lumen.deleteMedia); // the pages already uploaded
+    throw e;
+  } finally {
+    task.destroy();
+  }
+  return { name: base, slides };
+}
+
 /** Import each file into the library, and into the playlist at `at` when given. */
 export async function importSlides(files, at = null) {
   files = slideFiles(files);
@@ -24,9 +54,11 @@ export async function importSlides(files, at = null) {
   for (const f of files) {
     toast(`Converting ${f.name}… a long deck can take a minute`, 0);
     let r;
-    try { r = await Lumen.importSlides(f); } catch (e) {
+    const pdf = /\.pdf$/i.test(f.name);
+    try { r = pdf ? await pdfSlides(f) : await Lumen.importSlides(f); } catch (e) {
       hideToast();
-      errorBox(`Could not import ${f.name}`, `${e.message}\n\nThis is also in slides-import.log in Lumen's data folder${window.lumenDesktop ? ' (File → Open Data Folder)' : ''}.`);
+      errorBox(`Could not import ${f.name}`, pdf ? String(e.message || e)
+        : `${e.message}\n\nThis is also in slides-import.log in Lumen's data folder${window.lumenDesktop ? ' (File → Open Data Folder)' : ''}.`);
       continue;
     }
     const p = slidesPresentation(r.name || 'Slides', r.slides);

@@ -45,6 +45,14 @@ describe('slides import', () => {
     r.end(body);
   });
 
+  it('serves pdf.js, which draws PDFs in the console', async () => {
+    for (const f of ['pdf.min.mjs', 'pdf.worker.min.mjs']) {
+      const type = await new Promise((resolve, reject) => http.get({ host: '127.0.0.1', port, path: `/vendor/pdfjs/${f}`, agent: false },
+        res => { res.resume(); resolve(res.statusCode === 200 && res.headers['content-type']); }).on('error', reject));
+      assert.equal(type, 'application/javascript; charset=utf-8');
+    }
+  });
+
   it('takes only presentation and PDF files', async () => {
     assert.equal((await post(Buffer.from('x'), 'notes.docx')).status, 400);
     assert.equal((await post(Buffer.from('x'))).status, 400);

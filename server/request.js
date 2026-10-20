@@ -10,6 +10,7 @@ const API = require('./api/index.js');
 const APP_DIR = path.join(__dirname, '..');
 // The pages and what they load; every module in console/ is served, so a new one needs no change here.
 const STATIC = new Set(['index.html', 'output.html', 'stage.html', 'remote.html', 'app.css', 'render.js', 'render.css', 'sync.js',
+  'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs',
   ...fs.readdirSync(path.join(APP_DIR, 'console')).filter(f => f.endsWith('.js')).map(f => `console/${f}`)]);
 const MAX_JSON = 64 * 1024 * 1024;
 const FORWARDED = ['x-forwarded-for', 'forwarded', 'x-real-ip'];

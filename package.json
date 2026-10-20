@@ -47,7 +47,8 @@
       "server/**",
       "bibles/**",
       "render.js",
-      "sync.js"
+      "sync.js",
+      "vendor/**"
     ],
     "directories": {
       "output": "dist"
