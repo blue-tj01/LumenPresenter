@@ -13,7 +13,7 @@
   let offset = 0;        // server clock minus local clock, so timers agree across devices
   let authDeclined = false;
   let outdated = false;  // server.js was updated on disk but the running server wasn't restarted
-  const SERVER_VERSION = 2;
+  const SERVER_VERSION = 3;
 
   const syncClock = t => { if (t) offset = t - Date.now(); };
   const status = () => emit('status', { online, streaming });
@@ -114,6 +114,11 @@
     } finally { sendingLib = false; }
     if (retry) setTimeout(flushLib, 3000); else if (pendingLib) flushLib();
   }
+  /** Song search on the server; a change still waiting to be saved is sent first, so results include it. */
+  async function search(q) {
+    if (pendingLib && !sendingLib) { clearTimeout(libTimer); await flushLib(); }
+    return (await request('GET', 'api/search?q=' + encodeURIComponent(q))).results;
+  }
   window.addEventListener('beforeunload', e => {
     if (!libBusy()) return;
     clearTimeout(libTimer); flushLib();
@@ -162,7 +167,7 @@
   };
 
   window.Lumen = {
-    client, init, publish, loadLibrary, saveLibrary,
+    client, init, publish, loadLibrary, saveLibrary, search, // search(q): [{id, name, snippet}], best first
     on: (type, fn) => listeners[type].push(fn),
     hello: () => chan.postMessage({ type: 'hello' }), // ask same-browser operator windows for the current state
     getLive: () => request('GET', 'api/live'),

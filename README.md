@@ -12,6 +12,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - [Writing slides](#writing-slides)
 - [Scripture](#scripture)
 - [Images and videos](#images-and-videos)
+- [Song search and CCLI](#song-search-and-ccli)
 - [Themes](#themes)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Network mode](#network-mode)
@@ -24,11 +25,14 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 ## Features
 
 - **Library and playlist.** Build presentations, queue them in a playlist, and step through them with one key.
+- **Services.** Keep a dated playlist for each service, and copy last week's to start the next one.
 - **Plain-text slide editor.** Groups, colour-coded sections and a custom **play order**, so a chorus is written once and sung as often as needed.
 - **Scripture.** Find a passage by reference or by its words in the KJV, WEB or BSB, or in a Bible you import, and put it on slides in one click.
 - **Images and slideshows.** Drop in photos to make picture slides or a whole slideshow in a few clicks.
 - **Videos.** Add videos to the playlist or to any slide, with synchronised playback across every output window.
 - **Auto-advance and looping.** Let a presentation run by itself, ideal for announcement loops.
+- **Song search.** Find a song by any words in it, its title, its writers or its CCLI song number, as you type.
+- **CCLI details.** Each song keeps its writers, copyright and CCLI song number, shown with your church's CCLI licence number on its last slide.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
 - **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between.
@@ -141,6 +145,12 @@ Chorus line
 | `@image:` | Shows a picture on that slide, letterboxed over the background. Other lines on the slide appear as text on top. |
 | `@video:` | Plays a video on that slide, once, with sound on the audience output. |
 
+### Services
+
+The playlist belongs to a **service**: a name and a date, such as *Sun 26 Oct 2026 · Morning service*. The list above the playlist holds every saved service, newest first, and picking one opens its playlist. The buttons beside **Service** make a new, empty service (**＋**), copy the open one to a week later (**⧉**, for building next week's from this week's), rename it or change its date (**✎**), and delete it (**✕**; its songs stay in the library). To add a song, drag it from the library onto the playlist (dropping it on an item puts it before that one), double-click it, or use **＋ Playlist** above the slides. Every console on the network shows the same open service.
+
+A library from before services opens with its playlist as one service, dated the coming Sunday.
+
 ### Play order
 
 Write each group once, then set the order it is sung in the editor's **Play order** box, for example `Verse 1, Chorus, Verse 2, Chorus, Bridge`. Clicking a group's button below the box adds it to the end. Groups can repeat, and both the slide grid and Next/Previous follow the order. Leave the box empty to play the groups as written.
@@ -194,6 +204,17 @@ Instead of uploading, Lumen can play pictures and videos straight from a folder 
 - **Removing a folder.** **Remove folder** stops Lumen showing it and leaves the files where they are. If a folder is renamed, moved or on a drive that's unplugged, it is marked **not found** and its slides go blank until it's back.
 
 Lumen serves only pictures and videos from inside each folder. Other files, other folders and links out of the folder aren't reachable.
+
+## Song search and CCLI
+
+The search box above the library finds songs by their title, any of their words, who wrote them, their copyright or their CCLI song number. Type the start of a few words in any order (`am gr sweet` finds Amazing Grace); every word has to match, accents and capitals don't matter, and the best matches come first, titles before words. Each result shows the line that matched. With the server, search uses the library database's full-text index; opened without it, the console matches the words as typed.
+
+In the editor, **Written by**, **Copyright** and **CCLI song #** hold a song's details. A song with any of them shows its credits on its last slide, small along the bottom:
+
+> “Amazing Grace” · John Newton
+> Public Domain · CCLI Song # 22025 · CCLI Licence # 123456
+
+Enter your church's licence number once, in **CCLI licence #** under **Song credits** on the **Theme** tab, and every song shows it. **Show credits on each song's last slide** turns them off. A presentation with no song details, such as an announcement loop, never shows credits. A theme that places the song's copyright or CCLI number itself (a text box bound to `pres.credits` or a `pres.meta` field) is shown as it is, without the credits line added.
 
 ## Themes
 
@@ -267,7 +288,7 @@ With the app or the server, everything lives in the data directory. For the inst
 
 | Path | Contents |
 | --- | --- |
-| `lumen.db` | The library: presentations, playlist, media list, themes and messages, in an SQLite database (with `lumen.db-wal` and `lumen.db-shm` beside it while Lumen is running) |
+| `lumen.db` | The library: presentations, services, media list, themes and messages, in an SQLite database (with `lumen.db-wal` and `lumen.db-shm` beside it while Lumen is running) |
 | `live.json` | What is on screen right now, so windows recover after a restart |
 | `settings.json` | Network mode, the access token, signed-in devices and media folders (readable only by the account running the server) |
 | `bibles.db` | The Bible translations in use and the ones imported, with their search index, in a database of their own |
@@ -286,6 +307,7 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | --- | --- |
 | `GET /api/health` | Status, server time and connected clients |
 | `GET` / `PUT /api/library` | Read / replace the library (`{library}`) |
+| `GET /api/search?q=<words>` | Song search, best match first (`{results: [{id, name, snippet}]}`); in `snippet`, the matching words are between `\u0002` and `\u0003` |
 | `GET` / `POST /api/live` | Read / set the live state (`{live}`) |
 | `POST /api/media` | Upload an image or video (raw body, `X-Filename` header) |
 | `DELETE /api/media/<file>` | Remove an uploaded file |

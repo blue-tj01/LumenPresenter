@@ -1,4 +1,4 @@
-// The library (presentations, playlist, themes, media list, messages) and what is on screen now.
+// The library (presentations, playlist, themes, media list, messages), searching it, and what is on screen now.
 'use strict';
 const { bad, nowMs, isObject } = require('../util.js');
 
@@ -18,6 +18,11 @@ module.exports = {
     const rev = this.store.setLibrary(lib);
     this.sendJson({ rev });
     this.srv.hub.send('library', { rev, origin, time: nowMs() });
+  },
+
+  /** Song search: /api/search?q=<words>, best match first. */
+  'GET search'() {
+    this.sendJson({ results: this.store.lib.search(this.query.get('q') || '') });
   },
 
   'GET live'() {

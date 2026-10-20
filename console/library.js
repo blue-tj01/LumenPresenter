@@ -1,8 +1,9 @@
-// The library in memory (presentations, playlist, templates, media list, messages), saving it, and looking things
+// The library in memory (presentations, services and the open one's playlist, templates, media list, messages), saving it, and looking things
 // up in it. With the server the library lives there; localStorage is the store when running without it.
 import { toast } from './dom.js';
 import { arrangement, FORMAT, mainText, migrateLibrary, refUrl, resolveSlide, textTemplate, TEXT_STYLE } from './format.js';
 import { BUILTIN_TEMPLATES } from './seed.js';
+import { ensureServices, stashPlaylist } from './services.js';
 import { groupColor } from './slides.js';
 
 /** What the modules share: the library, and the presentation selected in the console. */
@@ -15,9 +16,9 @@ export const valid = d => d && Array.isArray(d.presentations);
 export const normalize = d => {
   const lib = migrateLibrary(d);
   const fix = t => mainText(t) ? t : { ...textTemplate(), ...t, layout: textTemplate().layout };
-  return { ...lib, media: lib.media || [], playlist: lib.playlist || [], messages: lib.messages || [],
+  return ensureServices({ ...lib, media: lib.media || [], playlist: lib.playlist || [], messages: lib.messages || [],
     baseTemplate: fix(lib.baseTemplate || textTemplate()),
-    templates: (Array.isArray(lib.templates) ? lib.templates : BUILTIN_TEMPLATES()).map(fix) };
+    templates: (Array.isArray(lib.templates) ? lib.templates : BUILTIN_TEMPLATES()).map(fix) });
 };
 /** Saved by a newer Lumen: shown, but not saved over, so nothing it added is lost. */
 export const newer = () => (state.db.format || 1) > FORMAT;
@@ -29,6 +30,7 @@ export const save = () => {
     warned = true;
     return;
   }
+  stashPlaylist(state.db);
   const keep = { ...state.db, media: state.db.media.filter(m => !m.src.startsWith('blob:')) };
   Lumen.saveLibrary(keep);
   try { localStorage.setItem(KEY, JSON.stringify(keep)); }
@@ -47,7 +49,8 @@ export const flat = p => {
     color: groupColor(p.groups[gi].name) })));
   const template = templateFor(p);
   return list.map((s, index) => ({ ...s, text: s.slide.text || '', video: s.slide.media?.type === 'video',
-    elements: resolveSlide(s.slide, { template, pres: p, group: s.group, index, count: list.length, bin }) }));
+    elements: resolveSlide(s.slide, { template, pres: p, group: s.group, index, count: list.length, bin,
+      licence: state.db.ccliLicence, showCredits: state.db.showCredits !== false }) }));
 };
 export const isVideoPres = p => { const sl = flat(p); return sl.length > 0 && sl.every(s => s.video); };
 /** The background a slide brings with it: its own, or its presentation's. */

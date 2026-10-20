@@ -29,11 +29,14 @@
   <aside class="side">
     <section class="panel grow">
       <div class="panel-h">Library <button id="btnNewPres" class="icon" title="New presentation">＋</button></div>
-      <input id="libSearch" class="search" placeholder="Search library…">
+      <input id="libSearch" class="search" placeholder="Search songs…" title="Titles, words, writers or CCLI song number">
       <ul id="libList" class="list"></ul>
     </section>
     <section class="panel grow">
-      <div class="panel-h">Playlist <span class="muted small">drag to reorder · drop videos</span>
+      <div class="panel-h">Service
+        <span class="svc-tools"><button id="svcNew" class="icon" title="New service">＋</button><button id="svcDuplicate" class="icon" title="Duplicate this service for the next week">⧉</button><button id="svcEdit" class="icon" title="Rename this service or change its date">✎</button><button id="svcDelete" class="icon" title="Delete this service (its songs stay in the library)">✕</button></span></div>
+      <select id="svcSelect" class="search svc-select" title="Open a saved service"></select>
+      <div class="panel-h">Playlist <span class="muted small">drag songs in · drag to reorder · drop videos</span>
         <button id="btnAddVideo" class="icon txt" title="Add videos to the playlist">＋ Video</button>
         <input id="playlistFile" type="file" accept="video/*" multiple hidden></div>
       <ul id="playList" class="list"></ul>
@@ -118,6 +121,10 @@
         <div class="seg" id="thAlign"><button data-v="left">Left</button><button data-v="center">Center</button><button data-v="right">Right</button></div>
         <div class="seg" id="thVAlign"><button data-v="top">Top</button><button data-v="middle">Middle</button><button data-v="bottom">Lower</button></div>
         <label>Logo text <input id="logoText" type="text"></label>
+        <div class="sub-h">Song credits</div>
+        <label>CCLI licence # <input id="ccliLicence" type="text" inputmode="numeric" placeholder="Your church's licence number"></label>
+        <label class="chk"><input id="showCredits" type="checkbox"> Show credits on each song's last slide</label>
+        <p class="muted small">A song's writers, copyright and CCLI song number are set in its editor.</p>
       </div>
       <div data-pane="bible" class="pane">
         <div class="row"><select id="scBible" title="Translation"></select>
@@ -192,6 +199,7 @@
         <p><code>@video: …</code> on a slide plays a video on it, once, with sound on the audience output.</p>
         <p><b>Add images / videos</b> (or drop files onto the text) adds one slide each, which makes a slideshow.</p>
         <p><b>Play order</b> lists groups in the order they're sung, e.g. <code>Verse 1, Chorus, Verse 2, Chorus</code>. Click a group below to add it. Leave it empty to play the groups as written.</p>
+        <p><b>Written by</b>, <b>Copyright</b> and <b>CCLI song #</b> are shown on the song's last slide, with your church's CCLI licence number from the Theme tab. Search finds songs by any of them, and by their words.</p>
         <p><b>Auto-advance</b> moves to the next slide by itself after that many seconds, and after the last slide in the play order goes back to the first. Video slides move on when the video ends. Leave it empty to advance by hand.</p>
       </div>
     </div>
@@ -203,7 +211,27 @@
       <input id="edAdvance" type="number" min="0" step="1" placeholder="Off"> <span class="muted">seconds, then loop</span>
       <div id="edOrderChips" class="ed-chips"></div>
     </div>
+    <div class="ed-song">
+      <label for="edAuthor">Written by</label>
+      <input id="edAuthor" placeholder="e.g. John Newton">
+      <label for="edCopyright">Copyright</label>
+      <input id="edCopyright" placeholder="e.g. 2004 sixsteps Music, or Public Domain">
+      <label for="edCcli">CCLI song #</label>
+      <input id="edCcli" class="ed-ccli" inputmode="numeric" placeholder="e.g. 22025">
+    </div>
   </div>
+</div>
+<!-- New service, or renaming one -->
+<div id="svcDialog" class="modal" hidden>
+  <form id="svcForm" class="modal-card svc-card">
+    <div class="modal-h"><b id="svcDialogTitle">New service</b></div>
+    <div class="svc-fields">
+      <label>Name <input id="svcName" type="text" placeholder="e.g. Morning service" required></label>
+      <label>Date <input id="svcDate" type="date" required></label>
+    </div>
+    <div class="modal-h svc-actions"><span class="spacer"></span>
+      <button type="button" id="svcCancel" class="btn ghost">Cancel</button><button type="submit" class="btn primary">Save</button></div>
+  </form>
 </div>
 <input id="importFile" type="file" accept="application/json" hidden>
 <div id="toast" class="toast"></div>

@@ -1,30 +1,101 @@
-// The library list, playlist, slide grid and messages, and their controls.
+// The library list, services and their playlist, slide grid and messages, and their controls.
 import { $, $$, toast } from './dom.js';
 import { openEditor } from './editor.js';
 import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackground, state, templateFor } from './library.js';
 import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
+import { addService, duplicateService, nextSunday, openService, removeService, serviceLabel, sortedServices, switchService, updateService } from './services.js';
 import { renderTheme } from './themes.js';
 
-function renderLibrary() {
-  const q = $('#libSearch').value.toLowerCase();
+// With the server, search is the library database's song search, which ranks matches and shows the words that
+// matched; without it, titles, words and song details are matched as typed.
+let searchSeq = 0;
+function localSearch(q) {
+  const has = v => String(v ?? '').toLowerCase().includes(q);
+  return state.db.presentations.filter(p => has(p.name) || has(p.meta?.author) || has(p.meta?.copyright) || has(p.meta?.ccli)
+    || p.groups.some(g => g.slides.some(s => has(s.text)))).map(p => ({ id: p.id }));
+}
+async function renderLibrary() {
+  const q = $('#libSearch').value.trim().toLowerCase(), seq = ++searchSeq;
+  let results;
+  if (!q) results = [...state.db.presentations].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ id: p.id }));
+  else if (Lumen.online && !Lumen.outdated) {
+    try { results = await Lumen.search(q); } catch { results = localSearch(q); }
+    if (seq !== searchSeq) return; // a newer search has started
+  } else results = localSearch(q);
   const ul = $('#libList'); ul.innerHTML = '';
-  state.db.presentations.filter(p => !q || p.name.toLowerCase().includes(q) || p.groups.some(g => g.slides.some(s => (s.text || '').toLowerCase().includes(q))))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .forEach(p => {
-      const li = document.createElement('li');
-      li.dataset.id = p.id;
-      li.innerHTML = '<span class="ico">♪</span><span class="nm"></span>';
-      if (isVideoPres(p)) li.firstChild.textContent = '▶';
-      li.querySelector('.nm').textContent = li.title = p.name;
-      li.onclick = () => { state.selectedId = p.id; renderAll(); };
-      li.ondblclick = () => { if (!state.db.playlist.includes(p.id)) { state.db.playlist.push(p.id); save(); renderPlaylist(); } };
-      ul.appendChild(li);
-    });
+  results.forEach(({ id, snippet }) => {
+    const p = getPres(id); if (!p) return;
+    const li = document.createElement('li');
+    li.dataset.id = p.id;
+    li.innerHTML = '<span class="ico">♪</span><span class="nm"></span>';
+    if (isVideoPres(p)) li.firstChild.textContent = '▶';
+    li.querySelector('.nm').textContent = li.title = p.name;
+    if (snippet) li.appendChild(highlighted(snippet));
+    li.onclick = () => { state.selectedId = p.id; renderAll(); };
+    li.ondblclick = () => { if (!state.db.playlist.includes(p.id)) { state.db.playlist.push(p.id); save(); renderPlaylist(); } };
+    li.draggable = true;
+    li.ondragstart = e => { dragFrom = -1; e.dataTransfer.setData(PRES_DRAG, p.id); e.dataTransfer.effectAllowed = 'copy'; };
+    ul.appendChild(li);
+  });
+  if (q && !ul.children.length) ul.innerHTML = '<li class="none muted small">No songs match</li>';
   markLists();
+}
+/** A search result's matching words, with each match (between \u0002 and \u0003) marked. */
+function highlighted(snippet) {
+  const el = document.createElement('span'); el.className = 'hit';
+  snippet.split('\u0002').forEach((part, i) => {
+    const [hit, rest] = i ? part.split('\u0003') : [null, part];
+    if (hit) { const m = document.createElement('mark'); m.textContent = hit; el.appendChild(m); }
+    if (rest) el.appendChild(document.createTextNode(rest));
+  });
+  el.title = el.textContent;
+  return el;
+}
+
+function renderServices() {
+  const sel = $('#svcSelect'); sel.innerHTML = '';
+  for (const s of sortedServices(state.db)) sel.add(new Option(serviceLabel(s), s.id, false, s.id === state.db.serviceId));
+  $('#svcDelete').disabled = state.db.services.length < 2;
+}
+
+/** Open a service: its playlist shows, and its first song is selected. */
+function showService(id) {
+  if (!switchService(state.db, id)) return;
+  state.selectedId = state.db.playlist[0] || state.selectedId;
+  save(); renderAll();
+}
+
+// The dialog for a new service, or renaming one: resolves with { name, date }, or null when cancelled.
+function askService(title, { name, date }) {
+  $('#svcDialogTitle').textContent = title;
+  $('#svcName').value = name; $('#svcDate').value = date;
+  $('#svcDialog').hidden = false; $('#svcName').select();
+  return new Promise(done => {
+    const close = v => { $('#svcDialog').hidden = true; $('#svcForm').onsubmit = $('#svcCancel').onclick = $('#svcDialog').onkeydown = null; done(v); };
+    $('#svcForm').onsubmit = e => { e.preventDefault(); close({ name: $('#svcName').value.trim(), date: $('#svcDate').value }); };
+    $('#svcCancel').onclick = () => close(null);
+    $('#svcDialog').onkeydown = e => { e.stopPropagation(); if (e.key === 'Escape') close(null); };
+  });
 }
 
 let dragFrom = -1;
+const PRES_DRAG = 'application/x-lumen-presentation'; // a song dragged from the library
+const fromLibrary = e => e.dataTransfer.types.includes(PRES_DRAG);
+/** Put a song dragged from the library into the playlist at a place (the end if not given), or move it there if
+ * it is already in it. */
+function dropFromLibrary(e, at = state.db.playlist.length) {
+  e.preventDefault(); e.stopPropagation();
+  $$('#playList .drag-over').forEach(li => li.classList.remove('drag-over'));
+  const id = e.dataTransfer.getData(PRES_DRAG);
+  if (!getPres(id)) return;
+  const was = state.db.playlist.indexOf(id);
+  if (was >= 0) { state.db.playlist.splice(was, 1); if (was < at) at--; }
+  state.db.playlist.splice(at, 0, id);
+  state.selectedId = id;
+  save(); renderAll();
+}
 function renderPlaylist() {
+  renderServices();
   const ul = $('#playList'); ul.innerHTML = '';
   state.db.playlist = state.db.playlist.filter(getPres);
   state.db.playlist.forEach((id, i) => {
@@ -37,7 +108,7 @@ function renderPlaylist() {
     li.ondragstart = () => { dragFrom = i; };
     li.ondragover = e => { e.preventDefault(); li.classList.add('drag-over'); };
     li.ondragleave = () => li.classList.remove('drag-over');
-    li.ondrop = e => { e.preventDefault(); if (dragFrom < 0) return; const [m] = state.db.playlist.splice(dragFrom, 1); state.db.playlist.splice(i, 0, m); dragFrom = -1; save(); renderPlaylist(); };
+    li.ondrop = e => { if (fromLibrary(e)) return dropFromLibrary(e, i); e.preventDefault(); if (dragFrom < 0) return; const [m] = state.db.playlist.splice(dragFrom, 1); state.db.playlist.splice(i, 0, m); dragFrom = -1; save(); renderPlaylist(); };
     ul.appendChild(li);
   });
   markLists();
@@ -108,7 +179,8 @@ export function renderAll() { renderLibrary(); renderPlaylist(); renderGrid(); r
 
 /** Wire up the library, playlist, slide grid, live controls, tabs and messages; called once the library has loaded. */
 export function setupViews() {
-  $('#libSearch').oninput = renderLibrary;
+  let typing;
+  $('#libSearch').oninput = () => { clearTimeout(typing); typing = setTimeout(renderLibrary, 120); };
   $('#btnNewPres').onclick = () => openEditor(null);
   $('#btnEdit').onclick = () => state.selectedId && openEditor(state.selectedId);
   $('#btnAddPlaylist').onclick = () => { if (state.selectedId && !state.db.playlist.includes(state.selectedId)) { state.db.playlist.push(state.selectedId); save(); renderPlaylist(); toast('Added to playlist'); } };
@@ -117,6 +189,30 @@ export function setupViews() {
     state.db.presentations = state.db.presentations.filter(x => x !== p); state.db.playlist = state.db.playlist.filter(id => id !== p.id);
     if (live.presId === p.id) clear('slide');
     state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id; save(); renderAll();
+  };
+  // Songs dragged from the library drop onto a playlist item (going in before it) or below the last one.
+  $('#playList').addEventListener('dragover', e => { if (fromLibrary(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  $('#playList').addEventListener('drop', e => { if (fromLibrary(e)) dropFromLibrary(e); });
+  $('#svcSelect').onchange = e => showService(e.target.value);
+  $('#svcNew').onclick = async () => {
+    const v = await askService('New service', { name: 'Service', date: nextSunday() });
+    if (!v) return;
+    addService(state.db, v); save(); renderAll(); toast(`Opened ${serviceLabel(openService(state.db))}`);
+  };
+  $('#svcDuplicate').onclick = () => {
+    const s = duplicateService(state.db, state.db.serviceId);
+    if (s) { save(); renderAll(); toast(`Copied to ${serviceLabel(s)}`); }
+  };
+  $('#svcEdit').onclick = async () => {
+    const s = openService(state.db);
+    const v = s && await askService('Rename service', s);
+    if (!v) return;
+    updateService(state.db, s.id, v); save(); renderAll();
+  };
+  $('#svcDelete').onclick = () => {
+    const s = openService(state.db);
+    if (!s || !confirm(`Delete the service “${serviceLabel(s)}”? Its songs stay in the library.`)) return;
+    if (removeService(state.db, s.id)) showService(state.db.serviceId);
   };
   $('#thumbSize').oninput = e => $('#slideGrid').style.setProperty('--tw', e.target.value + 'px');
 
