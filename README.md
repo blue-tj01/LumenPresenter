@@ -145,7 +145,7 @@ Chorus line
 
 ### Services
 
-The playlist belongs to a **service**: a name and a date, such as *Sun 26 Oct 2026 · Morning service*. The list above the playlist holds every saved service, newest first, and picking one opens its playlist. The buttons beside **Service** make a new, empty service (**＋**), copy the open one to a week later (**⧉**, for building next week's from this week's), rename it or change its date (**✎**), and delete it (**✕**; its songs stay in the library). Every console on the network shows the same open service.
+The playlist belongs to a **service**: a name and a date, such as *Sun 26 Oct 2026 · Morning service*. The list above the playlist holds every saved service, newest first, and picking one opens its playlist. The buttons beside **Service** make a new, empty service (**＋**), copy the open one to a week later (**⧉**, for building next week's from this week's), rename it or change its date (**✎**), and delete it (**✕**; its songs stay in the library). To add a song, drag it from the library onto the playlist (dropping it on an item puts it before that one), double-click it, or use **＋ Playlist** above the slides. Every console on the network shows the same open service.
 
 A library from before services opens with its playlist as one service, dated the coming Sunday.
 

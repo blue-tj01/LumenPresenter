@@ -33,6 +33,8 @@ async function renderLibrary() {
     if (snippet) li.appendChild(highlighted(snippet));
     li.onclick = () => { state.selectedId = p.id; renderAll(); };
     li.ondblclick = () => { if (!state.db.playlist.includes(p.id)) { state.db.playlist.push(p.id); save(); renderPlaylist(); } };
+    li.draggable = true;
+    li.ondragstart = e => { dragFrom = -1; e.dataTransfer.setData(PRES_DRAG, p.id); e.dataTransfer.effectAllowed = 'copy'; };
     ul.appendChild(li);
   });
   if (q && !ul.children.length) ul.innerHTML = '<li class="none muted small">No songs match</li>';
@@ -77,6 +79,21 @@ function askService(title, { name, date }) {
 }
 
 let dragFrom = -1;
+const PRES_DRAG = 'application/x-lumen-presentation'; // a song dragged from the library
+const fromLibrary = e => e.dataTransfer.types.includes(PRES_DRAG);
+/** Put a song dragged from the library into the playlist at a place (the end if not given), or move it there if
+ * it is already in it. */
+function dropFromLibrary(e, at = state.db.playlist.length) {
+  e.preventDefault(); e.stopPropagation();
+  $$('#playList .drag-over').forEach(li => li.classList.remove('drag-over'));
+  const id = e.dataTransfer.getData(PRES_DRAG);
+  if (!getPres(id)) return;
+  const was = state.db.playlist.indexOf(id);
+  if (was >= 0) { state.db.playlist.splice(was, 1); if (was < at) at--; }
+  state.db.playlist.splice(at, 0, id);
+  state.selectedId = id;
+  save(); renderAll();
+}
 function renderPlaylist() {
   renderServices();
   const ul = $('#playList'); ul.innerHTML = '';
@@ -91,7 +108,7 @@ function renderPlaylist() {
     li.ondragstart = () => { dragFrom = i; };
     li.ondragover = e => { e.preventDefault(); li.classList.add('drag-over'); };
     li.ondragleave = () => li.classList.remove('drag-over');
-    li.ondrop = e => { e.preventDefault(); if (dragFrom < 0) return; const [m] = state.db.playlist.splice(dragFrom, 1); state.db.playlist.splice(i, 0, m); dragFrom = -1; save(); renderPlaylist(); };
+    li.ondrop = e => { if (fromLibrary(e)) return dropFromLibrary(e, i); e.preventDefault(); if (dragFrom < 0) return; const [m] = state.db.playlist.splice(dragFrom, 1); state.db.playlist.splice(i, 0, m); dragFrom = -1; save(); renderPlaylist(); };
     ul.appendChild(li);
   });
   markLists();
@@ -173,6 +190,9 @@ export function setupViews() {
     if (live.presId === p.id) clear('slide');
     state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id; save(); renderAll();
   };
+  // Songs dragged from the library drop onto a playlist item (going in before it) or below the last one.
+  $('#playList').addEventListener('dragover', e => { if (fromLibrary(e)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } });
+  $('#playList').addEventListener('drop', e => { if (fromLibrary(e)) dropFromLibrary(e); });
   $('#svcSelect').onchange = e => showService(e.target.value);
   $('#svcNew').onclick = async () => {
     const v = await askService('New service', { name: 'Service', date: nextSunday() });
