@@ -1,6 +1,6 @@
-// The library, kept in an SQLite database (data/lumen.db): one row per presentation, so a large library is saved
-// a presentation at a time, and room for more tables as Lumen grows. The rest of the library (playlist, themes,
-// media list, messages, and any field Lumen adds later) is kept as named JSON values.
+// The library, kept in an SQLite database (data/lumen.db): one row per presentation and one per service, so a large
+// library is saved a row at a time, and room for more tables as Lumen grows. The rest of the library (playlist,
+// themes, media list, messages, and any field Lumen adds later) is kept as named JSON values.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -15,7 +15,14 @@ const MIGRATIONS = [
   `CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
    CREATE TABLE presentations (pos INTEGER PRIMARY KEY, id TEXT, name TEXT, data TEXT NOT NULL) STRICT;
    CREATE INDEX presentations_id ON presentations (id);`,
+  `CREATE TABLE services (pos INTEGER PRIMARY KEY, id TEXT, name TEXT, date TEXT, data TEXT NOT NULL) STRICT;
+   CREATE INDEX services_date ON services (date);`,
 ];
+
+/** Lists in the library kept a row per item, with the fields copied into columns so they can be searched. A list
+ * the library leaves out has no rows, and is left out again when it is read back (services, which older libraries
+ * do not have, is optional). */
+const TABLES = { presentations: ['id', 'name'], services: ['id', 'name', 'date'] };
 
 /** before-database-20261020-181500, in local time. */
 const stamp = (d = new Date()) => {
@@ -62,32 +69,36 @@ class Library {
     const meta = Object.fromEntries(this.db.prepare('SELECT key, value FROM meta').all().map(r => [r.key, JSON.parse(r.value)]));
     this.rev = meta.rev ?? 0;
     this.saved = meta.saved ?? null;
-    this.rows = this.db.prepare('SELECT data FROM presentations ORDER BY pos').all().map(r => r.data);
+    this.rows = {};
+    for (const t of Object.keys(TABLES)) this.rows[t] = this.db.prepare(`SELECT data FROM ${t} ORDER BY pos`).all().map(r => r.data);
     if (this.saved === null) { this.library = null; return; }
     const library = {};
     for (const [k, v] of Object.entries(meta)) if (k.startsWith('library.')) library[k.slice(8)] = v;
-    library.presentations = this.rows.map(r => JSON.parse(r));
+    for (const [t, rows] of Object.entries(this.rows)) if (t === 'presentations' || rows.length) library[t] = rows.map(r => JSON.parse(r));
     this.library = library;
   }
 
-  /** Replace the library; only presentations that changed are written. Returns the new revision. */
+  /** Replace the library; only presentations and services that changed are written. Returns the new revision. */
   set(library) {
     this.write(library, this.rev + 1, nowMs());
     return this.rev;
   }
 
   write(library, rev, saved) {
-    const rows = library.presentations.map(p => JSON.stringify(p));
+    const lists = Object.fromEntries(Object.keys(TABLES).map(t => [t, Array.isArray(library[t]) ? library[t] : []]));
+    const rows = Object.fromEntries(Object.entries(lists).map(([t, items]) => [t, items.map(x => JSON.stringify(x))]));
     this.transaction(() => {
-      const put = this.db.prepare('INSERT OR REPLACE INTO presentations (pos, id, name, data) VALUES (?, ?, ?, ?)');
-      rows.forEach((data, pos) => {
-        if (this.rows?.[pos] === data) return;
-        const p = library.presentations[pos];
-        put.run(pos, isObject(p) ? String(p.id ?? '') : '', isObject(p) ? String(p.name ?? '') : '', data);
-      });
-      this.db.prepare('DELETE FROM presentations WHERE pos >= ?').run(rows.length);
+      for (const [t, cols] of Object.entries(TABLES)) {
+        const put = this.db.prepare(`INSERT OR REPLACE INTO ${t} (pos, ${cols.join(', ')}, data) VALUES (?, ${cols.map(() => '?').join(', ')}, ?)`);
+        rows[t].forEach((data, pos) => {
+          if (this.rows?.[t]?.[pos] === data) return;
+          const x = lists[t][pos];
+          put.run(pos, ...cols.map(c => isObject(x) ? String(x[c] ?? '') : ''), data);
+        });
+        this.db.prepare(`DELETE FROM ${t} WHERE pos >= ?`).run(rows[t].length);
+      }
       const set = this.db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)');
-      const keys = Object.keys(library).filter(k => k !== 'presentations');
+      const keys = Object.keys(library).filter(k => !(k in TABLES && Array.isArray(library[k])));
       for (const k of keys) set.run(`library.${k}`, JSON.stringify(library[k] ?? null));
       const gone = this.db.prepare("SELECT key FROM meta WHERE key LIKE 'library.%'").all()
         .map(r => r.key).filter(k => !keys.includes(k.slice(8)));

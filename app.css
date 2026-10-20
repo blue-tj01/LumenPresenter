@@ -133,6 +133,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .modal[hidden] { display: none; }
 .modal-card { width: min(1000px, 92vw); height: min(720px, 88vh); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
 .modal-h { flex-wrap: wrap; display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+/* Services: the open one above its playlist, and the dialog that names and dates one */
+.svc-tools { display: flex; gap: 2px; }
+.svc-tools .icon { font-size: 14px; }
+.svc-select { color: var(--text); font: inherit; }
+.svc-card { width: min(380px, 92vw); height: auto; }
+.svc-fields { display: flex; flex-direction: column; gap: 10px; padding: 14px 12px; }
+.svc-fields label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; }
+.svc-fields input { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; color: var(--text); font: inherit; color-scheme: dark; }
+.svc-actions { border-bottom: 0; border-top: 1px solid var(--line); }
 .ed-theme { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; max-width: 220px; }
 .ed-name { font-size: 16px; font-weight: 600; background: transparent; border: 0; outline: 0; flex: 1; }
 .ed-body { flex: 1; display: grid; grid-template-columns: 1fr 260px; min-height: 0; }

@@ -33,6 +33,9 @@
       <ul id="libList" class="list"></ul>
     </section>
     <section class="panel grow">
+      <div class="panel-h">Service
+        <span class="svc-tools"><button id="svcNew" class="icon" title="New service">＋</button><button id="svcDuplicate" class="icon" title="Duplicate this service for the next week">⧉</button><button id="svcEdit" class="icon" title="Rename this service or change its date">✎</button><button id="svcDelete" class="icon" title="Delete this service (its songs stay in the library)">✕</button></span></div>
+      <select id="svcSelect" class="search svc-select" title="Open a saved service"></select>
       <div class="panel-h">Playlist <span class="muted small">drag to reorder · drop videos</span>
         <button id="btnAddVideo" class="icon txt" title="Add videos to the playlist">＋ Video</button>
         <input id="playlistFile" type="file" accept="video/*" multiple hidden></div>
@@ -190,6 +193,18 @@
       <div id="edOrderChips" class="ed-chips"></div>
     </div>
   </div>
+</div>
+<!-- New service, or renaming one -->
+<div id="svcDialog" class="modal" hidden>
+  <form id="svcForm" class="modal-card svc-card">
+    <div class="modal-h"><b id="svcDialogTitle">New service</b></div>
+    <div class="svc-fields">
+      <label>Name <input id="svcName" type="text" placeholder="e.g. Morning service" required></label>
+      <label>Date <input id="svcDate" type="date" required></label>
+    </div>
+    <div class="modal-h svc-actions"><span class="spacer"></span>
+      <button type="button" id="svcCancel" class="btn ghost">Cancel</button><button type="submit" class="btn primary">Save</button></div>
+  </form>
 </div>
 <input id="importFile" type="file" accept="application/json" hidden>
 <div id="toast" class="toast"></div>

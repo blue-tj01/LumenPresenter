@@ -1,8 +1,9 @@
-// The library list, playlist, slide grid and messages, and their controls.
+// The library list, services and their playlist, slide grid and messages, and their controls.
 import { $, $$, toast } from './dom.js';
 import { openEditor } from './editor.js';
 import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackground, state, templateFor } from './library.js';
 import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
+import { addService, duplicateService, nextSunday, openService, removeService, serviceLabel, sortedServices, switchService, updateService } from './services.js';
 import { renderTheme } from './themes.js';
 
 function renderLibrary() {
@@ -23,8 +24,35 @@ function renderLibrary() {
   markLists();
 }
 
+function renderServices() {
+  const sel = $('#svcSelect'); sel.innerHTML = '';
+  for (const s of sortedServices(state.db)) sel.add(new Option(serviceLabel(s), s.id, false, s.id === state.db.serviceId));
+  $('#svcDelete').disabled = state.db.services.length < 2;
+}
+
+/** Open a service: its playlist shows, and its first song is selected. */
+function showService(id) {
+  if (!switchService(state.db, id)) return;
+  state.selectedId = state.db.playlist[0] || state.selectedId;
+  save(); renderAll();
+}
+
+// The dialog for a new service, or renaming one: resolves with { name, date }, or null when cancelled.
+function askService(title, { name, date }) {
+  $('#svcDialogTitle').textContent = title;
+  $('#svcName').value = name; $('#svcDate').value = date;
+  $('#svcDialog').hidden = false; $('#svcName').select();
+  return new Promise(done => {
+    const close = v => { $('#svcDialog').hidden = true; $('#svcForm').onsubmit = $('#svcCancel').onclick = $('#svcDialog').onkeydown = null; done(v); };
+    $('#svcForm').onsubmit = e => { e.preventDefault(); close({ name: $('#svcName').value.trim(), date: $('#svcDate').value }); };
+    $('#svcCancel').onclick = () => close(null);
+    $('#svcDialog').onkeydown = e => { e.stopPropagation(); if (e.key === 'Escape') close(null); };
+  });
+}
+
 let dragFrom = -1;
 function renderPlaylist() {
+  renderServices();
   const ul = $('#playList'); ul.innerHTML = '';
   state.db.playlist = state.db.playlist.filter(getPres);
   state.db.playlist.forEach((id, i) => {
@@ -117,6 +145,27 @@ export function setupViews() {
     state.db.presentations = state.db.presentations.filter(x => x !== p); state.db.playlist = state.db.playlist.filter(id => id !== p.id);
     if (live.presId === p.id) clear('slide');
     state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id; save(); renderAll();
+  };
+  $('#svcSelect').onchange = e => showService(e.target.value);
+  $('#svcNew').onclick = async () => {
+    const v = await askService('New service', { name: 'Service', date: nextSunday() });
+    if (!v) return;
+    addService(state.db, v); save(); renderAll(); toast(`Opened ${serviceLabel(openService(state.db))}`);
+  };
+  $('#svcDuplicate').onclick = () => {
+    const s = duplicateService(state.db, state.db.serviceId);
+    if (s) { save(); renderAll(); toast(`Copied to ${serviceLabel(s)}`); }
+  };
+  $('#svcEdit').onclick = async () => {
+    const s = openService(state.db);
+    const v = s && await askService('Rename service', s);
+    if (!v) return;
+    updateService(state.db, s.id, v); save(); renderAll();
+  };
+  $('#svcDelete').onclick = () => {
+    const s = openService(state.db);
+    if (!s || !confirm(`Delete the service “${serviceLabel(s)}”? Its songs stay in the library.`)) return;
+    if (removeService(state.db, s.id)) showService(state.db.serviceId);
   };
   $('#thumbSize').oninput = e => $('#slideGrid').style.setProperty('--tw', e.target.value + 'px');
 
