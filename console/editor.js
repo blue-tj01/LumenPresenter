@@ -19,10 +19,15 @@ export function openEditor(id) {
   const order = p?.arrangements?.[0]?.order || [];
   $('#edOrder').value = order.map(id => p.groups.find(g => g.id === id)?.name).filter(Boolean).join(', ');
   $('#edAdvance').value = autoSecs(p) || '';
+  for (const [sel, k] of SONG_FIELDS) $(sel).value = p?.meta?.[k] || '';
   renderOrderChips();
   templateOptions($('#edTheme'), 'Theme: same as all songs', savedTemplate(p)?.id);
   $('#editor').hidden = false; $('#edText').focus();
 }
+// The song details a presentation keeps in its meta, shown on its last slide and found by search.
+const SONG_FIELDS = [['#edAuthor', 'author'], ['#edCopyright', 'copyright'], ['#edCcli', 'ccli']];
+// A song number pasted as "CCLI Song # 22025" keeps just the number.
+const clean = (k, v) => k === 'ccli' ? v.trim().replace(/^ccli\s*(song)?\s*(#|no\.?|number)?\s*/i, '') : v.trim();
 const readOrder = () => $('#edOrder').value.split(',').map(n => n.trim()).filter(Boolean);
 // One button per group in the text; clicking appends it to the play order.
 function renderOrderChips() {
@@ -75,6 +80,9 @@ export function saveEditor() {
   if (background) p.background = background; else delete p.background;
   if (templateId) p.templateId = templateId; else delete p.templateId;
   if (advance) p.advance = advance; else delete p.advance;
+  const meta = { ...p.meta };
+  for (const [sel, k] of SONG_FIELDS) { const v = clean(k, $(sel).value); if (v) meta[k] = v; else delete meta[k]; }
+  if (Object.keys(meta).length) p.meta = meta; else delete p.meta;
   save(); $('#editor').hidden = true; renderAll();
   if (live.presId === editingId && live.slide) { const s = flat(getPres(editingId))[live.idx]; if (s) goLive(editingId, live.idx); }
 }

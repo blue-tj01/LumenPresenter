@@ -6,22 +6,48 @@ import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoCont
 import { addService, duplicateService, nextSunday, openService, removeService, serviceLabel, sortedServices, switchService, updateService } from './services.js';
 import { renderTheme } from './themes.js';
 
-function renderLibrary() {
-  const q = $('#libSearch').value.toLowerCase();
+// With the server, search is the library database's song search, which ranks matches and shows the words that
+// matched; without it, titles, words and song details are matched as typed.
+let searchSeq = 0;
+function localSearch(q) {
+  const has = v => String(v ?? '').toLowerCase().includes(q);
+  return state.db.presentations.filter(p => has(p.name) || has(p.meta?.author) || has(p.meta?.copyright) || has(p.meta?.ccli)
+    || p.groups.some(g => g.slides.some(s => has(s.text)))).map(p => ({ id: p.id }));
+}
+async function renderLibrary() {
+  const q = $('#libSearch').value.trim().toLowerCase(), seq = ++searchSeq;
+  let results;
+  if (!q) results = [...state.db.presentations].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ id: p.id }));
+  else if (Lumen.online && !Lumen.outdated) {
+    try { results = await Lumen.search(q); } catch { results = localSearch(q); }
+    if (seq !== searchSeq) return; // a newer search has started
+  } else results = localSearch(q);
   const ul = $('#libList'); ul.innerHTML = '';
-  state.db.presentations.filter(p => !q || p.name.toLowerCase().includes(q) || p.groups.some(g => g.slides.some(s => (s.text || '').toLowerCase().includes(q))))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .forEach(p => {
-      const li = document.createElement('li');
-      li.dataset.id = p.id;
-      li.innerHTML = '<span class="ico">♪</span><span class="nm"></span>';
-      if (isVideoPres(p)) li.firstChild.textContent = '▶';
-      li.querySelector('.nm').textContent = li.title = p.name;
-      li.onclick = () => { state.selectedId = p.id; renderAll(); };
-      li.ondblclick = () => { if (!state.db.playlist.includes(p.id)) { state.db.playlist.push(p.id); save(); renderPlaylist(); } };
-      ul.appendChild(li);
-    });
+  results.forEach(({ id, snippet }) => {
+    const p = getPres(id); if (!p) return;
+    const li = document.createElement('li');
+    li.dataset.id = p.id;
+    li.innerHTML = '<span class="ico">♪</span><span class="nm"></span>';
+    if (isVideoPres(p)) li.firstChild.textContent = '▶';
+    li.querySelector('.nm').textContent = li.title = p.name;
+    if (snippet) li.appendChild(highlighted(snippet));
+    li.onclick = () => { state.selectedId = p.id; renderAll(); };
+    li.ondblclick = () => { if (!state.db.playlist.includes(p.id)) { state.db.playlist.push(p.id); save(); renderPlaylist(); } };
+    ul.appendChild(li);
+  });
+  if (q && !ul.children.length) ul.innerHTML = '<li class="none muted small">No songs match</li>';
   markLists();
+}
+/** A search result's matching words, with each match (between \u0002 and \u0003) marked. */
+function highlighted(snippet) {
+  const el = document.createElement('span'); el.className = 'hit';
+  snippet.split('\u0002').forEach((part, i) => {
+    const [hit, rest] = i ? part.split('\u0003') : [null, part];
+    if (hit) { const m = document.createElement('mark'); m.textContent = hit; el.appendChild(m); }
+    if (rest) el.appendChild(document.createTextNode(rest));
+  });
+  el.title = el.textContent;
+  return el;
 }
 
 function renderServices() {
@@ -136,7 +162,8 @@ export function renderAll() { renderLibrary(); renderPlaylist(); renderGrid(); r
 
 /** Wire up the library, playlist, slide grid, live controls, tabs and messages; called once the library has loaded. */
 export function setupViews() {
-  $('#libSearch').oninput = renderLibrary;
+  let typing;
+  $('#libSearch').oninput = () => { clearTimeout(typing); typing = setTimeout(renderLibrary, 120); };
   $('#btnNewPres').onclick = () => openEditor(null);
   $('#btnEdit').onclick = () => state.selectedId && openEditor(state.selectedId);
   $('#btnAddPlaylist').onclick = () => { if (state.selectedId && !state.db.playlist.includes(state.selectedId)) { state.db.playlist.push(state.selectedId); save(); renderPlaylist(); toast('Added to playlist'); } };

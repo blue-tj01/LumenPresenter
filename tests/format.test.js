@@ -119,3 +119,22 @@ it('lists the media a slide uses, and reads references both ways', () => {
   assert.equal(f.slideSummary({ media: { type: 'video' } }), '[Video]');
   assert.equal(f.slideSummary({ layout: { elements: [{ type: 'text', content: 'Hi' }] } }), 'Hi');
 });
+
+it("shows a song's credits on its last slide, with the church's licence number", () => {
+  const pres = { name: 'Amazing Grace', meta: { author: 'John Newton', copyright: 'Public Domain', ccli: '22025' } };
+  assert.equal(f.credits(pres, '123456'),
+    '“Amazing Grace” · John Newton\nPublic Domain · CCLI Song # 22025 · CCLI Licence # 123456');
+  assert.equal(f.credits({ name: 'X', meta: { copyright: '2004 sixsteps Music' } }), '“X”\n© 2004 sixsteps Music');
+  assert.equal(f.credits({ name: 'Notices' }, '123456'), '', 'only songs with details have credits');
+  const template = f.textTemplate();
+  const draw = (index, opts = {}) => f.resolveSlide({ id: 's', text: 'Words' }, { template, pres, index, count: 3, licence: '9', ...opts })
+    .filter(e => e.type === 'text').map(e => e.content);
+  assert.deepEqual(draw(0), ['Words']);
+  assert.deepEqual(draw(2), ['Words', f.credits(pres, '9')]);
+  assert.deepEqual(draw(2, { showCredits: false }), ['Words']);
+  // A template that places the details itself is left as it is.
+  const own = { layout: { elements: [...template.layout.elements,
+    { id: 'c', type: 'text', bind: 'pres.meta.copyright', showOn: 'first', frame: { x: 0, y: 0, w: 100, h: 100 } }] } };
+  assert.deepEqual(draw(2, { template: own }), ['Words']);
+  assert.deepEqual(draw(0, { template: own }), ['Words', 'Public Domain']);
+});

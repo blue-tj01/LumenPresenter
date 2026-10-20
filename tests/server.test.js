@@ -144,6 +144,15 @@ describe('server', () => {
     assert.deepEqual((await t.req('GET', '/api/library')).json, { rev: 1, library: LIB });
   });
 
+  it('searches the library', async () => {
+    assert.deepEqual((await t.req('GET', '/api/search?q=song')).json, { results: [] });
+    await t.req('PUT', '/api/library', { client: 'x', library: { presentations: [
+      { id: 'a', name: 'Amazing Grace', meta: { ccli: '22025' }, groups: [] }, { id: 'b', name: 'Notices', groups: [] }] } });
+    assert.deepEqual((await t.req('GET', '/api/search?q=22025')).json, { results: [{ id: 'a', name: 'Amazing Grace', snippet: '' }] });
+    assert.deepEqual((await t.req('GET', '/api/search?q=amaz%20gr')).json.results.map(r => r.id), ['a']);
+    assert.deepEqual((await t.req('GET', '/api/search')).json, { results: [] });
+  });
+
   it('reads a library saved by the Python server', async () => {
     await t.stop();
     // server.py wrote ASCII-escaped JSON with ", " separators.

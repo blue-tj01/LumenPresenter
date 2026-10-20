@@ -115,6 +115,28 @@ export function arrangement(p) {
   return order.length ? order : p.groups.map((g, gi) => gi);
 }
 
+// ---------- song details ----------
+// A song's details are kept in its meta: ccli (its CCLI song number), author (who wrote it, as one line) and
+// copyright. The library's ccliLicence is the church's CCLI licence number.
+
+/** The copyright line a song's licence asks to be shown with it: its title and writers, then its copyright, CCLI
+ * song number and the church's licence number. Empty for a presentation with no song details. */
+export function credits(pres, licence = '') {
+  const m = pres?.meta || {};
+  const [author, copyright, ccli] = [m.author, m.copyright, m.ccli].map(v => String(v ?? '').trim());
+  if (!author && !copyright && !ccli) return '';
+  licence = String(licence ?? '').trim();
+  const who = [pres.name && `“${pres.name}”`, author].filter(Boolean).join(' · ');
+  const rights = [copyright && (/^(©|\(c\)|public domain)/i.test(copyright) ? copyright : `© ${copyright}`),
+    ccli && `CCLI Song # ${ccli}`, licence && `CCLI Licence # ${licence}`].filter(Boolean).join(' · ');
+  return [who, rights].filter(Boolean).join('\n');
+}
+/** The credits a song shows on its last slide when its template doesn't place them itself. */
+export const CREDITS_ELEMENT = { id: 'credits', type: 'text', name: 'Song credits', bind: 'pres.credits', showOn: 'last',
+  frame: { x: MARGIN, y: H - 130, w: W - 2 * MARGIN, h: 100 },
+  style: { ...TEXT_STYLE, size: 30, weight: 400, valign: 'bottom', lineHeight: 1.3 } };
+const placesCredits = el => el.bind === 'pres.credits' || el.bind?.startsWith('pres.meta.');
+
 // ---------- resolving what a screen draws ----------
 const media = (ref, ctx) => refUrl(ref, ctx.bin);
 
@@ -123,14 +145,17 @@ function boundText(el, ctx) {
   if (!el.bind) return el.content || '';
   const v = { 'slide.text': ctx.slide?.text, 'pres.name': ctx.pres?.name, 'group.name': ctx.group,
     'pres.meta.copyright': ctx.pres?.meta?.copyright, 'pres.meta.author': ctx.pres?.meta?.author,
-    'pres.meta.ccli': ctx.pres?.meta?.ccli && `CCLI ${ctx.pres.meta.ccli}` }[el.bind];
+    'pres.meta.ccli': ctx.pres?.meta?.ccli && `CCLI ${ctx.pres.meta.ccli}`,
+    'pres.credits': credits(ctx.pres, ctx.licence) }[el.bind];
   return v || '';
 }
 
 /** A slide as the list of elements a screen draws, back to front: its picture or video, then the template's
- * elements (or the slide's own layout) with words filled in and media as URLs. */
-export function resolveSlide(slide, { template, pres = null, group = '', index = 0, count = 1, bin } = {}) {
-  const ctx = { slide, pres, group, bin };
+ * elements (or the slide's own layout) with words filled in and media as URLs. A song's last slide also shows its
+ * credits, with the church's CCLI `licence` number, unless the layout places them or `showCredits` is false. */
+export function resolveSlide(slide, { template, pres = null, group = '', index = 0, count = 1, bin, licence = '',
+  showCredits = true } = {}) {
+  const ctx = { slide, pres, group, bin, licence };
   const out = [];
   if (slide.media) {
     const src = media(slide.media.src, ctx);
@@ -140,7 +165,9 @@ export function resolveSlide(slide, { template, pres = null, group = '', index =
   }
   const shown = el => !el.hidden && (!el.showOn || el.showOn === 'all' || (el.showOn === 'first' && index === 0)
     || (el.showOn === 'last' && index === count - 1));
-  for (const el of (slide.layout || template?.layout)?.elements || []) {
+  const elements = (slide.layout || template?.layout)?.elements || [];
+  const extra = showCredits && !elements.some(placesCredits) ? [CREDITS_ELEMENT] : [];
+  for (const el of [...elements, ...extra]) {
     if (!shown(el)) continue;
     const { id: _i, name: _n, locked: _l, hidden: _h, showOn: _s, bind: _b, ...e } = el;
     if (el.type === 'text') {

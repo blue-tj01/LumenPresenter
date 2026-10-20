@@ -41,6 +41,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .list li.is-live::after { content: "LIVE"; margin-left: auto; font-size: 9px; font-weight: 700; color: #fff; background: var(--live); border-radius: 3px; padding: 1px 4px; }
 .list li .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list li .ico { opacity: .55; }
+.list li:has(.hit) { flex-wrap: wrap; row-gap: 2px; }
+.list li .hit { flex-basis: 100%; padding-left: 22px; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list li .hit mark { background: none; color: var(--text); font-weight: 700; }
+.list li.none { cursor: default; }
+.list li.none:hover { background: none; }
 .list li .x { opacity: 0; background: none; border: 0; color: var(--muted); cursor: pointer; }
 .list li:hover .x { opacity: 1; }
 .list li.drag-over { box-shadow: inset 0 2px 0 var(--accent); }
@@ -151,6 +156,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ed-order { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
 .ed-order label { font-weight: 600; }
 #edOrder { flex: 1; min-width: 200px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.ed-song { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
+.ed-song label { font-weight: 600; }
+.ed-song input { flex: 1; min-width: 160px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.ed-song .ed-ccli { flex: 0 1 120px; min-width: 100px; }
 .ed-chips { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
 .chip { background: var(--gc); border: 0; border-radius: 12px; padding: 3px 10px; color: #fff; font-size: 12px; cursor: pointer; }
 .chip:hover { filter: brightness(1.15); }

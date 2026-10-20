@@ -107,12 +107,20 @@ const BUILTIN_MEDIA = [
   { name: 'Lavender (motion)', type: 'motion', src: 'linear-gradient(-45deg,#41295a,#2f0743,#5b3a8a,#1d1a4a)' },
 ];
 
+// Who wrote the hymns, shown with their credits on each one's last slide.
+const SEED_CREDITS = {
+  'Amazing Grace': { author: 'John Newton', copyright: 'Public Domain', ccli: '22025' },
+  'Holy, Holy, Holy': { author: 'Reginald Heber, John Bacchus Dykes', copyright: 'Public Domain' },
+  'Be Thou My Vision': { author: 'Traditional Irish, tr. Mary Byrne and Eleanor Hull', copyright: 'Public Domain' },
+  'Doxology': { author: 'Thomas Ken', copyright: 'Public Domain' },
+};
+
 /** The templates a library starts with: Classic, Lower third, Scripture and Big & bold. Fixed ids, so every console
  * agrees on them before the library is first saved. */
 export const BUILTIN_TEMPLATES = () => migrateLibrary({ presentations: [] }).templates;
 
 export function seed() {
-  const pres = SEED_SONGS.map(([n, t]) => makePres(n, t));
+  const pres = SEED_SONGS.map(([n, t]) => SEED_CREDITS[n] ? { ...makePres(n, t), meta: { ...SEED_CREDITS[n] } } : makePres(n, t));
   return migrateLibrary({
     presentations: pres,
     playlist: [pres[4].id, pres[0].id, pres[2].id, pres[3].id],
