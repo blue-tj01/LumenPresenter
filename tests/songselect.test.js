@@ -89,6 +89,51 @@ it('reads an older text download with the writers above the copyright and no son
   assert.deepEqual(p.meta, { author: 'A Writer, B Writer', copyright: '© 1999 Some Music' });
 });
 
+const HARK = `Hark! The Herald Angels Sing
+
+Verse 1
+Hark! the herald angels sing
+Glory to the newborn King
+Peace on earth and mercy mild
+God and sinners reconciled
+Joyful all ye nations rise
+Join the triumph of the skies
+With th'angelic host proclaim
+Christ is born in Bethlehem
+Hark! the herald angels sing
+Glory to the newborn King
+
+Verse 2
+Christ by highest heav'n adored
+Christ the everlasting Lord
+Late in time behold Him come
+Offspring of a virgin's womb
+Veiled in flesh the Godhead see
+
+`;
+
+it('puts a verse on slides of two lines, joining a line left over to the slide before', () => {
+  const p = s.parseTxt(HARK + 'Charles Wesley, Felix Mendelssohn-Bartholdy\nPublic Domain\nCCLI Song # 31054\n');
+  const [v1, v2] = p.groups;
+  assert.equal(v1.slides.length, 5);
+  assert.deepEqual(v1.slides[0].text, 'Hark! the herald angels sing\nGlory to the newborn King');
+  assert.deepEqual(v2.slides.map(x => x.text.split('\n').length), [2, 3]);
+});
+
+it('keeps the writers out of the words, wherever the download puts them', () => {
+  const footers = [
+    'Charles Wesley, Felix Mendelssohn-Bartholdy\nPublic Domain\nCCLI Song # 31054\n',
+    'Charles Wesley, Felix Mendelssohn-Bartholdy\n\nCCLI Song # 31054\nPublic Domain\nCCLI License # 1\n',
+    'CCLI Song # 31054\nCharles Wesley | Felix Mendelssohn-Bartholdy\nPublic Domain\n',
+  ];
+  for (const footer of footers) {
+    const p = s.parseTxt(HARK + footer);
+    assert.deepEqual(p.groups.map(g => g.name), ['Verse 1', 'Verse 2']);
+    assert.ok(!p.groups.some(g => g.slides.some(x => x.text.includes('Wesley'))));
+    assert.deepEqual(p.meta, { author: 'Charles Wesley, Felix Mendelssohn-Bartholdy', copyright: 'Public Domain', ccli: '31054' });
+  }
+});
+
 it('puts words with no label in a verse, and refuses a file with none', () => {
   assert.deepEqual(words(s.parseTxt('Title\n\nJust words\n')), [['Verse', ['Just words']]]);
   assert.throws(() => s.parseTxt('Title only\n'), /no words/);

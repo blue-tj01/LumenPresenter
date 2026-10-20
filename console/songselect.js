@@ -38,10 +38,20 @@ function song(name, sections, meta) {
   if (Object.keys(m).length) p.meta = m;
   return p;
 }
-/** A section's lines as slides: a blank line inside a section starts a new slide. */
+/** A section's lines as slides of two lines each, like the hymns Lumen starts with: SongSelect gives a whole verse
+ * at once, too much for one screen. A blank line inside a section also starts a new slide, and a line left over at
+ * the end joins the slide before it. */
+const LINES_PER_SLIDE = 2;
 function splitSlides(lines) {
   const slides = []; let buf = [];
-  const flush = () => { if (buf.length) slides.push(buf.join('\n')); buf = []; };
+  const flush = () => {
+    for (let i = 0; i < buf.length; i += LINES_PER_SLIDE) {
+      const part = buf.slice(i, i + LINES_PER_SLIDE);
+      if (i && part.length < LINES_PER_SLIDE) slides[slides.length - 1] += '\n' + part.join('\n');
+      else slides.push(part.join('\n'));
+    }
+    buf = [];
+  };
   for (const l of lines) { const t = l.trim(); if (t) buf.push(t); else flush(); }
   flush();
   return slides;
@@ -79,10 +89,20 @@ export function parseTxt(text) {
   const first = lines.findIndex(l => l.trim());
   if (first < 0) throw new Error('the file is empty');
   const name = lines[first];
-  // The footer starts at the song number, or in older downloads at the writers just above the copyright.
-  let end = lines.findIndex((l, i) => i > first && (SONG_NO.test(l.trim()) || /^(©|\(c\))/i.test(l.trim())));
+  // The footer starts at the song number or the copyright, taking in the writers' line above it, which some
+  // downloads put first and set apart with a blank line. Every section of words starts with its label, so a line
+  // with no label just above the footer belongs to it.
+  let end = lines.findIndex((l, i) => i > first && (SONG_NO.test(l.trim()) || RIGHTS.test(l.trim())));
   if (end < 0) end = lines.length;
-  else if (!SONG_NO.test(lines[end].trim()) && lines[end - 1]?.trim() && !lines[end - 2]?.trim()) end--;
+  else {
+    let start = end;
+    while (lines[start - 1]?.trim() && start - 1 > first) start--;
+    if (!LABEL.test(lines[start].trim())) end = start;
+    const head = lines[end].trim();
+    let i = end - 1;
+    while (i > first && !lines[i].trim()) i--;
+    if ((SONG_NO.test(head) || RIGHTS.test(head)) && i - 1 > first + 1 && !lines[i - 1].trim() && !LABEL.test(lines[i].trim())) end = i;
+  }
   const sections = []; let cur = null;
   for (const l of lines.slice(first + 1, end)) {
     const t = l.trim();
