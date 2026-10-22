@@ -1,13 +1,15 @@
-// Tests for console/propresenter.js and console/zip.js: reading ProPresenter 7 songs (.pro files, and the
-// .probundle and .proplaylist zips that hold them) into presentations.
+// Tests for console/propresenter.js, console/zip.js and console/rtf.js: reading ProPresenter 7 songs (.pro files,
+// and the .probundle and .proplaylist zips that hold them) into presentations.
 // Run with: npm test
 'use strict';
 const assert = require('assert/strict');
 const zlib = require('zlib');
 const { it, before } = require('node:test');
 
-let pp, zip;
-before(async () => { pp = await import('../console/propresenter.js'); zip = await import('../console/zip.js'); });
+let pp, zip, r;
+before(async () => {
+  pp = await import('../console/propresenter.js'); zip = await import('../console/zip.js'); r = await import('../console/rtf.js');
+});
 
 const words = p => p.groups.map(g => [g.name, g.slides.map(s => s.text)]);
 const orders = p => p.arrangements.map(a => [a.name, a.order.map(id => p.groups.find(g => g.id === id).name)]);
@@ -109,10 +111,10 @@ function makeZip(files, { deflate = false } = {}) {
 
 // ---------- tests ----------
 it('reads the words out of RTF', () => {
-  assert.equal(pp.rtfText(rtf(['First line', 'Don\\\'92t stop'])), 'First line\nDon’t stop');
-  assert.equal(pp.rtfText('{\\rtf1{\\info{\\title Hidden}}\\uc1 Caf\\u233 e\\par{\\*\\note gone}tab\\tab end \\{x\\}\\\\}'),
+  assert.equal(r.rtfText(rtf(['First line', 'Don\\\'92t stop'])), 'First line\nDon’t stop');
+  assert.equal(r.rtfText('{\\rtf1{\\info{\\title Hidden}}\\uc1 Caf\\u233 e\\par{\\*\\note gone}tab\\tab end \\{x\\}\\\\}'),
     'Café\ntab end {x}\\');
-  assert.equal(pp.rtfText('{\\rtf1\\ansi\\ansicpg1251 \\\'cf\\\'f0\\\'e8}'), 'При');
+  assert.equal(r.rtfText('{\\rtf1\\ansi\\ansicpg1251 \\\'cf\\\'f0\\\'e8}'), 'При');
 });
 
 it('reads a .pro song with its groups, words and CCLI details', () => {

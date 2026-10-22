@@ -35,7 +35,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Song search.** Find a song by any words in it, its title, its writers or its CCLI song number, as you type.
 - **CCLI details.** Each song keeps its writers, copyright and CCLI song number, shown with your church's CCLI licence number on its last slide.
 - **CCLI usage report.** Lumen notes each song shown in a service, and lists them by date range to copy into CCLI's reporting page or save as a CSV file.
-- **Song import.** Bring in songs downloaded from CCLI SongSelect (`.usr` or `.txt`), or a library from ProPresenter 7, OpenLP (OpenLyrics) or OpenSong, words, play order and CCLI details included.
+- **Song import.** Bring in songs downloaded from CCLI SongSelect (`.usr` or `.txt`), or a library from ProPresenter 7, EasyWorship 2009, OpenLP (OpenLyrics) or OpenSong, words, play order and CCLI details included.
 - **Transitions.** Cut, fade, dip to black, push or zoom between slides, for every song or one presentation, the same on every screen and over NDI.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
@@ -288,6 +288,12 @@ ProPresenter songs come in the same way, through **⤓ Songs** or by dropping th
 
 Each song keeps its slides as they were, its groups (Verse 1, Chorus and so on, colour-coded by their names), its arrangements as play orders, with the one selected in ProPresenter playing, and its CCLI details: writers, copyright year and publisher, and song number. Only the words come in: slide designs, backgrounds and media are left out, and the song takes your Lumen theme. A group copied under the same name with the same words plays again rather than coming in twice. As with SongSelect, a song already in the library is left as it is.
 
+### Moving from EasyWorship 2009
+
+EasyWorship 2009 keeps its songs in two files in its data folder, `Songs.DB` and `Songs.MB` (usually under `Documents\Softouch\EasyWorship\<your profile>\Databases\Data`). Choose **both** through **⤓ Songs**, or drop both onto the library: Songs.DB holds the titles and details and Songs.MB the words. Copy them while EasyWorship is closed.
+
+Each song's slides come in as they were, a blank line apart in EasyWorship. A slide that starts with a section name on a line of its own (Verse 1, Chorus, Pre-Chorus, Bridge, Tag and so on) starts that group; a section sung again with the same words plays again, in the order the song has it. Writers, copyright (with any administrator) and song number come in too. Backgrounds and fonts are left out, as are songs with no words, such as ones that only play a video. As with SongSelect, a song already in the library is left as it is.
+
 ### CCLI usage report
 
 Lumen keeps the record a CCLI licence asks for. Each time a song with a CCLI song number goes live, it is noted with the day and the open service, once however many of its slides are shown. Going back to it later in the same service doesn't count it again, but the same song in an evening service on the same day counts as a second use. Songs without a CCLI song number, such as notices or your own songs, aren't counted.
@@ -447,7 +453,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
-| `console/songselect.js`, `console/openlyrics.js`, `console/xml.js`, `console/propresenter.js`, `console/zip.js` | Importing songs from SongSelect, OpenLyrics, OpenSong and ProPresenter files |
+| `console/songselect.js`, `console/openlyrics.js`, `console/xml.js`, `console/propresenter.js`, `console/zip.js`, `console/easyworship.js`, `console/rtf.js` | Importing songs from SongSelect, OpenLyrics, OpenSong, ProPresenter and EasyWorship files |
 | `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |
 | `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
 | `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |
