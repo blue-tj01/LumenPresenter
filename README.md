@@ -36,6 +36,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **CCLI details.** Each song keeps its writers, copyright and CCLI song number, shown with your church's CCLI licence number on its last slide.
 - **CCLI usage report.** Lumen notes each song shown in a service, and lists them by date range to copy into CCLI's reporting page or save as a CSV file.
 - **SongSelect import.** Bring in songs downloaded from CCLI SongSelect (`.usr` or `.txt`), words and CCLI details included.
+- **Transitions.** Cut, fade, dip to black, push or zoom between slides, for every song or one presentation, the same on every screen and over NDI.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
 - **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between.
@@ -284,6 +285,20 @@ The **Theme** tab has two lists:
 
 The font, size, colour and alignment controls edit the theme the selected song is shown with, and every song using that theme follows. **Save as…** stores the current settings as a new theme. The editor offers the same theme list, so a new presentation (for example a Scripture reading) can be given its theme when it is created.
 
+### Transitions
+
+**Transition**, on the **Theme** tab, sets how every presentation moves from one slide to the next:
+
+| Transition | Effect | Length |
+| --- | --- | --- |
+| Cut | The next slide straight away | — |
+| Fade | The next slide fades in over the last (the default) | 0.45 s |
+| Dip to black | The last slide fades out, then the next fades in | 0.8 s |
+| Push | The next slide pushes the last off to the left | 0.5 s |
+| Zoom | The next slide grows into place as the last one fades away | 0.5 s |
+
+**Seconds** beside it makes every transition take that long (up to 5), and empty goes back to each one's own length. A presentation can have its own transition, from the list beside its theme in the editor, such as a cut for a slideshow of announcements or a push for a sermon. The background changes with the slide, unless it stays the same, and messages and the logo always fade. The audience output, every browser output and NDI play the same transition, and the stage display changes at once so the band never waits for it.
+
 ## Keyboard shortcuts
 
 | Key | Action |
@@ -417,7 +432,8 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |
 | `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
 | `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |
-| `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display |
+| `console/transitions.js` | The slide transitions, and which one a presentation plays |
+| `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display, and playing transitions |
 | `sync.js` | The pages' link to the server |
 
 Run the tests with:

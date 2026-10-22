@@ -2,6 +2,7 @@
 import { $ } from './dom.js';
 import { resolveSlide, slideSummary } from './format.js';
 import { autoSecs, flat, getPres, save, slideBackground, state, templateFor } from './library.js';
+import { transitionFor } from './transitions.js';
 import { recordUse } from './usage.js';
 import { renderAll, renderLiveMarks } from './views.js';
 
@@ -22,7 +23,7 @@ function payload() {
     const s = flat(getPres(live.presId))[live.idx];
     if (s) Object.assign(sl, { elements: s.elements, stageText: slideSummary(s.slide) });
   }
-  return { ...live, logoText: state.db.logoText };
+  return { ...live, logoText: state.db.logoText, transition: transitionFor(getPres(live.presId), state.db) };
 }
 export function refreshLive() {
   PP.update(preview, payload(), { fade: true });

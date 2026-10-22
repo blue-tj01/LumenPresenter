@@ -130,23 +130,34 @@
     return out;
   }
 
-  function swap(layer, key, current, build, fade) {
+  // How a layer's old content leaves and the new arrives, by the live state's transition ({ type, ms }). The
+  // translate and scale properties are animated rather than transform, so a rotated element keeps its rotation.
+  // A type this copy doesn't know (from a newer Lumen) fades.
+  const MOVES = {
+    fade: { in: [{ opacity: 0 }, { opacity: 1 }], out: [{ opacity: 1 }, { opacity: 0 }], easing: 'ease' },
+    dip: { in: [{ opacity: 0 }, { opacity: 1 }], out: [{ opacity: 1 }, { opacity: 0 }], easing: 'ease', dip: true },
+    push: { in: [{ translate: W + 'px 0' }, { translate: '0 0' }], out: [{ translate: '0 0' }, { translate: -W + 'px 0' }], easing: 'ease-in-out' },
+    zoom: { in: [{ opacity: 0, scale: '0.8' }, { opacity: 1, scale: '1' }], out: [{ opacity: 1, scale: '1' }, { opacity: 0, scale: '1.15' }], easing: 'ease' },
+  };
+  const FADE = { type: 'fade', ms: FADE_MS };
+  const playable = tr => tr && tr.type !== 'cut' && tr.ms > 0 ? tr : null;
+
+  function swap(layer, key, current, build, tr) {
     if (current && current.key === key) return current;
+    tr = playable(tr);
+    const move = tr && (MOVES[tr.type] || MOVES.fade);
+    // Dip to black: the old goes out in the first half, and the new comes in over black in the second.
+    const half = move && move.dip ? tr.ms / 2 : tr && tr.ms;
     const old = current && current.el;
     let el = null;
     if (key) {
       el = build();
-      if (fade) { el.style.opacity = 0; }
       layer.appendChild(el);
-      if (fade) requestAnimationFrame(() => requestAnimationFrame(() => {
-        el.style.transition = `opacity ${FADE_MS}ms ease`; el.style.opacity = 1;
-      }));
+      if (move) el.animate(move.in, { duration: half, delay: move.dip ? half : 0, easing: move.easing, fill: 'backwards' });
     }
     if (old) {
-      if (fade) {
-        old.style.transition = `opacity ${FADE_MS}ms ease`; old.style.opacity = 0;
-        setTimeout(() => old.remove(), FADE_MS + 50);
-      } else old.remove();
+      if (move) old.animate(move.out, { duration: half, easing: move.easing, fill: 'forwards' }).onfinish = () => old.remove();
+      else old.remove();
     }
     return { key, el };
   }
@@ -174,17 +185,19 @@
     });
   }
 
-  // live = { bg, slide:{elements, play, stageText}, msg, logo, logoText, logoImg }
+  // live = { bg, slide:{elements, play, stageText}, msg, logo, logoText, logoImg, transition:{type, ms} }. With
+  // opts.fade, the background and slide change with the live transition (a fade in live state from before
+  // transitions), and messages and the logo fade; without it, everything changes at once.
   function update(screen, live, opts = {}) {
     const st = screen._pp, inner = screen.firstElementChild;
-    const fade = !!opts.fade, animate = opts.animate !== false;
+    const fade = opts.fade ? FADE : null, tr = opts.fade ? live.transition || FADE : null, animate = opts.animate !== false;
     const [bgL, slideL, , msgL, logoL] = inner.children;
     const t = live.theme;
 
-    st.bg = swap(bgL, bgKey(live.bg), st.bg, () => makeBg(live.bg, animate), fade);
+    st.bg = swap(bgL, bgKey(live.bg), st.bg, () => makeBg(live.bg, animate), tr);
 
     // The slide's elements: one that is the same as before stays as it is (a picture under changing words, say),
-    // and the rest fade over.
+    // and the rest change over.
     const sl = live.slide;
     const els = legacyElements(sl, t);
     const keyOf = e => JSON.stringify(e) + (e.type === 'video' && e.loop === false ? '|' + ((sl.play && sl.play.startAt) || '') : '');
@@ -192,11 +205,11 @@
     for (const e of els) {
       const key = keyOf(e), i = old.findIndex(o => o && o.key === key);
       if (i >= 0) { next.push(old[i]); old[i] = null; continue; }
-      const item = swap(slideL, key, null, () => makeElement(e, opts), fade);
+      const item = swap(slideL, key, null, () => makeElement(e, opts), tr);
       if (e.type === 'text') shrinkToFit(item.el, e);
       next.push(item);
     }
-    old.forEach(o => { if (o) swap(slideL, '', o, null, fade); });
+    old.forEach(o => { if (o) swap(slideL, '', o, null, tr); });
     next.forEach(n => slideL.appendChild(n.el)); // stacking order, back to front
     st.slide = next;
     if (!opts.still) for (const n of next) {

@@ -5,7 +5,8 @@ import { autoSecs, flat, getPres, save, savedTemplate, state } from './library.j
 import { goLive, live } from './live.js';
 import { renderMedia, storeSlideMedia } from './media.js';
 import { groupColor, parseText, uid } from './slides.js';
-import { templateOptions } from './themes.js';
+import { templateOptions, transitionOptions } from './themes.js';
+import { cleanTransition } from './transitions.js';
 import { renderAll } from './views.js';
 
 // ---------- editor ----------
@@ -22,6 +23,7 @@ export function openEditor(id) {
   for (const [sel, k] of SONG_FIELDS) $(sel).value = p?.meta?.[k] || '';
   renderOrderChips();
   templateOptions($('#edTheme'), 'Theme: same as all songs', savedTemplate(p)?.id);
+  transitionOptions($('#edTransition'), 'Transition: same as all songs', cleanTransition(p?.transition)?.type);
   $('#editor').hidden = false; $('#edText').focus();
 }
 // The song details a presentation keeps in its meta, shown on its last slide and found by search.
@@ -80,6 +82,10 @@ export function saveEditor() {
   if (background) p.background = background; else delete p.background;
   if (templateId) p.templateId = templateId; else delete p.templateId;
   if (advance) p.advance = advance; else delete p.advance;
+  // A length the presentation has (from an imported file) is kept while its type stays the same.
+  const transition = $('#edTransition').value;
+  if (!transition) delete p.transition;
+  else if (p.transition?.type !== transition) p.transition = { type: transition };
   const meta = { ...p.meta };
   for (const [sel, k] of SONG_FIELDS) { const v = clean(k, $(sel).value); if (v) meta[k] = v; else delete meta[k]; }
   if (Object.keys(meta).length) p.meta = meta; else delete p.meta;

@@ -123,6 +123,9 @@
         <div class="seg" id="thAlign"><button data-v="left">Left</button><button data-v="center">Center</button><button data-v="right">Right</button></div>
         <div class="seg" id="thVAlign"><button data-v="top">Top</button><button data-v="middle">Middle</button><button data-v="bottom">Lower</button></div>
         <label>Logo text <input id="logoText" type="text"></label>
+        <div class="sub-h">Transition</div>
+        <div class="row"><select id="thTransition" title="How every presentation moves from slide to slide, unless it has its own"></select>
+          <label class="small">Seconds <input id="thTransSecs" type="number" min="0" max="5" step="0.05" title="How long the transition takes; empty for the transition's own length"></label></div>
         <div class="sub-h">Song credits</div>
         <label>CCLI licence # <input id="ccliLicence" type="text" inputmode="numeric" placeholder="Your church's licence number"></label>
         <label class="chk"><input id="showCredits" type="checkbox"> Show credits on each song's last slide</label>
@@ -186,7 +189,7 @@
 <!-- Editor -->
 <div id="editor" class="modal" hidden>
   <div class="modal-card">
-    <div class="modal-h"><input id="edName" class="ed-name" placeholder="Presentation name"><select id="edTheme" class="ed-theme" title="Theme this presentation uses"></select><span class="spacer"></span>
+    <div class="modal-h"><input id="edName" class="ed-name" placeholder="Presentation name"><select id="edTheme" class="ed-theme" title="Theme this presentation uses"></select><select id="edTransition" class="ed-theme" title="How this presentation moves from slide to slide"></select><span class="spacer"></span>
       <button id="edImages" class="btn">🖼 Add images / videos</button>
       <input id="edImageFile" type="file" accept="image/*,video/*" multiple hidden>
       <button id="edCancel" class="btn ghost">Cancel</button><button id="edSave" class="btn primary">Save</button></div>
