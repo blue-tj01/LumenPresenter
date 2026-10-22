@@ -11,6 +11,7 @@ import { setupReport } from './report.js';
 import { migrateLibrary } from './format.js';
 import { setupScripture } from './scripture.js';
 import { seed } from './seed.js';
+import { setupLayoutEditor } from './layout-editor.js';
 import { renderTheme, setupThemes } from './themes.js';
 import { setupTimer } from './timer.js';
 import { renderAll, renderMessages, setupViews } from './views.js';
@@ -29,7 +30,7 @@ if (restored) adoptLive(restored);
 const upgraded = upgradeLive();
 state.selectedId = (state.db.playlist[0] || state.db.presentations[0]?.id) ?? null;
 
-setupViews(); setupEditor(); setupMedia(); setupThemes(); setupTimer(); setupNetwork(); setupControl(); setupScripture(); setupPowerPoint(); setupReport();
+setupViews(); setupEditor(); setupMedia(); setupThemes(); setupTimer(); setupNetwork(); setupControl(); setupScripture(); setupPowerPoint(); setupReport(); setupLayoutEditor();
 
 const popup = (url, name) => { const w = window.open(url, name, 'width=1280,height=760'); if (!w) toast('Allow pop-ups to open output windows'); else if (!Lumen.online) setTimeout(broadcast, 600); };
 $('#btnOutput').onclick = () => popup('output.html', 'lumen-output');
@@ -48,6 +49,7 @@ $('#importFile').onchange = e => {
 $('#btnReset').onclick = () => { if (confirm('Reset library to the demo content? Your changes will be lost.')) { state.db = normalize(seed()); save(); state.selectedId = state.db.playlist[0]; clear('all'); renderAll(); renderMedia(); renderMessages(); renderTheme(); } };
 
 document.addEventListener('keydown', e => {
+  if (!$('#layoutEditor').hidden) return; // the layout editor has its own keys
   if (!$('#editor').hidden) { if (e.key === 'Escape') $('#editor').hidden = true; if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveEditor(); } return; }
   if (e.target.matches('input, textarea, select')) return;
   const map = { ArrowRight: () => step(1), ArrowDown: () => step(1), ' ': () => step(1), PageDown: () => step(1),
