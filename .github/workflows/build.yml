@@ -58,3 +58,35 @@ jobs:
             dist/*.deb
           if-no-files-found: error
           retention-days: 14
+
+  # The Bitfocus Companion module, packaged for Companion's "Import module package". Added to the release on a tag.
+  companion:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only used to add the package to a release from a tag
+    defaults:
+      run:
+        working-directory: companion-module
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: companion-module/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Name the package
+        run: mv pkg.tgz "lumen-presenter-companion-$(node -p "require('./package.json').version").tgz"
+      - name: Add it to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: gh release upload "$GITHUB_REF_NAME" lumen-presenter-companion-*.tgz --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lumen-presenter-companion
+          path: companion-module/lumen-presenter-companion-*.tgz
+          if-no-files-found: error
+          retention-days: 14

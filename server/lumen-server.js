@@ -8,6 +8,8 @@ const { Store } = require('./store.js');
 const { Folders } = require('./folders.js');
 const { Hub } = require('./hub.js');
 const { Request, APP_DIR } = require('./request.js');
+const { OscListener, DEFAULT_PORT: OSC_PORT } = require('./osc.js');
+const { dispatch } = require('./control.js');
 
 const HEARTBEAT = 15;
 const LOCAL_HOSTS = ['127.0.0.1', 'localhost', '::1'];
@@ -39,6 +41,27 @@ class LumenServer {
     this.switching = Promise.resolve();
     this.heartbeat = null;
     this.folders = new Folders(this.store, mediaFolders, () => this.hub.send('folders', { time: nowMs() }));
+    this.osc = new OscListener((cmd, from, address) => {
+      if (!dispatch(this.hub, cmd)) this.log(`OSC: ${address} from ${from}, but no console is open`);
+      else this.log(`OSC: ${address} from ${from}`);
+    }, msg => this.log(msg));
+  }
+
+  /** Warnings and errors always; the rest with --verbose. */
+  log(msg) {
+    if (this.verbose || /^(warning|error):/.test(msg)) console.error(msg);
+  }
+
+  /** OSC as saved: off, port 8643, and only from this computer unless it may listen on the network too (which
+   * also needs network mode). */
+  get oscSettings() {
+    const o = this.store.settings.osc || {};
+    return { on: !!o.on, port: Number.isInteger(o.port) ? o.port : OSC_PORT, lan: !!o.lan };
+  }
+
+  applyOsc() {
+    const { on, port, lan } = this.oscSettings;
+    return this.osc.apply({ on, port, host: lan && this.network ? '0.0.0.0' : '127.0.0.1' });
   }
 
   /** Reachable from other computers. */
@@ -53,6 +76,7 @@ class LumenServer {
     this.heartbeat = setInterval(() => this.hub.send('ping', { time: nowMs() }), HEARTBEAT * 1000);
     this.heartbeat.unref();
     this.folders.watch();
+    await this.applyOsc();
     return this.port;
   }
 
@@ -105,6 +129,7 @@ class LumenServer {
     if (this.host !== target) this.store.saveSettings({ network: this.network }); // fell back; keep the saved setting truthful
     console.log(`Network mode ${this.network ? 'on' : 'off'}: listening on ${this.host}:${this.port}`);
     this.hub.send('ping', { time: nowMs() }); // wake event streams so remote ones close if now local
+    await this.applyOsc();
   }
 
   async _handle(req, res) {
@@ -147,6 +172,7 @@ class LumenServer {
   async close() {
     clearInterval(this.heartbeat);
     this.folders.close();
+    await this.osc.close();
     for (const c of this.hub.clients) c.res.destroy();
     this.hub.clients.clear();
     await Promise.all([...this.servers].map(s => new Promise(resolve => {

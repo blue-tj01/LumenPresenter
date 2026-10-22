@@ -1,0 +1,22 @@
+{
+  "$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
+  "id": "lumen-presenter",
+  "name": "lumen-presenter",
+  "shortname": "Lumen",
+  "description": "Control Lumen Presenter, the worship and live-event presentation app",
+  "version": "0.0.0",
+  "license": "GPL-3.0-or-later",
+  "repository": "git+https://github.com/blue-tj01/LumenPresenter.git",
+  "bugs": "https://github.com/blue-tj01/LumenPresenter/issues",
+  "maintainers": [{ "name": "Tom", "github": "blue-tj01" }],
+  "legacyIds": [],
+  "runtime": {
+    "type": "node22",
+    "api": "nodejs-ipc",
+    "apiVersion": "0.0.0",
+    "entrypoint": "../src/main.js"
+  },
+  "manufacturer": "Lumen Presenter",
+  "products": ["Lumen Presenter"],
+  "keywords": ["presentation", "worship", "lyrics", "slides", "church"]
+}

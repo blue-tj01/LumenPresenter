@@ -14,7 +14,8 @@ module.exports = {
     const sid = this.session();
     let page = '';
     try { page = new URL(this.header('referer')).pathname.split('/').pop(); } catch {}
-    page = PAGES[page] || 'Console';
+    // Bitfocus Companion and other controllers follow along too, but must never be taken for a console.
+    page = this.query.get('client') === 'companion' ? 'Companion' : PAGES[page] || 'Console';
     if (sid) srv.streams.set(sid, [...(srv.streams.get(sid) || []), page]);
     const local = this.fromLoopback();
     const client = { res, page, local: this.isLocal(), check: () => (local || srv.network) && this.mayRead() };

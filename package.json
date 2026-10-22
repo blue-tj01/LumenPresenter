@@ -11,7 +11,7 @@
   "scripts": {
     "start": "electron .",
     "server": "node server.js",
-    "test": "node --test tests/server.test.js tests/screens.test.js tests/data.test.js tests/ndi.test.js tests/library.test.js tests/slides.test.js tests/format.test.js tests/services.test.js tests/bible.test.js tests/passage.test.js tests/songselect.test.js tests/powerpoint.test.js tests/usage.test.js tests/transitions.test.js tests/openlyrics.test.js",
+    "test": "node --test tests/server.test.js tests/screens.test.js tests/data.test.js tests/ndi.test.js tests/library.test.js tests/slides.test.js tests/format.test.js tests/services.test.js tests/bible.test.js tests/passage.test.js tests/songselect.test.js tests/powerpoint.test.js tests/usage.test.js tests/transitions.test.js tests/openlyrics.test.js tests/control.test.js",
     "dist": "electron-builder --publish never",
     "release": "electron-builder --publish always"
   },
