@@ -1,5 +1,5 @@
-// Tests for console/easyworship.js: reading an EasyWorship 2009 song library (Songs.DB and Songs.MB) into
-// presentations.
+// Tests for console/easyworship.js and console/sqlite.js: reading EasyWorship song libraries, 2009's (Songs.DB and
+// Songs.MB) and 6's (Songs.db and SongWords.db), into presentations.
 // Run with: npm test
 'use strict';
 const assert = require('assert/strict');
@@ -130,4 +130,98 @@ it('rejects files that are not an EasyWorship library', () => {
   const { db } = library(SONGS);
   assert.ok(ew.isParadox(db) && !ew.isParadox(Buffer.alloc(100)));
   assert.equal(ew.parseEasyWorship(db, Buffer.alloc(10)).songs.length, 1); // a memo file that doesn't match: only the short song
+});
+
+// ---------- EasyWorship 6 ----------
+// Songs.db and SongWords.db are written here with Node's own SQLite, with the tables EasyWorship 6 has and small
+// pages, so long words run onto overflow pages and the tables need more than one level of pages.
+const { DatabaseSync } = require('node:sqlite');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+/** EasyWorship 6's RTF for a song: each [kind, text] a paragraph, kind 'head' (a section's name), 'slide' (a new
+ * slide) or 'line'. */
+const ew6Rtf = paras => '{\\rtf1\\ansi\\deff0\\sdeasyworship2\r\n{\\fonttbl{\\f0 Tahoma;}}\r\n{\\colortbl ;}\r\n' + paras.map(([kind, text]) =>
+  `{\\pard${kind === 'head' ? '\\sdparawysiwghidden\\sdlistlevel-1' : kind === 'slide' ? '\\sdslidemarker' : ''}\\qc\\qdef` +
+  `\\sdewparatemplatestyle101\\plain\\sdewtemplatestyle101\\fs108{\\*\\sdfsreal 54}{\\*\\sdfsdef 54}\\sdfsauto ${text || ''}\\par}\r\n`).join('') + '}';
+
+function library6(songs) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ew6-')), out = {};
+  for (const [file, sql] of [['Songs.db', 'CREATE TABLE song ("rowid" integer PRIMARY KEY AUTOINCREMENT NOT NULL UNIQUE, song_item_uid text UNIQUE, ' +
+      'title text NOT NULL, author text, copyright text, administrator text, description text, reference_number text, vendor_id integer)'],
+    ['SongWords.db', 'CREATE TABLE word ("rowid" integer PRIMARY KEY NOT NULL UNIQUE, song_id integer, words rtf, slide_uids text)']]) {
+    const db = new DatabaseSync(path.join(dir, file));
+    db.exec('PRAGMA page_size = 1024'); db.exec(sql);
+    if (file === 'Songs.db') {
+      const add = db.prepare('INSERT INTO song (song_item_uid, title, author, copyright, administrator, reference_number, vendor_id) VALUES (?, ?, ?, ?, ?, ?, ?)');
+      songs.forEach((s, i) => add.run(`uid-${i}`, s.title, s.author || '', s.copyright || '', s.admin || '', s.ccli || '', -5));
+    } else {
+      const add = db.prepare('INSERT INTO word (song_id, words, slide_uids) VALUES (?, ?, ?)');
+      songs.forEach((s, i) => (s.paras || s.plain) && add.run(i + 1, s.plain ? ewRtf(s.plain) : ew6Rtf(s.paras), 'x'));
+    }
+    db.close();
+    out[file] = fs.readFileSync(path.join(dir, file));
+  }
+  fs.rmSync(dir, { recursive: true });
+  return out;
+}
+
+const FOUNT6 = { title: 'Come Thou Fount', author: 'Robert Robinson', copyright: 'Public Domain', ccli: '108389', paras: [
+  ['head', 'Verse1'], ['line', 'Come, thou Fount of ev\\u8217?ry blessing,'], ['line', 'Tune my heart to sing thy grace;'],
+  ['slide'], ['line', 'Streams of mercy, never ceasing,'], ['line', 'Call for songs of loudest praise.'],
+  ['head', 'CHORUS'], ['line', 'Praise the mount!'],
+  ['head', 'Instrumental'],
+  ['head', 'Verse 2'], ['line', 'Here I raise my Ebenezer;'],
+  ['head', 'Chorus'], ['line', 'Praise the mount!'],
+  ['head', 'Spontaneous'], ['line', 'Hallelujah'],
+] };
+
+it('reads an EasyWorship 6 or 7 library from Songs.db and SongWords.db', async () => {
+  const filler = Array.from({ length: 60 }, (_, i) => ({ title: `Notice ${i}`, paras: [['line', `Notice ${i} `.repeat(i % 7 ? 2 : 80)]] }));
+  const hymn = { title: 'Doxology', author: 'Thomas Ken', plain: 'Verse 1\nPraise God, from whom all blessings flow\n\nChorus\nAmen' };
+  const files = library6([FOUNT6, { title: 'Video only' }, ...filler, hymn]);
+  assert.equal(ew.easyWorship6Kind(files['Songs.db']), 'songs');
+  assert.equal(ew.easyWorship6Kind(files['SongWords.db']), 'words');
+  assert.equal(ew.easyWorship6Kind(library(SONGS).db), '');
+  const { songs, empty } = ew.parseEasyWorship6(files['Songs.db'], files['SongWords.db']);
+  assert.equal(empty, 1); // the video
+  assert.equal(songs.length, 62);
+  // a song in plain RTF, as EasyWorship 7 keeps the songs it comes with, read as in EasyWorship 2009
+  assert.deepEqual(words(songs[61]), [['Verse 1', ['Praise God, from whom all blessings flow']], ['Chorus', ['Amen']]]);
+  const fount = songs[0];
+  assert.equal(fount.name, 'Come Thou Fount');
+  assert.deepEqual(fount.meta, { author: 'Robert Robinson', copyright: 'Public Domain', ccli: '108389' });
+  assert.deepEqual(words(fount), [
+    ['Verse 1', ['Come, thou Fount of ev’ry blessing,\nTune my heart to sing thy grace;', 'Streams of mercy, never ceasing,\nCall for songs of loudest praise.']],
+    ['Chorus', ['Praise the mount!']],
+    ['Verse 2', ['Here I raise my Ebenezer;']],
+    ['Spontaneous', ['Hallelujah']],
+  ]); // a heading with no words under it is left out
+  assert.deepEqual(order(fount), ['Verse 1', 'Chorus', 'Verse 2', 'Chorus', 'Spontaneous']);
+  assert.equal(songs[1].groups[0].slides[0].text, 'Notice 0 '.repeat(80).trim()); // a row that runs onto overflow pages
+  assert.deepEqual(words(songs[2]), [['Slides', ['Notice 1 Notice 1']]]);
+});
+
+it('reads SQLite tables as SQLite writes them', async () => {
+  const s = await import('../console/sqlite.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sqlite-')), file = path.join(dir, 't.db');
+  const db = new DatabaseSync(file);
+  db.exec('PRAGMA page_size = 512; CREATE TABLE t (id INTEGER PRIMARY KEY, "a b" text, n integer, f real, z blob, CONSTRAINT x UNIQUE (n))');
+  const add = db.prepare('INSERT INTO t (id, "a b", n, f, z) VALUES (?, ?, ?, ?, ?)');
+  const values = [0, 1, -1, 127, -128, 300, -40000, 2 ** 31, -(2 ** 40), 2 ** 50];
+  values.forEach((n, i) => add.run(i + 10, 'é'.repeat(i * 40), n, i / 3, Buffer.from([i, 255])));
+  add.run(99, null, null, null, null);
+  db.close();
+  const bytes = fs.readFileSync(file);
+  fs.rmSync(dir, { recursive: true });
+  assert.deepEqual(s.tableNames(bytes), ['t']);
+  const t = s.readSqlite(bytes).t;
+  assert.deepEqual(t.columns, ['id', 'a b', 'n', 'f', 'z']);
+  assert.deepEqual(t.rows.map(r => r.n), [...values, null]);
+  assert.deepEqual(t.rows.map(r => r.id), [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 99]);
+  assert.equal(t.rows[9]['a b'], 'é'.repeat(360));
+  assert.equal(t.rows[3].f, 1);
+  assert.deepEqual([...t.rows[2].z], [2, 255]);
+  assert.throws(() => s.readSqlite(Buffer.alloc(200)));
 });

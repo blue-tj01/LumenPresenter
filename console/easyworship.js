@@ -1,9 +1,11 @@
-// Songs from EasyWorship 2009 and earlier, whose library is a Paradox database: Songs.DB holds each song's title,
-// writers and copyright, with the start of its words, and Songs.MB (its memo file) holds the words in full. The
-// words are RTF, a blank line between slides, with a slide that starts a section headed by its name ("Verse 1",
-// "Chorus"). Only the words and details come in; backgrounds and fonts are left out. No DOM, so it is tested under
-// Node (tests/easyworship.test.js).
+// Songs from EasyWorship. EasyWorship 2009 and earlier keep their library in a Paradox database: Songs.DB holds
+// each song's title, writers and copyright, with the start of its words, and Songs.MB (its memo file) holds the
+// words in full. The words are RTF, a blank line between slides, with a slide that starts a section headed by its
+// name ("Verse 1", "Chorus"). EasyWorship 6 and later keep it in SQLite (Songs.db and SongWords.db; see below).
+// Only the words and details come in; backgrounds and fonts are left out. No DOM, so it is tested under Node
+// (tests/easyworship.test.js).
 import { decodePage, rtfText } from './rtf.js';
+import { readSqlite, tableNames } from './sqlite.js';
 import { presentation, tidy } from './songselect.js';
 import { uid } from './slides.js';
 
@@ -85,9 +87,8 @@ export function sectionName(line) {
   return [NAMES[word] || word[0].toUpperCase() + word.slice(1), m[2]].filter(Boolean).join(' ');
 }
 
-/** A song from EasyWorship's words (plain text, after the RTF): slides between blank lines, a slide whose first
- * line is a section name starting that section. A section sung again with the same words plays again rather than
- * being copied; one with different words under the same name is numbered on. */
+/** A song from EasyWorship 2009's words (plain text, after the RTF): slides between blank lines, a slide whose
+ * first line is a section name starting that section. */
 export function songFromWords(title, words, meta = {}) {
   const sections = [];
   for (const block of words.replace(/\r/g, '').split(/\n\s*\n/)) {
@@ -98,6 +99,12 @@ export function songFromWords(title, words, meta = {}) {
     if (name || !sections.length) sections.push({ name: name || 'Slides', slides: [] });
     if (lines.length) sections.at(-1).slides.push(lines.join('\n'));
   }
+  return songFromSections(title, sections, meta);
+}
+
+/** A song from its sections in the order written, each { name, slides }. A section sung again with the same words
+ * plays again rather than being copied; one with different words under the same name is numbered on. */
+function songFromSections(title, sections, meta) {
   const groups = [], order = [];
   for (const { name, slides } of sections) {
     if (!slides.length) continue;
@@ -114,6 +121,12 @@ export function songFromWords(title, words, meta = {}) {
   return presentation(title, groups, order, meta);
 }
 
+const details = (author, copyright, admin, number) => ({
+  author,
+  copyright: [tidy(copyright), tidy(admin) && `admin. by ${tidy(admin)}`].filter(Boolean).join(', '),
+  ccli: /^\s*\d+\s*$/.test(number || '') ? String(number).trim() : '',
+});
+
 /** The songs in an EasyWorship 2009 library: Songs.DB's bytes, and Songs.MB's (without it, only songs short enough
  * to fit in Songs.DB come in). Returns { songs, cut, empty }: cut counts the songs left out for want of Songs.MB,
  * empty those with no words (such as ones that only play a video) or whose words could not be read. */
@@ -128,13 +141,65 @@ export function parseEasyWorship(db, mb) {
     try {
       const raw = decodePage(readMemo(r.Words, memoFile)).replace(/\0/g, '');
       const words = /^\s*\{\\rtf/.test(raw) ? rtfText(raw) : raw;
-      const admin = tidy(r.Administrator);
-      songs.push(songFromWords(r.Title, words, {
-        author: r.Author,
-        copyright: [tidy(r.Copyright), admin && `admin. by ${admin}`].filter(Boolean).join(', '),
-        ccli: /^\s*\d+\s*$/.test(r['Song Number'] || '') ? r['Song Number'].trim() : '',
-      }));
+      songs.push(songFromWords(r.Title, words, details(r.Author, r.Copyright, r.Administrator, r['Song Number'])));
     } catch { empty++; }
   }
   return { songs, cut, empty };
+}
+
+// ---------- EasyWorship 6 ----------
+// EasyWorship 6 and later keep songs in SQLite: Songs.db's song table holds each song's title, author, copyright,
+// administrator and reference_number (its CCLI song number), and SongWords.db's word table its words (song_id
+// pointing at the song), as RTF with a paragraph per line. A paragraph marked \sdparawysiwghidden is a section's
+// name ("Verse 1"), and one marked \sdslidemarker (with no words) starts a new slide. EasyWorship 7 keeps the same
+// two files.
+
+/** A song's sections from its EasyWorship 6 RTF, each { name, slides }. */
+export function sectionsFromRtf6(rtf) {
+  const sections = [];
+  let slide = [];
+  const endSlide = () => { if (slide.length) { if (!sections.length) sections.push({ name: 'Slides', slides: [] }); sections.at(-1).slides.push(slide.join('\n')); } slide = []; };
+  for (const [para] of rtf.matchAll(/\{\\pard(?:[^{}]|\{[^{}]*\})*\}/g)) { // each paragraph, a group of its own
+    const words = rtfText(`{\\rtf1${para}}`).replace(/\s+/g, ' ').trim();
+    if (/\\sdparawysiwghidden\b/.test(para)) {
+      endSlide();
+      sections.push({ name: sectionName(words) || words || 'Slides', slides: [] });
+    } else if (/\\sdslidemarker\b/.test(para)) {
+      endSlide();
+      if (words) slide.push(words);
+    } else if (words) slide.push(words);
+  }
+  endSlide();
+  return sections;
+}
+
+/** The songs in an EasyWorship 6 or 7 library: Songs.db's bytes and SongWords.db's. Returns { songs, empty }: empty
+ * counts songs with no words. */
+export function parseEasyWorship6(songsDb, wordsDb) {
+  const songs = readSqlite(songsDb, n => n === 'song').song, words = readSqlite(wordsDb, n => n === 'word').word;
+  if (!songs || !words) throw new Error('not an EasyWorship 6 song library');
+  const bySong = new Map(words.rows.map(w => [w.song_id, w.words]));
+  const out = [];
+  let empty = 0;
+  for (const s of songs.rows) {
+    try {
+      const rtf = bySong.get(s.rowid);
+      if (typeof rtf !== 'string') throw new Error('no words');
+      const meta = details(s.author, s.copyright, s.administrator, s.reference_number);
+      // Songs typed in EasyWorship 6 or later mark their sections and slides; older ones it brought in (and the
+      // songs it comes with) are plain RTF laid out as in EasyWorship 2009.
+      out.push(/\\sd(parawysiwghidden|slidemarker)\b/.test(rtf)
+        ? songFromSections(s.title, sectionsFromRtf6(rtf), meta)
+        : songFromWords(s.title, rtfText(rtf), meta));
+    } catch { empty++; }
+  }
+  return { songs: out, empty };
+}
+
+/** Which of EasyWorship 6's files a SQLite file is, by its tables: 'songs' (Songs.db), 'words' (SongWords.db) or ''. */
+export function easyWorship6Kind(bytes) {
+  try {
+    const names = tableNames(bytes);
+    return names.includes('song') ? 'songs' : names.includes('word') ? 'words' : '';
+  } catch { return ''; }
 }

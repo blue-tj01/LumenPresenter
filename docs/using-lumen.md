@@ -159,9 +159,11 @@ ProPresenter songs come in the same way, through **⤓ Songs** or by dropping th
 
 Each song keeps its slides as they were, its groups (Verse 1, Chorus and so on, colour-coded by their names), its arrangements as play orders, with the one selected in ProPresenter playing, and its CCLI details: writers, copyright year and publisher, and song number. Only the words come in: slide designs, backgrounds and media are left out, and the song takes your Lumen theme. A group copied under the same name with the same words plays again rather than coming in twice. As with SongSelect, a song already in the library is left as it is.
 
-### Moving from EasyWorship 2009
+### Moving from EasyWorship
 
-EasyWorship 2009 keeps its songs in two files in its data folder, `Songs.DB` and `Songs.MB` (usually under `Documents\Softouch\EasyWorship\<your profile>\Databases\Data`). Choose **both** through **⤓ Songs**, or drop both onto the library: Songs.DB holds the titles and details and Songs.MB the words. Copy them while EasyWorship is closed.
+**EasyWorship 6 and 7.** Their songs are in two files, `Songs.db` and `SongWords.db`, in the `Databases\Data` folder of its profile (usually `Documents\Softouch\Easyworship\Default\v6.1\Databases\Data`, or `v7.1` for EasyWorship 7). Choose **both** through **⤓ Songs**, or drop both onto the library, while EasyWorship is closed. Each song comes in with its slides as they were, its sections (the names EasyWorship shows above them) as groups, a section sung again played again, and its author, copyright, administrator and CCLI song number. Songs with no words, such as ones that only play a video, are left out.
+
+**EasyWorship 2009.** It keeps its songs in two files in its data folder, `Songs.DB` and `Songs.MB` (usually under `Documents\Softouch\EasyWorship\<your profile>\Databases\Data`). Choose **both** through **⤓ Songs**, or drop both onto the library: Songs.DB holds the titles and details and Songs.MB the words. Copy them while EasyWorship is closed.
 
 Each song's slides come in as they were, a blank line apart in EasyWorship. A slide that starts with a section name on a line of its own (Verse 1, Chorus, Pre-Chorus, Bridge, Tag and so on) starts that group; a section sung again with the same words plays again, in the order the song has it. Writers, copyright (with any administrator) and song number come in too. Backgrounds and fonts are left out, as are songs with no words, such as ones that only play a video. As with SongSelect, a song already in the library is left as it is.
 
