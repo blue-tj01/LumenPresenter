@@ -106,6 +106,7 @@
         <div class="row"><span id="thEditing" class="muted small th-editing"></span>
           <button id="thSaveAs" class="btn small-btn" title="Save these settings as a new theme">Save as…</button>
           <button id="thRename" class="btn small-btn">Rename</button><button id="thDelete" class="btn small-btn ghost danger">Delete</button></div>
+        <button id="thLayout" class="btn wide" title="Move the words, and add text, shapes, pictures and videos to this theme">Edit layout…</button>
         <label>Font <select id="thFont">
           <option value="'Segoe UI', system-ui, sans-serif">Segoe UI</option>
           <option value="Georgia, serif">Georgia</option>
@@ -281,6 +282,30 @@
   </div>
 </div>
 <input id="importFile" type="file" accept="application/json" hidden>
+<div id="layoutEditor" class="modal le" hidden>
+  <div class="le-card">
+    <div class="le-top">
+      <b id="leTitle"></b><span id="leUsers" class="muted"></span><span class="le-sep"></span>
+      <button id="leUndo" class="btn ghost" title="Undo (Ctrl+Z)">↶</button><button id="leRedo" class="btn ghost" title="Redo (Ctrl+Y)">↷</button><span class="le-sep"></span>
+      <button class="btn" data-add="text">＋ Text</button><button class="btn" data-add="shape">＋ Box</button><button class="btn" data-add="ellipse">＋ Circle</button>
+      <button class="btn" data-add="image">＋ Picture</button><button class="btn" data-add="video">＋ Video</button>
+      <input id="leFile" type="file" hidden><span class="le-sep"></span>
+      <select id="leAlign" title="Line the selected element up with the screen"><option value="">Align</option><option value="left">Left edge</option><option value="center">Centre</option><option value="right">Right edge</option><option value="top">Top edge</option><option value="middle">Middle</option><option value="bottom">Bottom edge</option></select>
+      <select id="leOrder" title="Move the selected element in front of or behind the others"><option value="">Arrange</option><option value="front">Bring to front</option><option value="forward">Bring forward</option><option value="backward">Send backward</option><option value="back">Send to back</option></select>
+      <span class="spacer"></span>
+      <button id="leCancel" class="btn ghost">Cancel</button><button id="leSaveAs" class="btn" title="Keep this theme as it was, and save the changes as a new one">Save as new…</button><button id="leSave" class="btn primary" title="Ctrl+S">Save theme</button>
+    </div>
+    <div class="le-main">
+      <div class="le-side"><div class="panel-h">Layers</div><ul id="leLayers" class="le-layers"></ul>
+        <p class="muted small le-hint">The top of the list is in front. Drag to reorder.</p></div>
+      <div class="le-stage">
+        <div id="leWrap" class="le-wrap"><div id="leCanvas" class="le-canvas"><div id="leScreen"></div><div id="leOverlay" class="le-overlay"></div></div></div>
+        <div class="le-strip"><div class="panel-h"><span id="leStripH"></span><label class="le-pres">Preview with <select id="lePres"></select></label></div><div id="leStrip" class="le-thumbs"></div></div>
+      </div>
+      <div id="leInspector" class="le-insp"></div>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast"></div>
 <div id="errBox" class="err-box" role="alert" hidden>
   <div class="err-h">Something went wrong <span class="spacer"></span>

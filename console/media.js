@@ -37,11 +37,12 @@ export function renderMedia() {
         return;
       }
       if (e.target.classList.contains('x')) {
+        // Themes hold pictures and videos too, in the same layouts as slides.
         const refs = p => [p.background?.src, ...p.groups.flatMap(g => g.slides.flatMap(slideRefs))];
-        const onSlide = state.db.presentations.some(p => refs(p).includes('bin:' + m.id));
-        if (onSlide) { toast(`“${m.name}” is used on a slide — remove it there first`); return; }
+        const all = [...state.db.presentations.flatMap(refs), ...[state.db.baseTemplate, ...state.db.templates].flatMap(slideRefs)];
+        if (all.includes('bin:' + m.id)) { toast(`“${m.name}” is used on a slide or theme — remove it there first`); return; }
         state.db.media = state.db.media.filter(x => x !== m); save(); renderMedia();
-        const used = state.db.presentations.some(p => refs(p).includes(toRef(m.src)));
+        const used = all.includes(toRef(m.src));
         if (!used) Lumen.deleteMedia(m.src);
         return;
       }

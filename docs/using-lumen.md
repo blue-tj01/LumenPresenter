@@ -182,6 +182,18 @@ The **Theme** tab has two lists:
 
 The font, size, colour and alignment controls edit the theme the selected song is shown with, and every song using that theme follows. **Save as…** stores the current settings as a new theme. The editor offers the same theme list, so a new presentation (for example a Scripture reading) can be given its theme when it is created.
 
+### Editing a theme's layout
+
+**Edit layout…**, on the **Theme** tab, opens the theme the selected song is shown with in a full-window editor. The canvas is drawn exactly as the screens draw it.
+
+- **Move and resize** anything by dragging it and its handles. Edges and middles snap to the screen's middle, a 5% safe margin and the other elements; hold Alt to place freely, and Shift to keep a corner's shape or turn in 15° steps. Arrow keys nudge by a pixel, or 10 with Shift.
+- **Add** a text box, a box, a circle, a picture or a video from the toolbar. A text box shows its own words, or the slide's words, the song title, the group name, the song credits, a Bible reference or one of the song's details, chosen under **Shows**. **Show on** puts it on every slide, or only the first or last.
+- **Layers**, on the left, lists everything front to back. Drag a row to put it in front of or behind the others, and use its eye and lock to hide it or stop it moving. **Place** on the song credits row adds the credits to the theme, so you can move and style them; until then they sit at the bottom of the last slide.
+- **The inspector**, on the right, sets the exact position and size in screen pixels, and the font, colour, shadow, outline, spacing, a box behind the words, a shape's fill and border, or how a picture fits its box.
+- **Every slide** of a song, picked under **Preview with**, is shown along the bottom with the theme, and a slide whose words had to shrink to fit is marked. Click one to show it on the canvas.
+
+Nothing changes on the screens until you press **Save theme** (Ctrl+S), and every song using the theme follows. **Save as new…** keeps the theme as it was and saves your changes as a new one instead, and **Cancel** (Esc) throws them away. Ctrl+Z and Ctrl+Y undo and redo, Ctrl+D duplicates the selected element, and Delete removes it. Every theme keeps the box for the slide's words: hide it rather than delete it.
+
 ### Transitions
 
 **Transition**, on the **Theme** tab, sets how every presentation moves from one slide to the next:

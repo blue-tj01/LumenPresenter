@@ -62,7 +62,7 @@
     else if (e.type === 'shape') {
       inner = document.createElement('div');
       Object.assign(inner.style, { width: '100%', height: '100%', boxSizing: 'border-box', background: e.fill || 'none',
-        borderRadius: (e.radius || 0) + 'px', border: e.stroke ? `${e.stroke.width || 2}px solid ${e.stroke.color || '#fff'}` : 'none' });
+        borderRadius: e.kind === 'ellipse' ? '50%' : (e.radius || 0) + 'px', border: e.stroke ? `${e.stroke.width || 2}px solid ${e.stroke.color || '#fff'}` : 'none' });
     }
     if (e.fill && e.type !== 'shape') d.style.background = e.fill;
     if (inner) { if (e.opacity != null) inner.style.opacity = e.opacity; d.appendChild(inner); }

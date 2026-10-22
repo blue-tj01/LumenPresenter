@@ -75,10 +75,13 @@ function saveTemplateAs() {
   const name = (prompt('Name for the new theme:', '') || '').trim(); if (!name) return;
   const p = getPres(state.selectedId);
   const { id: _id, name: _n, ...rest } = templateFor(p);
-  const t = { ...textTemplate(), ...structuredClone(rest), id: uid(), name };
-  state.db.templates.push(t);
-  if (savedTemplate(p)) useTemplate(t.id); else useTemplateForAll(t.id);
+  addTemplate({ ...textTemplate(), ...structuredClone(rest), id: uid(), name });
   toast(`Saved theme “${name}”`);
+}
+/** Add a new theme to the library, in place of the one the selected presentation was showing with. */
+export function addTemplate(t) {
+  state.db.templates.push(t);
+  if (savedTemplate(getPres(state.selectedId))) useTemplate(t.id); else useTemplateForAll(t.id);
 }
 function renameTemplate() {
   const t = templateFor(getPres(state.selectedId)); if (!t.id) return;
