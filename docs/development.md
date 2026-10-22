@@ -1,0 +1,57 @@
+# Development
+
+## Layout
+
+There is no build step: edit the HTML, CSS and JavaScript files and reload. The console's scripts are ES modules, loaded by the browser as they are.
+
+| File | Contents |
+| --- | --- |
+| `server.js` | Starts the server, using Node's standard library only |
+| `server/lumen-server.js`, `server/request.js` | Listening, network mode, and handling each request: sign-in, checks and files |
+| `server/api/` | The HTTP API, one file per area (library and live state, media and folders, network, events) |
+| `server/store.js`, `server/library.js` | Settings, live state and backups, and the library's SQLite database |
+| `server/bible/` | Bible translations: reading Zefania, OSIS and USFX files, references, and the translations database with its full-text search |
+| `bibles/`, `scripts/bundle-bible.js` | The public-domain translations that come with Lumen, and the script that makes them from a Bible file |
+| `server/slides.js`, `server/slides-uno.py` | Importing PowerPoint, Impress and PDF files as pictures, through PowerPoint, LibreOffice or pdftoppm |
+| `console/powerpoint.js`, `vendor/pdfjs/` | Importing slides in the console; PDFs are drawn there with pdf.js |
+| `server/folders.js`, `server/hub.js`, `server/media.js` | Media folders, live updates to open pages, and media file types |
+| `electron/main.js` | The desktop app: starts the server in-process, opens the console window, and sets up the menus and tray icon |
+| `electron/screens.js` | The desktop app's full-screen output and stage windows, and which display each goes on |
+| `electron/ndi.js`, `electron/ndi-lib.js` | Sending the audience output over NDI, and the calls into the NDI Runtime |
+| `electron/updates.js`, `electron/data.js` | Updates for the installed app, and importing a library from another data folder |
+| `electron/preload.js` | The desktop app's folder picker, offered to the console |
+| `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
+| `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
+| `console/songselect.js`, `console/openlyrics.js`, `console/xml.js`, `console/propresenter.js`, `console/zip.js`, `console/easyworship.js`, `console/rtf.js` | Importing songs from SongSelect, OpenLyrics, OpenSong, ProPresenter and EasyWorship files |
+| `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |
+| `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
+| `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |
+| `console/transitions.js` | The slide transitions, and which one a presentation plays |
+| `server/control.js`, `server/osc.js`, `console/control.js`, `console/midi.js` | Outside control: the commands, the OSC listener, the Control tab, and MIDI |
+| `companion-module/` | The Bitfocus Companion module, with its own `package.json` |
+| `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display, and playing transitions |
+| `sync.js` | The pages' link to the server |
+| `docs/` | The user and developer guides linked from the README |
+
+## Tests
+
+Run the tests with:
+
+```bash
+npm test
+```
+
+The NDI tests use a stand-in for NDI. To also send real frames, set `LUMEN_NDI_LIB` to the NDI library (for example `libndi.so.6`, or `Processing.NDI.Lib.x64.dll` in the NDI Runtime folder on Windows) before running them.
+
+GitHub Actions runs the tests on Windows and Linux for every pull request. Each push to `main` also builds the installers, which can be downloaded from the run's **Artifacts**. `npm run dist` builds them locally, into `dist/`.
+
+## Releasing
+
+1. Set the new version: `npm version minor` (or `patch`), which updates `package.json` and makes a `v<version>` tag.
+2. Push it: `git push --follow-tags`.
+
+The tag's build publishes the Windows and Linux installers, and the Companion module package, as a GitHub release, and installed copies update from it. Updates need the repository to be public, since installed copies download releases without signing in.
+
+## macOS
+
+Not built yet. Lumen runs on a Mac from the source, but a downloadable Mac app needs an Apple Developer account (about $99 a year) to sign and notarise it, or macOS refuses to open it and it can't update itself. Adding it later is a `mac` target in `package.json` and a macOS runner in the workflow.
