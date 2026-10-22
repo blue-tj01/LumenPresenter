@@ -16,6 +16,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - [Themes](#themes)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Network mode](#network-mode)
+- [Companion, OSC and MIDI](#companion-osc-and-midi)
 - [Configuration](#configuration)
 - [Data and backups](#data-and-backups)
 - [HTTP API](#http-api)
@@ -39,8 +40,9 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Transitions.** Cut, fade, dip to black, push or zoom between slides, for every song or one presentation, the same on every screen and over NDI.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
-- **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between.
+- **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between, or just the words on a transparent background to lay over a live stream.
 - **Phone remote.** Step through the service from a phone: next and previous, the playlist and its slides, and clearing the screen.
+- **Companion, OSC and MIDI.** Run the service from a Stream Deck through Bitfocus Companion, with buttons that show what is on screen, or from a lighting desk, QLab or TouchOSC over OSC, or from a MIDI keyboard, pad or foot pedal.
 - **Network mode.** Drive screens on other devices through one-time token links, with device sign-in and sign-out.
 - **Never loses the show.** Library, media and live state are saved on disk, so reloading a window or restarting the server never blanks the projector.
 
@@ -110,6 +112,8 @@ The desktop app can send the audience output over the network as an [NDI®](http
 1. Install the free [NDI Tools](https://ndi.video/tools/) on the computer running Lumen, which installs the NDI Runtime Lumen uses. If Lumen was open while you installed it, choose **Screens → NDI Output → Look for NDI Again**.
 2. Turn on **Screens → NDI Output → Send Audience Output over NDI**. The source appears on the network as *COMPUTER-NAME (Lumen Presenter)*. The same menu shows how many receivers are watching.
 3. Choose the size (720p, 1080p or 4K) and frame rate (25, 30, 50 or 60) in the same menu. 1080p at 30 is the default. Higher settings use more processor time and network bandwidth.
+
+**Words only, for streaming.** **Screens → NDI Output → Words Only, on a Transparent Background**, on to start with, sends just the words, using the same template as the audience output, with see-through pixels everywhere else. OBS, Ecamm Live, vMix and other receivers that take NDI with alpha lay the words straight over their own camera or scene, with no black box to key out. A video in the playlist, or on a slide with `@video:`, still plays over the stream, and once it ends or the next slide goes up the stream is see-through again. Backgrounds (including a video chosen from the media bin), pictures on slides (including imported PowerPoint and PDF slides, which are pictures) and the logo screen are left out; messages and any box the template draws behind the words stay. Turn it off to send the whole audience output. In OBS or Ecamm, add it as an NDI source and place it above the camera.
 
 NDI carries the picture only. Video sound plays from the computer running Lumen, as it does now. NDI stays on, and comes back on the next time Lumen starts, until it's turned off. The first time, Windows may ask whether Lumen can use the network: allow it on private networks so receivers can find the source.
 
@@ -353,6 +357,50 @@ Lumen starts local-only. To drive screens from other machines (a stage display o
 
 The token is generated the first time the server starts and is saved, along with the network setting, in `settings.json` in the data directory. Updating or replacing the app's files leaves it untouched, so both survive upgrades and restarts.
 
+## Companion, OSC and MIDI
+
+The **Control** tab of the console sets up control from outside Lumen. Whatever sends the command, the console carries it out just as if its own button were pressed, so the console must be open. With more than one console open, the one on the computer running Lumen takes the commands.
+
+### Bitfocus Companion
+
+The Lumen Presenter module for [Bitfocus Companion](https://bitfocus.io/companion) (3.5 or later) puts Lumen on a Stream Deck or any other Companion surface.
+
+- **Actions:** next and previous slide, next and previous presentation in the playlist, go to a presentation by its place in the playlist or to a slide of the live presentation, clear everything, the slide, the background or the message, the logo, play, pause or restart the video, pause or resume auto-advance, and start, pause or reset the timer.
+- **Feedbacks:** a button lights up while a slide, background, message or the logo is showing, while the screen is clear, while a video plays, while the timer runs, or once it has run out.
+- **Variables:** the live presentation, its group (Verse 1, Chorus), the slide number, the slide's words, the next slide's words, the message, the timer and the clock.
+- **Presets:** ready-made buttons for all of these, under **Presets** in Companion.
+
+**Installing the module.** Each release has a `lumen-presenter-companion-<version>.tgz` file. In Companion 4.1 or later, open **Modules**, choose **Import module package** and pick that file. In older versions, unpack it into a folder and point **Settings → Developer modules path** at the folder that holds it. The module's source is in [`companion-module/`](companion-module), and `npm install && npm run build` there makes the package.
+
+**Connecting.** Add a **Lumen Presenter** connection in Companion and enter what the Control tab shows:
+
+- **Companion on the computer running Lumen:** address `127.0.0.1`, port `8642`, no token.
+- **Companion on another computer:** turn on network mode, then enter this computer's address and the access token. Making a new token in the Network tab disconnects Companion until the new one is entered.
+
+### OSC
+
+Lumen listens for OSC on UDP port 8643 once **Listen for OSC** is turned on in the Control tab. OSC carries no token, so it only takes messages from the computer running Lumen unless **Take OSC from other devices** is also turned on, and that needs network mode as well. Anyone on the network can then move the slides, so only turn it on for a network you trust.
+
+Numbers count from 1, and can be in the address (`/lumen/slide/3`) or its argument (`/lumen/slide 3`). A button that sends 1 when pressed and 0 when let go, as TouchOSC and many lighting desks do, moves the slides once.
+
+| Address | Does |
+| --- | --- |
+| `/lumen/next`, `/lumen/prev` | Next or previous slide, on into the next presentation in the playlist |
+| `/lumen/item/next`, `/lumen/item/prev` | First slide of the next or previous presentation in the playlist |
+| `/lumen/item/<n>` | First slide of the playlist's nth presentation |
+| `/lumen/slide/<n>` | The nth slide of the live presentation (or the selected one) |
+| `/lumen/clear/all`, `/slide`, `/bg`, `/msg` | Clear everything, the slide, the background or the message |
+| `/lumen/logo` | Logo on or off |
+| `/lumen/video/toggle`, `/lumen/video/restart` | Play or pause, or restart, the live video |
+| `/lumen/auto` | Pause or resume auto-advance |
+| `/lumen/timer/start`, `/pause`, `/reset` | The countdown timer |
+
+### MIDI
+
+Turn on **Take MIDI on this computer** in the Control tab to step through the service from a MIDI keyboard, pad controller or foot pedal plugged into the computer running the console. For each action, choose **Learn** and press the key, pad, pedal or button to use. Notes, controllers (a button sending 64 or more) and program changes all work, from any device or the one chosen. The setup is kept with that computer.
+
+MIDI works in the Lumen app, and in Chrome or Edge on the computer running Lumen. Browsers only offer MIDI to pages on the same computer or over HTTPS, so a console opened on another device can't use it.
+
 ## Configuration
 
 These options are for `node server.js`; the desktop app reads the same environment variables. Command-line options take precedence over the console. `--host` fixes the address (the Network switch is then shown but locked), and `--token` replaces the saved token and is required even locally.
@@ -410,7 +458,8 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | `GET` / `PUT /api/library` | Read / replace the library (`{library}`) |
 | `GET /api/search?q=<words>` | Song search, best match first (`{results: [{id, name, snippet}]}`); in `snippet`, the matching words are between `\u0002` and `\u0003` |
 | `GET` / `POST /api/live` | Read / set the live state (`{live}`) |
-| `POST /api/remote` | What the phone remote sends to the open console: `{action: "next"}`, `{action: "prev"}`, `{action: "go", presId, idx}` or `{action: "clear", what: "all"/"slide"/"bg"/"msg"/"logo"}`; 409 when no console is open |
+| `POST /api/remote` | A command for the open console, from the phone remote or Companion: `{action: "next"}`, `"prev"`, `"nextItem"`, `"prevItem"` or `"auto"`; `{action: "item", item}` (place in the playlist, from 0); `{action: "slide", idx}` (slide of the live presentation, from 0); `{action: "go", presId, idx}`; `{action: "clear", what: "all"/"slide"/"bg"/"msg"/"logo"}`; `{action: "video", what: "toggle"/"restart"}`; `{action: "timer", what: "start"/"pause"/"reset"}`. 409 when no console is open |
+| `GET` / `POST /api/control` | OSC (`{osc: {on, port, lan}}`), and what Companion connects with; changes and the details only on the local computer |
 | `POST /api/media` | Upload an image or video (raw body, `X-Filename` header) |
 | `DELETE /api/media/<file>` | Remove an uploaded file |
 | `POST /api/slides` | Convert a PowerPoint, Impress or PDF file (raw body, `X-Filename` header) into one picture per slide (`{name, slides: ['media/<file>.png', ...], via}`) |
@@ -423,7 +472,7 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | `POST /api/bibles` | Import a Zefania, OSIS or USFX Bible (raw XML or gzip body, `X-Filename` header) |
 | `DELETE /api/bibles/<id>` | Remove an imported translation |
 | `GET /api/scripture?bible=<id>&q=<text>` | The passage a reference names (`{type: "passage", reference, verses}`), or verses with those words (`{type: "search", verses}`) |
-| `GET /api/events` | Server-Sent Events: `hello`, `state`, `library`, `folders`, `bibles`, `ping` |
+| `GET /api/events` | Server-Sent Events: `hello`, `state`, `library`, `folders`, `bibles`, `ping`. Add `?client=companion` for a controller following along, so it is never taken for a console |
 
 ### Authentication and security
 
@@ -458,6 +507,8 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
 | `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |
 | `console/transitions.js` | The slide transitions, and which one a presentation plays |
+| `server/control.js`, `server/osc.js`, `console/control.js`, `console/midi.js` | Outside control: the commands, the OSC listener, the Control tab, and MIDI |
+| `companion-module/` | The Bitfocus Companion module, with its own `package.json` |
 | `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display, and playing transitions |
 | `sync.js` | The pages' link to the server |
 
@@ -476,7 +527,7 @@ GitHub Actions runs the tests on Windows and Linux for every pull request. Each 
 1. Set the new version: `npm version minor` (or `patch`), which updates `package.json` and makes a `v<version>` tag.
 2. Push it: `git push --follow-tags`.
 
-The tag's build publishes the Windows and Linux installers as a GitHub release, and installed copies update from it. Updates need the repository to be public, since installed copies download releases without signing in.
+The tag's build publishes the Windows and Linux installers, and the Companion module package, as a GitHub release, and installed copies update from it. Updates need the repository to be public, since installed copies download releases without signing in.
 
 ### macOS
 

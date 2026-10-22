@@ -97,6 +97,7 @@
       <button data-tab="timer">Timer</button>
       <button data-tab="stage">Stage</button>
       <button data-tab="net">Network</button>
+      <button data-tab="ctl">Control</button>
     </nav>
     <div class="tabbody">
       <div data-pane="theme" class="pane on">
@@ -181,6 +182,33 @@
           <p class="muted small">Disconnect signs a device out. Anyone who still knows the token can sign back in, so make a <b>New</b> token to keep them out.</p>
         </div>
         <button id="netSignOut" class="btn wide" hidden>Sign out of this device</button>
+      </div>
+      <div data-pane="ctl" class="pane">
+        <div class="sub-h">Bitfocus Companion</div>
+        <p class="muted small">Add a <b>Lumen Presenter</b> connection in Companion, and give it:</p>
+        <ul id="ctlCompanion" class="ctl-facts"></ul>
+        <p id="ctlCompanionNote" class="muted small"></p>
+        <div class="sub-h">OSC</div>
+        <div class="row"><label class="chk"><input id="oscOn" type="checkbox"> Listen for OSC on UDP port</label>
+          <input id="oscPort" type="number" min="1024" max="65535" value="8643" title="UDP port OSC is sent to"></div>
+        <label class="chk"><input id="oscLan" type="checkbox"> Take OSC from other devices on the network</label>
+        <p id="oscNote" class="muted small"></p>
+        <details class="ctl-help"><summary class="small">OSC addresses</summary>
+          <p class="small">Numbers count from 1, in the address or as its argument.</p>
+          <ul class="small">
+            <li><code>/lumen/next</code>, <code>/lumen/prev</code></li>
+            <li><code>/lumen/item/next</code>, <code>/lumen/item/prev</code> (presentations in the playlist)</li>
+            <li><code>/lumen/item/3</code> or <code>/lumen/item 3</code>, <code>/lumen/slide/2</code> or <code>/lumen/slide 2</code></li>
+            <li><code>/lumen/clear/all</code>, <code>/slide</code>, <code>/bg</code>, <code>/msg</code>, and <code>/lumen/logo</code></li>
+            <li><code>/lumen/video/toggle</code>, <code>/lumen/video/restart</code>, <code>/lumen/auto</code></li>
+            <li><code>/lumen/timer/start</code>, <code>/pause</code>, <code>/reset</code></li>
+          </ul>
+        </details>
+        <div class="sub-h">MIDI</div>
+        <label class="chk"><input id="midiOn" type="checkbox"> Take MIDI on this computer</label>
+        <label>Device <select id="midiDevice"></select></label>
+        <p id="midiNote" class="muted small"></p>
+        <ul id="midiMap" class="midi-map"></ul>
       </div>
     </div>
   </aside>

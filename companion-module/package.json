@@ -1,0 +1,26 @@
+{
+  "name": "lumen-presenter",
+  "version": "0.1.0",
+  "description": "Bitfocus Companion module for Lumen Presenter",
+  "main": "src/main.js",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blue-tj01/LumenPresenter.git",
+    "directory": "companion-module"
+  },
+  "scripts": {
+    "build": "companion-module-build",
+    "check": "companion-module-check"
+  },
+  "engines": {
+    "node": "^22.8"
+  },
+  "dependencies": {
+    "@companion-module/base": "~1.11.3"
+  },
+  "devDependencies": {
+    "@companion-module/tools": "~2.1.1"
+  }
+}

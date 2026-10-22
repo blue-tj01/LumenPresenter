@@ -13,7 +13,7 @@
   let offset = 0;        // server clock minus local clock, so timers agree across devices
   let authDeclined = false;
   let outdated = false;  // server.js was updated on disk but the running server wasn't restarted
-  const SERVER_VERSION = 4;
+  const SERVER_VERSION = 5;
 
   const syncClock = t => { if (t) offset = t - Date.now(); };
   const status = () => emit('status', { online, streaming });
@@ -174,6 +174,8 @@
     getLive: () => request('GET', 'api/live'),
     // The phone remote: {action: 'next'|'prev'} or {action: 'go', presId, idx} or {action: 'clear', what}
     remote: cmd => request('POST', 'api/remote', cmd),
+    control: () => request('GET', 'api/control'),                 // {local, network, osc, and on this computer: port, addresses, token}
+    setControl: change => request('POST', 'api/control', change), // {osc: {on, port, lan}}
     network: () => network(),            // {network, local, and on this computer: locked, token, port, addresses}
     setNetwork: change => network(change), // {network: true|false}, {regenerate: true} or {disconnect: id|'all'}
     signOut: async () => { // this device, when it was signed in with the token

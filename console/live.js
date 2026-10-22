@@ -97,6 +97,26 @@ export function step(dir) {
   const t = nextTarget(live.presId, live.idx, dir);
   if (t) goLive(t[0], t[1]);
 }
+/** The first slide of the presentation dir places along the playlist from the live one (or the selected one),
+ * skipping any with no slides. */
+export function stepItem(dir) {
+  const list = state.db.playlist;
+  let i = list.indexOf(live.slide && live.presId ? live.presId : state.selectedId);
+  if (i < 0) i = dir > 0 ? -1 : list.length;
+  for (i += dir; i >= 0 && i < list.length; i += dir) {
+    if (flat(getPres(list[i])).length) return goLive(list[i], 0);
+  }
+}
+/** The first slide of the playlist's nth presentation, counting from 0. */
+export function goItem(n) {
+  const id = state.db.playlist[n];
+  if (id && flat(getPres(id)).length) goLive(id, 0);
+}
+/** The nth slide (from 0, in play order) of the live presentation, or the selected one when nothing is live. */
+export function goSlide(n) {
+  const id = live.slide && live.presId ? live.presId : state.selectedId;
+  if (id) goLive(id, n);
+}
 // Seconds into the live video, from its shared clock.
 export const videoPos = play => play.paused ? play.pos : (Lumen.now() - play.startAt) / 1000 + play.pos;
 export const liveVideoEl = () => live.slide && live.slide.video ? PP.slideVideo(preview) : null;
