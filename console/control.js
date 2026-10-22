@@ -89,7 +89,11 @@ async function startMidi() {
     access.onstatechange = listen; // a device plugged in or out
     midiError = '';
     listen();
-  } catch { midiError = 'MIDI was not allowed for this page.'; renderMidi(); }
+  } catch (e) {
+    midiError = e?.name === 'NotAllowedError' ? 'MIDI was not allowed for this page. In a browser, allow MIDI in the address bar\'s site settings.'
+      : `MIDI could not start on this computer: ${e?.message || e}`;
+    renderMidi();
+  }
 }
 
 function renderMidi() {
