@@ -8,6 +8,8 @@
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
   #screen { position: fixed; inset: 0; }
+  /* ?alpha (the NDI page with a transparent background): nothing behind the words. */
+  html.alpha, html.alpha body, html.alpha .pp-screen { background: transparent; }
   #hint { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(30,34,44,.9); color: #cfd6e4;
     font: 13px "Segoe UI", sans-serif; padding: 6px 14px; border-radius: 6px; transition: opacity .6s; cursor: default; }
 </style>
@@ -18,6 +20,9 @@
 <script src="render.js"></script>
 <script src="sync.js"></script>
 <script>
+  const params = new URLSearchParams(location.search);
+  const alpha = params.has('alpha');
+  if (alpha) document.documentElement.classList.add('alpha');
   const screen = PP.createScreen(document.getElementById('screen'));
   const hint = document.getElementById('hint');
   let hintTimer;
@@ -27,13 +32,13 @@
     showHint('Click here to turn on video sound');
     document.addEventListener('click', () => { v.muted = false; hint.style.opacity = 0; }, { once: true });
   };
-  Lumen.on('state', d => PP.update(screen, d.live, { fade: true, sound: true, onMuted }));
+  Lumen.on('state', d => PP.update(screen, d.live, { fade: true, sound: !alpha, wordsOnly: alpha, onMuted }));
   Lumen.init().then(online => { if (!online) Lumen.hello(); });
   const fs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
   document.ondblclick = fs;
   document.onkeydown = e => { if (e.key === 'f' || e.key === 'F') fs(); };
   // The desktop app opens it already full screen on its display (output.html?display).
-  if (new URLSearchParams(location.search).has('display')) hint.style.opacity = 0;
+  if (params.has('display')) hint.style.opacity = 0;
   else showHint('Double-click or press F to go full screen', 3500);
 </script>
 </body>

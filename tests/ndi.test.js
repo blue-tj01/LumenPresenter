@@ -5,7 +5,7 @@ const assert = require('assert/strict');
 const path = require('path');
 const { it } = require('node:test');
 const EventEmitter = require('events');
-const { NdiOutput } = require('../electron/ndi.js');
+const { NdiOutput, unpremultiply } = require('../electron/ndi.js');
 const { candidates, open } = require('../electron/ndi-lib.js');
 
 // ---------- finding the NDI library ----------
@@ -101,7 +101,7 @@ const image = (width, height) => ({ isEmpty: () => false, getSize: () => ({ widt
 it('is off until turned on, with 1080p at 30 frames a second to start with', () => {
   const { out, settings } = output();
   assert.equal(out.on, false);
-  assert.deepEqual(settings.ndi, { on: false, size: '1920x1080', fps: 30 });
+  assert.deepEqual(settings.ndi, { on: false, size: '1920x1080', fps: 30, alpha: false });
 });
 
 it('draws the audience output off screen and sends each picture over NDI', async () => {
@@ -159,7 +159,7 @@ it('restarts at a new size or frame rate, and remembers it', async () => {
   await out.set(true);
   const done = out.configure({ size: '1280x720', fps: 50 });
   await done;
-  assert.deepEqual(settings.ndi, { on: true, size: '1280x720', fps: 50 });
+  assert.deepEqual(settings.ndi, { on: true, size: '1280x720', fps: 50, alpha: false });
   assert.equal(ndi.senders.length, 2);
   assert.equal(ndi.senders[0].destroyed, true);
   const win = electron.opened[1];
@@ -171,6 +171,40 @@ it('restarts at a new size or frame rate, and remembers it', async () => {
   await out.configure({ fps: 25 });
   assert.equal(ndi.senders.length, 2);
   assert.equal(settings.ndi.fps, 25);
+});
+
+it('sends only the words on a transparent background when asked, and remembers it', async () => {
+  const { out, electron, ndi, settings } = output();
+  await out.set(true);
+  assert.equal(electron.opened[0].opts.transparent, false);
+  assert.equal(electron.opened[0].opts.backgroundColor, '#000000');
+  const toggle = () => out.menu(() => {}).submenu.find(i => i.label === 'Words Only, on a Transparent Background');
+  assert.equal(toggle().checked, false);
+  await toggle().click();
+  assert.equal(settings.ndi.alpha, true);
+  assert.equal(ndi.senders.length, 2, 'the source restarts with the new background');
+  const win = electron.opened[1];
+  assert.equal(win.opts.transparent, true);
+  assert.equal(win.opts.backgroundColor, '#00000000');
+  assert.equal(win.webContents.url, 'http://127.0.0.1:8642/output.html?display&alpha');
+  assert.equal(toggle().checked, true);
+
+  // Part-covered pixels go out with straight alpha, as NDI expects; clear and solid ones are unchanged.
+  const px = Buffer.from([0, 0, 0, 0, 10, 20, 30, 255, 64, 32, 0, 128]);
+  win.webContents.emit('paint', {}, {}, { isEmpty: () => false, getSize: () => ({ width: 3, height: 1 }), toBitmap: () => px });
+  await new Promise(r => setTimeout(r, 50));
+  assert.deepEqual([...ndi.senders[1].frames[0].data], [0, 0, 0, 0, 10, 20, 30, 255, 128, 64, 0, 128]);
+
+  // Words only never plays video sound: there is no video on that page.
+  out.check();
+  assert.equal(win.webContents.muted, true);
+  const stopped = out.stop();
+  ndi.senders[1].pending();
+  await stopped;
+});
+
+it('turns premultiplied pixels into straight alpha without going past full brightness', () => {
+  assert.deepEqual([...unpremultiply(Buffer.from([255, 200, 100, 200, 1, 1, 1, 1]))], [255, 255, 128, 200, 255, 255, 255, 1]);
 });
 
 it('plays video sound only when no audience output window is open', async () => {
