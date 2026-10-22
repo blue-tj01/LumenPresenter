@@ -333,7 +333,18 @@ describe('MIDI', () => {
     assert.equal(m.midiTrigger([0xb0, 20, 127], held), 'cc:1:20');
     assert.equal(m.midiTrigger([0xb0, 20, 100], held), null); // a fader still up
     assert.equal(m.midiTrigger([0xb0, 20, 0], held), null);
-    assert.equal(m.midiTrigger([0xb0, 20, 64], held), 'cc:1:20');
+    assert.equal(m.midiTrigger([0xb0, 20, 64], held, Date.now() + 1000), 'cc:1:20');
+  });
+
+  it('moves once for a press that arrives through more than one port', () => {
+    const held = new Map();
+    assert.equal(m.midiTrigger([0x90, 60, 100], held, 1000), 'note:1:60');
+    assert.equal(m.midiTrigger([0x90, 60, 100], held, 1002), null); // the same press, through Midi Through
+    assert.equal(m.midiTrigger([0x80, 60, 0], held, 1100), null);
+    assert.equal(m.midiTrigger([0x90, 61, 100], held, 1110), 'note:1:61'); // another key straight after is its own
+    assert.equal(m.midiTrigger([0x90, 60, 100], held, 1400), 'note:1:60'); // pressed again
+    assert.equal(m.midiTrigger([0xc0, 5], held, 2000), 'pc:1:5');
+    assert.equal(m.midiTrigger([0xc0, 5], held, 2001), null);
   });
 
   it('names triggers, and keeps only settings it understands', () => {

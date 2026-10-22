@@ -21,18 +21,25 @@ export const MIDI_ACTIONS = [
 
 /** The trigger a MIDI message is, as 'note:<channel>:<number>', 'cc:...' or 'pc:...' (channels 1-16), or null
  * for one that doesn't press anything: a key or pad let go, a controller below half way, clock and the like.
- * `held` remembers which controllers are up, so a fader moved past half way fires once, not on every step. */
-export function midiTrigger(data, held = new Map()) {
+ * `held` remembers which controllers are up, so a fader moved past half way fires once, not on every step, and
+ * when each trigger last fired: the same one again within REPEAT_MS is the same press arriving twice (a device
+ * seen through more than one port, such as a software keyboard also wired to Midi Through), so it is dropped. */
+export const REPEAT_MS = 150;
+export function midiTrigger(data, held = new Map(), now = Date.now()) {
   const [status, a, b] = data;
   const kind = status & 0xf0, ch = (status & 0x0f) + 1;
-  if (kind === 0x90 && b > 0) return `note:${ch}:${a}`;
-  if (kind === 0xc0) return `pc:${ch}:${a}`;
-  if (kind === 0xb0) {
-    const id = `cc:${ch}:${a}`, up = b >= 64, was = held.get(id) || false;
-    held.set(id, up);
-    return up && !was ? id : null;
+  let id = null;
+  if (kind === 0x90 && b > 0) id = `note:${ch}:${a}`;
+  else if (kind === 0xc0) id = `pc:${ch}:${a}`;
+  else if (kind === 0xb0) {
+    const cc = `cc:${ch}:${a}`, up = b >= 64, was = held.get(cc) || false;
+    held.set(cc, up);
+    if (up && !was) id = cc;
   }
-  return null;
+  if (!id) return null;
+  const last = held.get(`at:${id}`);
+  held.set(`at:${id}`, now);
+  return last !== undefined && now - last < REPEAT_MS ? null : id;
 }
 
 const NOTES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
