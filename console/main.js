@@ -6,6 +6,7 @@ import { adoptLive, broadcast, clear, goLive, refreshLive, step, upgradeLive } f
 import { loadFolders, renderMedia, setupMedia } from './media.js';
 import { setupNetwork } from './network.js';
 import { setupPowerPoint } from './powerpoint.js';
+import { setupReport } from './report.js';
 import { migrateLibrary } from './format.js';
 import { setupScripture } from './scripture.js';
 import { seed } from './seed.js';
@@ -27,7 +28,7 @@ if (restored) adoptLive(restored);
 const upgraded = upgradeLive();
 state.selectedId = (state.db.playlist[0] || state.db.presentations[0]?.id) ?? null;
 
-setupViews(); setupEditor(); setupMedia(); setupThemes(); setupTimer(); setupNetwork(); setupScripture(); setupPowerPoint();
+setupViews(); setupEditor(); setupMedia(); setupThemes(); setupTimer(); setupNetwork(); setupScripture(); setupPowerPoint(); setupReport();
 
 const popup = (url, name) => { const w = window.open(url, name, 'width=1280,height=760'); if (!w) toast('Allow pop-ups to open output windows'); else if (!Lumen.online) setTimeout(broadcast, 600); };
 $('#btnOutput').onclick = () => popup('output.html', 'lumen-output');

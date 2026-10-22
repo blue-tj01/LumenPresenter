@@ -5,6 +5,7 @@ import { mainText, textTemplate } from './format.js';
 import { findTemplate, getPres, save, savedTemplate, state, templateFor, textStyle } from './library.js';
 import { broadcast } from './live.js';
 import { uid } from './slides.js';
+import { cleanTransition, TRANSITIONS } from './transitions.js';
 import { renderGrid } from './views.js';
 
 // The pane picks the all-songs template and the selected presentation's own one, and its controls edit whichever
@@ -28,6 +29,22 @@ export function renderTheme() {
   $('#logoText').value = state.db.logoText;
   if (document.activeElement !== $('#ccliLicence')) $('#ccliLicence').value = state.db.ccliLicence || '';
   $('#showCredits').checked = state.db.showCredits !== false;
+  transitionOptions($('#thTransition'), null, state.db.transition?.type || 'fade');
+  if (document.activeElement !== $('#thTransSecs')) $('#thTransSecs').value = state.db.transition?.secs ?? '';
+  $('#thTransSecs').placeholder = TRANSITIONS.find(t => t.id === $('#thTransition').value)?.secs ?? '';
+  $('#thTransSecs').disabled = $('#thTransition').value === 'cut';
+}
+/** Fill a transition picker; `first` names the choice of none (the library's), if there is one. */
+export const transitionOptions = (sel, first, value) => {
+  sel.innerHTML = ''; if (first) sel.add(new Option(first, ''));
+  TRANSITIONS.forEach(t => sel.add(new Option(first ? `Transition: ${t.name}` : t.name, t.id)));
+  sel.value = value || '';
+};
+// The library's transition plays from the next slide on; the live slide isn't sent again for it.
+function setTransition(patch) {
+  const t = cleanTransition({ ...state.db.transition, type: state.db.transition?.type || 'fade', ...patch });
+  if (t && !(t.type === 'fade' && !t.secs)) state.db.transition = t; else delete state.db.transition;
+  save(); renderTheme();
 }
 // The church's CCLI licence number and whether songs show their credits; both change what the last slide shows.
 function creditsChanged() {
@@ -100,6 +117,8 @@ export function setupThemes() {
     if (v) state.db.ccliLicence = v; else delete state.db.ccliLicence;
     creditsChanged();
   };
+  $('#thTransition').onchange = e => setTransition({ type: e.target.value });
+  $('#thTransSecs').oninput = e => setTransition({ secs: e.target.value });
   $('#showCredits').onchange = e => {
     if (e.target.checked) delete state.db.showCredits; else state.db.showCredits = false;
     creditsChanged();

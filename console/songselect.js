@@ -13,8 +13,8 @@ export function decode(bytes) {
 }
 
 // SongSelect separates several writers or rights holders with "|".
-const list = s => String(s ?? '').split('|').map(v => v.trim()).filter(Boolean);
-const tidy = s => String(s ?? '').replace(/\s+/g, ' ').trim();
+export const list = s => String(s ?? '').split('|').map(v => v.trim()).filter(Boolean);
+export const tidy = s => String(s ?? '').replace(/\s+/g, ' ').trim();
 
 /** A presentation from SongSelect's sections, each [label, lines], in the order the file gives them. A section
  * that comes again with the same words is played again rather than copied; one with different words under the
@@ -32,8 +32,14 @@ function song(name, sections, meta) {
     const g = { id: uid(), name: groupName, slides: slides.map(t => ({ id: uid(), text: t })) };
     groups.push(g); order.push(g.id);
   }
+  return presentation(name, groups, order, meta);
+}
+/** A song as a presentation: its groups, the order they play in (group ids), and its details (author, copyright,
+ * ccli). The order becomes an arrangement only when it isn't the groups as written. Shared with the other song
+ * importers (openlyrics.js). */
+export function presentation(name, groups, order, meta) {
   const p = { id: uid(), name: tidy(name) || 'Untitled', groups, arrangements: [] };
-  if (order.length > groups.length) p.arrangements = [{ id: uid(), name: 'Default', order }];
+  if (order.length !== groups.length || order.some((id, i) => groups[i].id !== id)) p.arrangements = [{ id: uid(), name: 'Default', order }];
   const m = Object.fromEntries(Object.entries(meta).map(([k, v]) => [k, tidy(v)]).filter(([, v]) => v));
   if (Object.keys(m).length) p.meta = m;
   return p;
