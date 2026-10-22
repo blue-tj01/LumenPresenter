@@ -8,5 +8,6 @@ module.exports = {
   ...require('./media.js'),
   ...require('./scripture.js'),
   ...require('./remote.js'),
+  ...require('./control.js'),
   ...require('./slides.js'),
 };

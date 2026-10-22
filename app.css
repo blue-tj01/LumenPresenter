@@ -99,7 +99,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .clr.on kbd { color: #dfe8ff; }
 .nav { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px 12px 10px; }
 .tabs { display: flex; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.tabs button { flex: 1; background: none; border: 0; padding: 9px 0; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button { flex: 1; background: none; border: 0; padding: 9px 0; font-size: 12px; white-space: nowrap; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 .tabbody { flex: 1 0 auto; padding: 12px; }
 .pane { display: none; flex-direction: column; gap: 10px; }
@@ -130,6 +130,17 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .sub-h .btn { margin-left: 8px; text-transform: none; letter-spacing: 0; font-weight: 400; }
 .net-details { display: flex; flex-direction: column; gap: 8px; }
 .net-details[hidden] { display: none; }
+.ctl-facts { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 12px; }
+.ctl-facts li { display: contents; }
+.ctl-facts code { user-select: all; overflow-wrap: anywhere; }
+.ctl-help ul { margin: 4px 0 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
+.ctl-help p { margin: 4px 0 0; }
+.ctl-help summary { cursor: pointer; color: var(--muted); }
+.midi-map { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.midi-map[hidden] { display: none; }
+.midi-map li { display: flex; align-items: center; gap: 6px; }
+.midi-map li > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#oscNote.warn { color: #ffb454; }
 .sub-h { font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-top: 6px; }
 .timer-big { font: 600 54px/1 ui-monospace, Consolas, monospace; text-align: center; padding: 10px; background: var(--bg); border-radius: 8px; }
 .timer-big.neg { color: var(--live); }

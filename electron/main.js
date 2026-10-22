@@ -216,8 +216,9 @@ async function start() {
   }
   origin = `http://127.0.0.1:${srv.port}`;
   console.log(`Lumen Presenter on ${origin}  (data: ${srv.store.dir})`);
+  // MIDI (without system-exclusive messages) lets the console take a MIDI controller's buttons.
   session.defaultSession.setPermissionRequestHandler((wc, permission, done) => {
-    done(sameOrigin(wc.getURL()) && ['fullscreen', 'clipboard-sanitized-write'].includes(permission));
+    done(sameOrigin(wc.getURL()) && ['fullscreen', 'clipboard-sanitized-write', 'midi'].includes(permission));
   });
   app.on('web-contents-created', (_, wc) => { if (['window', 'offscreen'].includes(wc.getType())) guard(wc); });
   // Only the console, on Lumen's own page, may open the folder picker.

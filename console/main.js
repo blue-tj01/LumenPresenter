@@ -2,7 +2,8 @@
 import { $, toast } from './dom.js';
 import { saveEditor, setupEditor } from './editor.js';
 import { getPres, KEY, normalize, save, state, valid } from './library.js';
-import { adoptLive, broadcast, clear, goLive, refreshLive, step, upgradeLive } from './live.js';
+import { adoptLive, broadcast, clear, refreshLive, step, upgradeLive } from './live.js';
+import { runCommand, setupControl } from './control.js';
 import { loadFolders, renderMedia, setupMedia } from './media.js';
 import { setupNetwork } from './network.js';
 import { setupPowerPoint } from './powerpoint.js';
@@ -28,7 +29,7 @@ if (restored) adoptLive(restored);
 const upgraded = upgradeLive();
 state.selectedId = (state.db.playlist[0] || state.db.presentations[0]?.id) ?? null;
 
-setupViews(); setupEditor(); setupMedia(); setupThemes(); setupTimer(); setupNetwork(); setupScripture(); setupPowerPoint(); setupReport();
+setupViews(); setupEditor(); setupMedia(); setupThemes(); setupTimer(); setupNetwork(); setupControl(); setupScripture(); setupPowerPoint(); setupReport();
 
 const popup = (url, name) => { const w = window.open(url, name, 'width=1280,height=760'); if (!w) toast('Allow pop-ups to open output windows'); else if (!Lumen.online) setTimeout(broadcast, 600); };
 $('#btnOutput').onclick = () => popup('output.html', 'lumen-output');
@@ -59,13 +60,8 @@ document.addEventListener('keydown', e => {
 Lumen.on('hello', broadcast); // a same-browser window opened without the server
 Lumen.on('error', toast);
 Lumen.on('state', d => { adoptLive(d.live); refreshLive(); renderMessages(); }); // another operator console
-// A tap on the phone remote; the server hands each one to a single console.
-Lumen.on('remote', d => {
-  if (d.action === 'next') step(1);
-  else if (d.action === 'prev') step(-1);
-  else if (d.action === 'go' && getPres(d.presId)) goLive(d.presId, d.idx);
-  else if (d.action === 'clear') clear(d.what);
-});
+// A tap on the phone remote, or a command from Companion or OSC; the server hands each one to a single console.
+Lumen.on('remote', runCommand);
 Lumen.on('library', async () => {
   const d = await Lumen.loadLibrary().catch(() => null);
   if (!valid(d)) return;
