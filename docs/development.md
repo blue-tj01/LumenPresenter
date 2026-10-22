@@ -22,7 +22,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
-| `console/songselect.js`, `console/openlyrics.js`, `console/xml.js`, `console/propresenter.js`, `console/zip.js`, `console/easyworship.js`, `console/rtf.js` | Importing songs from SongSelect, OpenLyrics, OpenSong, ProPresenter and EasyWorship files |
+| `console/songselect.js`, `console/openlyrics.js`, `console/xml.js`, `console/propresenter.js`, `console/zip.js`, `console/easyworship.js`, `console/rtf.js`, `console/sqlite.js` | Importing songs from SongSelect, OpenLyrics, OpenSong, ProPresenter and EasyWorship files |
 | `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |
 | `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
 | `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |
