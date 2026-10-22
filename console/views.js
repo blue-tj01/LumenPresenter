@@ -4,6 +4,7 @@ import { openEditor } from './editor.js';
 import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackground, state, templateFor } from './library.js';
 import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
 import { addService, duplicateService, nextSunday, openService, removeService, serviceLabel, sortedServices, switchService, updateService } from './services.js';
+import { isXml, parseSongXml } from './openlyrics.js';
 import { decode, findSame, parseSongSelect } from './songselect.js';
 import { slideFiles } from './powerpoint.js';
 import { renderTheme } from './themes.js';
@@ -178,14 +179,20 @@ export function renderMessages() {
 }
 
 
-/** Songs from CCLI SongSelect files (.usr or .txt) added to the library. A song already there, by its CCLI song
- * number (or its title, for one without), is left as it is. */
+/** Songs from files added to the library: CCLI SongSelect (.usr or .txt), OpenLyrics (.xml, as OpenLP exports
+ * them) and OpenSong (which have no extension), told apart by what they hold. A song already there, by its CCLI
+ * song number (or its title, for one without), is left as it is. */
+const MAX_SONG_BYTES = 2 * 1024 * 1024; // far more than any song; a picture or video dropped by mistake is bigger
 async function importSongs(files) {
   const added = [], kept = [], failed = [];
   for (const f of [...files]) { // a copy: the file input is cleared while these are read
-    if (!/\.(usr|txt)$/i.test(f.name)) { failed.push(f.name); continue; }
+    if (f.size > MAX_SONG_BYTES) { failed.push(f.name); continue; }
     try {
-      const p = parseSongSelect(f.name, decode(await f.arrayBuffer()));
+      const text = decode(await f.arrayBuffer());
+      let p;
+      if (isXml(text)) p = parseSongXml(text);
+      else if (/\.(usr|txt)$/i.test(f.name)) p = parseSongSelect(f.name, text);
+      else { failed.push(f.name); continue; }
       if (findSame([...state.db.presentations, ...added], p)) { kept.push(p.name); continue; }
       added.push(p);
     } catch { failed.push(f.name); }
@@ -198,7 +205,7 @@ async function importSongs(files) {
   const n = (k, one) => `${k.length} ${one}${k.length === 1 ? '' : 's'}`;
   toast([added.length === 1 ? `Imported “${added[0].name}”` : added.length && `Imported ${n(added, 'song')}`,
     kept.length && `${kept.length === 1 ? `“${kept[0]}” is` : `${n(kept, 'song')} are`} already in the library`,
-    failed.length && `${failed.length === 1 ? failed[0] : n(failed, 'file')} could not be read as SongSelect`]
+    failed.length && `${failed.length === 1 ? failed[0] : n(failed, 'file')} could not be read as ${failed.length === 1 ? 'a song' : 'songs'}`]
     .filter(Boolean).join(' · ') || 'No songs found');
 }
 

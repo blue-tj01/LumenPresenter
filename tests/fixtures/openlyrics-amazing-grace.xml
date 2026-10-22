@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<song xmlns="http://openlyrics.info/namespace/2009/song" version="0.8" createdIn="OpenLP 2.4.6" modifiedIn="OpenLP 2.4.6" modifiedDate="2026-10-22T09:00:00">
+  <properties>
+    <titles>
+      <title>Amazing Grace</title>
+      <title>Amazing Grace (New Britain)</title>
+    </titles>
+    <copyright>Public Domain</copyright>
+    <ccliNo>22025</ccliNo>
+    <verseOrder>v1 v2 c v3 c</verseOrder>
+    <authors>
+      <author type="words">John Newton</author>
+      <author type="music">Traditional</author>
+    </authors>
+    <songbooks>
+      <songbook name="Hymns" entry="1"/>
+    </songbooks>
+  </properties>
+  <lyrics>
+    <verse name="v1">
+      <lines>Amazing grace! How sweet the sound<br/>That saved a wretch like me!</lines>
+      <lines>I once was lost, but now am found;<br/>Was blind, but now I see.</lines>
+    </verse>
+    <verse name="v2">
+      <lines>'Twas grace that taught my heart to fear,<br/>And grace my fears relieved;</lines>
+      <lines>How precious did that grace appear<br/>The hour I first believed.</lines>
+    </verse>
+    <verse name="c">
+      <lines>Praise God, from whom all blessings flow;<br/>Praise Him, all creatures here below;<br/>Praise Him above, ye heav'nly host;<br/>Praise Father, Son, and Holy Ghost.</lines>
+    </verse>
+    <verse name="v3">
+      <lines>Through many dangers, toils and snares,<br/>I have already come;</lines>
+      <lines>'Tis grace hath brought me safe thus far,<br/>And grace will lead me home.</lines>
+    </verse>
+  </lyrics>
+</song>

@@ -28,8 +28,8 @@
   <!-- Library + Playlist -->
   <aside class="side">
     <section class="panel grow">
-      <div class="panel-h">Library <span><button id="btnImportSongs" class="icon txt" title="Import songs from CCLI SongSelect (.usr or .txt files), or drop them on the library">⤓ SongSelect</button><button id="btnImportSlides" class="icon txt" title="Import a PowerPoint, Impress or PDF file: each slide becomes a picture">⤓ Slides</button><button id="btnNewPres" class="icon" title="New presentation">＋</button></span>
-        <input id="songFile" type="file" accept=".usr,.txt,text/plain" multiple hidden>
+      <div class="panel-h">Library <span><button id="btnImportSongs" class="icon txt" title="Import songs from CCLI SongSelect (.usr or .txt), OpenLP (OpenLyrics .xml) or OpenSong files, or drop them on the library">⤓ Songs</button><button id="btnImportSlides" class="icon txt" title="Import a PowerPoint, Impress or PDF file: each slide becomes a picture">⤓ Slides</button><button id="btnNewPres" class="icon" title="New presentation">＋</button></span>
+        <input id="songFile" type="file" multiple hidden>
         <input id="slidesFile" type="file" accept=".pptx,.ppt,.ppsx,.pps,.odp,.pdf" multiple hidden></div>
       <input id="libSearch" class="search" placeholder="Search songs…" title="Titles, words, writers or CCLI song number">
       <ul id="libList" class="list"></ul>
@@ -206,7 +206,7 @@
         <p><b>Add images / videos</b> (or drop files onto the text) adds one slide each, which makes a slideshow.</p>
         <p><b>Play order</b> lists groups in the order they're sung, e.g. <code>Verse 1, Chorus, Verse 2, Chorus</code>. Click a group below to add it. Leave it empty to play the groups as written.</p>
         <p><b>Written by</b>, <b>Copyright</b> and <b>CCLI song #</b> are shown on the song's last slide, with your church's CCLI licence number from the Theme tab. Search finds songs by any of them, and by their words.</p>
-        <p>Songs downloaded from CCLI SongSelect (<code>.usr</code> or <code>.txt</code>) come in with their words and details from <b>⤓ SongSelect</b> above the library, or by dropping the files onto it.</p>
+        <p>Songs from CCLI SongSelect (<code>.usr</code> or <code>.txt</code>), OpenLP (OpenLyrics <code>.xml</code>) and OpenSong come in with their words and details from <b>⤓ Songs</b> above the library, or by dropping the files onto it.</p>
         <p><b>Auto-advance</b> moves to the next slide by itself after that many seconds, and after the last slide in the play order goes back to the first. Video slides move on when the video ends. Leave it empty to advance by hand.</p>
       </div>
     </div>

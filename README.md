@@ -35,7 +35,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Song search.** Find a song by any words in it, its title, its writers or its CCLI song number, as you type.
 - **CCLI details.** Each song keeps its writers, copyright and CCLI song number, shown with your church's CCLI licence number on its last slide.
 - **CCLI usage report.** Lumen notes each song shown in a service, and lists them by date range to copy into CCLI's reporting page or save as a CSV file.
-- **SongSelect import.** Bring in songs downloaded from CCLI SongSelect (`.usr` or `.txt`), words and CCLI details included.
+- **Song import.** Bring in songs downloaded from CCLI SongSelect (`.usr` or `.txt`), or a library from OpenLP (OpenLyrics) or OpenSong, words, play order and CCLI details included.
 - **Transitions.** Cut, fade, dip to black, push or zoom between slides, for every song or one presentation, the same on every screen and over NDI.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
@@ -266,9 +266,18 @@ Enter your church's licence number once, in **CCLI licence #** under **Song cred
 
 ### Importing from SongSelect
 
-Songs downloaded from [CCLI SongSelect](https://songselect.ccli.com) come straight into the library. Click **⤓ SongSelect** above the library and choose one or more files, or drop them onto the library list. Both of SongSelect's lyric downloads work: the `.usr` file and the plain text (`.txt`) download.
+Songs downloaded from [CCLI SongSelect](https://songselect.ccli.com) come straight into the library. Click **⤓ Songs** above the library and choose one or more files, or drop them onto the library list. Both of SongSelect's lyric downloads work: the `.usr` file and the plain text (`.txt`) download.
 
 Each song arrives with its title, its sections as groups (Verse 1, Chorus, Bridge and so on, colour-coded as usual) split into slides of two lines, and its writers, copyright and CCLI song number filled in, so its credits show on its last slide straight away. A section the download writes out more than once, such as a repeated chorus, becomes one group played in each place it comes, in the song's play order. A song already in the library, matched by its CCLI song number, is left as it is rather than added twice; delete the old one first to bring in a fresh copy.
+
+### Moving from OpenLP or OpenSong
+
+Songs from OpenLP and OpenSong come in the same way, through **⤓ Songs** or by dropping the files onto the library, many at a time:
+
+- **OpenLP:** choose **File → Export → Song** and the OpenLyrics format, which saves one `.xml` file per song. Other apps that save OpenLyrics files work too.
+- **OpenSong:** the songs are the files in the `Songs` folder of OpenSong's data folder (they have no extension).
+
+Each song keeps its slides as they were, its verses as groups (`v1` becomes Verse 1, `c` Chorus, `b` Bridge, `p` Pre-Chorus and so on), its verse order as the play order, and its writers, copyright and CCLI song number. Chords and comments are left out. A song written in several languages comes in in the first one. As with SongSelect, a song already in the library is left as it is.
 
 ### CCLI usage report
 
@@ -429,6 +438,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
+| `console/songselect.js`, `console/openlyrics.js`, `console/xml.js` | Importing songs from SongSelect, OpenLyrics and OpenSong files |
 | `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |
 | `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
 | `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |
