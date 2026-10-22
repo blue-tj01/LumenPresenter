@@ -100,10 +100,11 @@ The **Screens** menu, also on the Lumen icon in the taskbar's notification area,
 - **Audience output** and **Stage display**: choose a display for each, and it opens full screen there, with no window frame and above notifications. The choice is remembered, so both come straight back up the next time Lumen starts. If a display is unplugged its screen closes rather than landing on the operator's screen, and it reopens when the display is reconnected. **In a window** goes back to an ordinary window.
 - **NDI Output** sends the audience output over the network as an NDI source. See [NDI output](#ndi-output).
 - **Identify Screens** shows each display's number on it for a few seconds.
+- **When the Console Closes** sets what closing the console does while a screen is showing or NDI is sending: **Ask** (the default), **Quit Lumen**, or **Keep Screens Running**.
 - **Keep Screens Awake** (on by default) stops the computer and its displays going to sleep while Lumen runs.
 - **Start Lumen When Windows Starts** opens Lumen when you sign in to Windows. Not yet available on Linux.
 
-Closing the console while a screen is showing or NDI is sending keeps Lumen running, so the output isn't blanked by mistake. Click the Lumen icon to bring the console back, or right-click it and choose **Quit Lumen**. With no screens showing, closing the console quits Lumen.
+With no screens showing, closing the console quits Lumen. While a screen is showing or NDI is sending, Lumen asks whether to quit, which turns them off, or keep the screens running with Lumen in the tray. Tick **Don't ask again** to remember the answer; **Screens → When the Console Closes** changes it back. While Lumen is in the tray, click its icon to bring the console back, or right-click it and choose **Quit Lumen**.
 
 ### NDI output
 
