@@ -1,7 +1,8 @@
 // What is on screen: the live state every output window shows, going live, moving through slides, clearing.
 import { $ } from './dom.js';
 import { resolveSlide, slideSummary } from './format.js';
-import { autoSecs, flat, getPres, slideBackground, state, templateFor } from './library.js';
+import { autoSecs, flat, getPres, save, slideBackground, state, templateFor } from './library.js';
+import { recordUse } from './usage.js';
 import { renderAll, renderLiveMarks } from './views.js';
 
 // ---------- live state ----------
@@ -61,6 +62,7 @@ export function goLive(presId, idx) {
   live.next = nt ? slideSummary(flat(getPres(nt[0]))[nt[1]].slide) : '';
   if (state.selectedId !== presId) { state.selectedId = presId; renderAll(); }
   broadcast();
+  if (recordUse(state.db, p)) save(); // for the CCLI usage report
   const el = $(`.slide[data-idx="${idx}"]`); if (el) revealSlide(el);
 }
 /** A slide typed in on the spot, in the all-songs template. */

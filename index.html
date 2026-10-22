@@ -127,6 +127,7 @@
         <label>CCLI licence # <input id="ccliLicence" type="text" inputmode="numeric" placeholder="Your church's licence number"></label>
         <label class="chk"><input id="showCredits" type="checkbox"> Show credits on each song's last slide</label>
         <p class="muted small">A song's writers, copyright and CCLI song number are set in its editor.</p>
+        <button id="btnUsage" class="btn wide" title="The songs shown in services, to copy into your CCLI usage report">CCLI usage report…</button>
       </div>
       <div data-pane="bible" class="pane">
         <div class="row"><select id="scBible" title="Translation"></select>
@@ -235,6 +236,18 @@
     <div class="modal-h svc-actions"><span class="spacer"></span>
       <button type="button" id="svcCancel" class="btn ghost">Cancel</button><button type="submit" class="btn primary">Save</button></div>
   </form>
+</div>
+<!-- CCLI usage report -->
+<div id="usageDialog" class="modal" hidden>
+  <div class="modal-card usage-card">
+    <div class="modal-h"><b>CCLI usage report</b><span class="spacer"></span>
+      <label class="small">From <input id="usageFrom" type="date"></label>
+      <label class="small">To <input id="usageTo" type="date"></label></div>
+    <p class="muted small usage-note">Each song with a CCLI song number counts once in each service it was shown in, however many of its slides went up. Songs without a number aren't counted: add it in the song's editor. Copy the list into the reporting page on the CCLI website.</p>
+    <div class="usage-body"><table id="usageTable" class="usage-table"></table></div>
+    <div class="modal-h svc-actions"><span id="usageSum" class="muted small"></span><span class="spacer"></span>
+      <button id="usageCopy" class="btn">Copy</button><button id="usageCsv" class="btn">Download CSV</button><button id="usageClose" class="btn primary">Close</button></div>
+  </div>
 </div>
 <input id="importFile" type="file" accept="application/json" hidden>
 <div id="toast" class="toast"></div>

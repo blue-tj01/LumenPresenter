@@ -147,6 +147,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .svc-fields label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; }
 .svc-fields input { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; color: var(--text); font: inherit; color-scheme: dark; }
 .svc-actions { border-bottom: 0; border-top: 1px solid var(--line); }
+/* CCLI usage report */
+.usage-card { width: min(860px, 92vw); height: min(640px, 88vh); }
+.usage-card .modal-h input { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; color: var(--text); font: inherit; color-scheme: dark; }
+.usage-note { margin: 0; padding: 8px 12px 0; }
+.usage-body { flex: 1; overflow: auto; padding: 8px 12px; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.usage-table th { text-align: left; color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+.usage-table th, .usage-table td { padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.usage-table .n { text-align: right; font-variant-numeric: tabular-nums; }
+.usage-table .none { color: var(--muted); text-align: center; padding: 24px; }
 .ed-theme { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; max-width: 220px; }
 .ed-name { font-size: 16px; font-weight: 600; background: transparent; border: 0; outline: 0; flex: 1; }
 .ed-body { flex: 1; display: grid; grid-template-columns: 1fr 260px; min-height: 0; }

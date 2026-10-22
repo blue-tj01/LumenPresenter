@@ -34,6 +34,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Auto-advance and looping.** Let a presentation run by itself, ideal for announcement loops.
 - **Song search.** Find a song by any words in it, its title, its writers or its CCLI song number, as you type.
 - **CCLI details.** Each song keeps its writers, copyright and CCLI song number, shown with your church's CCLI licence number on its last slide.
+- **CCLI usage report.** Lumen notes each song shown in a service, and lists them by date range to copy into CCLI's reporting page or save as a CSV file.
 - **SongSelect import.** Bring in songs downloaded from CCLI SongSelect (`.usr` or `.txt`), words and CCLI details included.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
@@ -268,6 +269,12 @@ Songs downloaded from [CCLI SongSelect](https://songselect.ccli.com) come straig
 
 Each song arrives with its title, its sections as groups (Verse 1, Chorus, Bridge and so on, colour-coded as usual) split into slides of two lines, and its writers, copyright and CCLI song number filled in, so its credits show on its last slide straight away. A section the download writes out more than once, such as a repeated chorus, becomes one group played in each place it comes, in the song's play order. A song already in the library, matched by its CCLI song number, is left as it is rather than added twice; delete the old one first to bring in a fresh copy.
 
+### CCLI usage report
+
+Lumen keeps the record a CCLI licence asks for. Each time a song with a CCLI song number goes live, it is noted with the day and the open service, once however many of its slides are shown. Going back to it later in the same service doesn't count it again, but the same song in an evening service on the same day counts as a second use. Songs without a CCLI song number, such as notices or your own songs, aren't counted.
+
+**CCLI usage report…**, under **Song credits** on the **Theme** tab, lists the songs used between two dates (the last six months to start with), most used first, with each one's CCLI song number, writers, how many times it was used and on which days. **Copy** puts the list on the clipboard as columns, ready to paste into a spreadsheet, and **Download CSV** saves it as a file. CCLI has no way for apps like Lumen to send a report directly, so enter the songs on the reporting page of the CCLI website. The record is kept in the library, so it is in its backups and its exported copies.
+
 ## Themes
 
 The **Theme** tab has two lists:
@@ -407,6 +414,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
+| `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |
 | `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
 | `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |
 | `output.html`, `stage.html`, `render.js`, `render.css` | The audience output and stage display |
