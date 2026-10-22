@@ -158,7 +158,7 @@ function library6(songs) {
       songs.forEach((s, i) => add.run(`uid-${i}`, s.title, s.author || '', s.copyright || '', s.admin || '', s.ccli || '', -5));
     } else {
       const add = db.prepare('INSERT INTO word (song_id, words, slide_uids) VALUES (?, ?, ?)');
-      songs.forEach((s, i) => s.paras && add.run(i + 1, ew6Rtf(s.paras), 'x'));
+      songs.forEach((s, i) => (s.paras || s.plain) && add.run(i + 1, s.plain ? ewRtf(s.plain) : ew6Rtf(s.paras), 'x'));
     }
     db.close();
     out[file] = fs.readFileSync(path.join(dir, file));
@@ -177,15 +177,18 @@ const FOUNT6 = { title: 'Come Thou Fount', author: 'Robert Robinson', copyright:
   ['head', 'Spontaneous'], ['line', 'Hallelujah'],
 ] };
 
-it('reads an EasyWorship 6 library from Songs.db and SongWords.db', async () => {
+it('reads an EasyWorship 6 or 7 library from Songs.db and SongWords.db', async () => {
   const filler = Array.from({ length: 60 }, (_, i) => ({ title: `Notice ${i}`, paras: [['line', `Notice ${i} `.repeat(i % 7 ? 2 : 80)]] }));
-  const files = library6([FOUNT6, { title: 'Video only' }, ...filler]);
+  const hymn = { title: 'Doxology', author: 'Thomas Ken', plain: 'Verse 1\nPraise God, from whom all blessings flow\n\nChorus\nAmen' };
+  const files = library6([FOUNT6, { title: 'Video only' }, ...filler, hymn]);
   assert.equal(ew.easyWorship6Kind(files['Songs.db']), 'songs');
   assert.equal(ew.easyWorship6Kind(files['SongWords.db']), 'words');
   assert.equal(ew.easyWorship6Kind(library(SONGS).db), '');
   const { songs, empty } = ew.parseEasyWorship6(files['Songs.db'], files['SongWords.db']);
   assert.equal(empty, 1); // the video
-  assert.equal(songs.length, 61);
+  assert.equal(songs.length, 62);
+  // a song in plain RTF, as EasyWorship 7 keeps the songs it comes with, read as in EasyWorship 2009
+  assert.deepEqual(words(songs[61]), [['Verse 1', ['Praise God, from whom all blessings flow']], ['Chorus', ['Amen']]]);
   const fount = songs[0];
   assert.equal(fount.name, 'Come Thou Fount');
   assert.deepEqual(fount.meta, { author: 'Robert Robinson', copyright: 'Public Domain', ccli: '108389' });

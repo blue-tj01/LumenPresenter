@@ -184,8 +184,8 @@ export function renderMessages() {
 
 /** Songs from files added to the library: CCLI SongSelect (.usr or .txt), OpenLyrics (.xml, as OpenLP exports
  * them), OpenSong (which have no extension), ProPresenter (.pro, or the .probundle and .proplaylist files that hold
- * several) and an EasyWorship library (Songs.DB with Songs.MB from 2009, or Songs.db with SongWords.db from version
- * 6, chosen together), told apart by their names and what they hold. A song already there, by its CCLI song number (or its title, for one without), is left as it
+ * several) and an EasyWorship library (Songs.DB with Songs.MB from 2009, or Songs.db with SongWords.db from versions
+ * 6 and 7, chosen together), told apart by their names and what they hold. A song already there, by its CCLI song number (or its title, for one without), is left as it
  * is. */
 const MAX_SONG_BYTES = 2 * 1024 * 1024; // far more than any song; a picture or video dropped by mistake is bigger
 const MAX_BUNDLE_BYTES = 1024 * 1024 * 1024; // a ProPresenter bundle can carry its pictures and videos
@@ -202,7 +202,7 @@ async function importSongs(files) {
     }
   };
   // EasyWorship libraries come as pairs of files: Songs.DB with Songs.MB (2009), or Songs.db with SongWords.db (6
-  // and later, SQLite), so its database files are read together first.
+  // and 7, SQLite), so its database files are read together first.
   const memos = list.filter(f => /\.mb$/i.test(f.name)), dbs = [];
   for (const f of list.filter(f => /\.db$/i.test(f.name))) {
     if (f.size > MAX_BUNDLE_BYTES) { failed.push(f.name); continue; }

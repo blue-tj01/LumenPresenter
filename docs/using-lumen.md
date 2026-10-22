@@ -161,7 +161,7 @@ Each song keeps its slides as they were, its groups (Verse 1, Chorus and so on, 
 
 ### Moving from EasyWorship
 
-**EasyWorship 6.** Its songs are in two files, `Songs.db` and `SongWords.db`, in the `Databases\Data` folder of its profile (usually `Documents\Softouch\Easyworship\Default\v6.1\Databases\Data`). Choose **both** through **⤓ Songs**, or drop both onto the library, while EasyWorship is closed. Each song comes in with its slides as they were, its sections (the names EasyWorship shows above them) as groups, a section sung again played again, and its author, copyright, administrator and CCLI song number. Songs with no words, such as ones that only play a video, are left out.
+**EasyWorship 6 and 7.** Their songs are in two files, `Songs.db` and `SongWords.db`, in the `Databases\Data` folder of its profile (usually `Documents\Softouch\Easyworship\Default\v6.1\Databases\Data`, or `v7.1` for EasyWorship 7). Choose **both** through **⤓ Songs**, or drop both onto the library, while EasyWorship is closed. Each song comes in with its slides as they were, its sections (the names EasyWorship shows above them) as groups, a section sung again played again, and its author, copyright, administrator and CCLI song number. Songs with no words, such as ones that only play a video, are left out.
 
 **EasyWorship 2009.** It keeps its songs in two files in its data folder, `Songs.DB` and `Songs.MB` (usually under `Documents\Softouch\EasyWorship\<your profile>\Databases\Data`). Choose **both** through **⤓ Songs**, or drop both onto the library: Songs.DB holds the titles and details and Songs.MB the words. Copy them while EasyWorship is closed.
 

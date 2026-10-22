@@ -151,7 +151,8 @@ export function parseEasyWorship(db, mb) {
 // EasyWorship 6 and later keep songs in SQLite: Songs.db's song table holds each song's title, author, copyright,
 // administrator and reference_number (its CCLI song number), and SongWords.db's word table its words (song_id
 // pointing at the song), as RTF with a paragraph per line. A paragraph marked \sdparawysiwghidden is a section's
-// name ("Verse 1"), and one marked \sdslidemarker (with no words) starts a new slide.
+// name ("Verse 1"), and one marked \sdslidemarker (with no words) starts a new slide. EasyWorship 7 keeps the same
+// two files.
 
 /** A song's sections from its EasyWorship 6 RTF, each { name, slides }. */
 export function sectionsFromRtf6(rtf) {
@@ -172,7 +173,7 @@ export function sectionsFromRtf6(rtf) {
   return sections;
 }
 
-/** The songs in an EasyWorship 6 library: Songs.db's bytes and SongWords.db's. Returns { songs, empty }: empty
+/** The songs in an EasyWorship 6 or 7 library: Songs.db's bytes and SongWords.db's. Returns { songs, empty }: empty
  * counts songs with no words. */
 export function parseEasyWorship6(songsDb, wordsDb) {
   const songs = readSqlite(songsDb, n => n === 'song').song, words = readSqlite(wordsDb, n => n === 'word').word;
@@ -184,7 +185,12 @@ export function parseEasyWorship6(songsDb, wordsDb) {
     try {
       const rtf = bySong.get(s.rowid);
       if (typeof rtf !== 'string') throw new Error('no words');
-      out.push(songFromSections(s.title, sectionsFromRtf6(rtf), details(s.author, s.copyright, s.administrator, s.reference_number)));
+      const meta = details(s.author, s.copyright, s.administrator, s.reference_number);
+      // Songs typed in EasyWorship 6 or later mark their sections and slides; older ones it brought in (and the
+      // songs it comes with) are plain RTF laid out as in EasyWorship 2009.
+      out.push(/\\sd(parawysiwghidden|slidemarker)\b/.test(rtf)
+        ? songFromSections(s.title, sectionsFromRtf6(rtf), meta)
+        : songFromWords(s.title, rtfText(rtf), meta));
     } catch { empty++; }
   }
   return { songs: out, empty };

@@ -10,7 +10,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Plain-text slide editor.** Colour-coded groups and a custom play order, so a chorus is written once and sung as often as needed.
 - **Scripture.** Find a passage by reference or by its words in the KJV, WEB or BSB, or a Bible you import, and put it on slides in one click.
 - **Pictures, videos and slide decks.** Slideshows, videos with synchronised playback on every screen, and PowerPoint, Impress or PDF decks shown exactly as designed.
-- **Songs and CCLI.** Search as you type, credits on each song's last slide, a CCLI usage report, and import from SongSelect, ProPresenter 7, EasyWorship (2009 and 6), OpenLP and OpenSong.
+- **Songs and CCLI.** Search as you type, credits on each song's last slide, a CCLI usage report, and import from SongSelect, ProPresenter 7, EasyWorship (2009, 6 and 7), OpenLP and OpenSong.
 - **Themes and transitions.** Saved themes for every song or one presentation, with cut, fade, dip, push and zoom.
 - **Stage display, NDI and phone remote.** A stage clock and next slide for the band, NDI output (including words only on a transparent background for streaming), and a remote for any phone.
 - **Outside control.** Bitfocus Companion (Stream Deck), OSC and MIDI.
