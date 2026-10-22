@@ -29,7 +29,8 @@ function dataDir() {
 
 // ---------- this computer's settings (displays, keep awake), kept apart from the library ----------
 const settingsPath = () => path.join(app.getPath('userData'), 'desktop.json');
-const settings = { keepAwake: true, screens: {}, trayHintShown: false };
+// onClose: what closing the console does while a screen is up: 'ask', 'quit', or 'keep' running in the tray.
+const settings = { keepAwake: true, screens: {}, trayHintShown: false, onClose: 'ask' };
 function loadSettings() {
   try { Object.assign(settings, JSON.parse(fs.readFileSync(settingsPath(), 'utf8'))); } catch {}
 }
@@ -125,20 +126,44 @@ function openConsole() {
     backgroundColor: '#14161b', show: false, icon: ICON, webPreferences });
   consoleWin.once('ready-to-show', () => consoleWin.show());
   consoleWin.on('close', e => {
-    // With a screen still showing or NDI still sending, closing the console must not blank the output: Lumen
-    // stays in the tray.
+    // With a screen still showing or NDI still sending, closing the console asks first rather than blank the
+    // output by mistake, or quietly leave Lumen running in the tray.
     if (quitting || (!Object.keys(screens.windows).length && !ndi.on)) return;
     e.preventDefault();
-    consoleWin.hide();
-    if (!settings.trayHintShown && process.platform === 'win32') {
-      tray.displayBalloon({ title: 'Lumen is still running', iconType: 'info',
-        content: 'The screens stay up. Click the Lumen icon here to bring the console back, or right-click it to quit.' });
-      settings.trayHintShown = true;
-      saveSettings();
-    }
+    closeConsole();
   });
   consoleWin.on('closed', () => { consoleWin = null; app.quit(); });
   consoleWin.loadURL(`${origin}/`);
+}
+
+let asking = false;
+/** Ask whether to quit or keep the screens running, unless "Don't ask again" settled it (Screens → When the
+ * Console Closes changes it back). Cancel leaves the console open. */
+async function closeConsole() {
+  if (asking) return;
+  let action = settings.onClose;
+  if (action !== 'quit' && action !== 'keep') {
+    const output = [...Object.keys(screens.windows).map(n => SCREENS[n].label), ...ndi.on ? ['NDI output'] : []];
+    asking = true;
+    const { response, checkboxChecked } = await dialog.showMessageBox(consoleWin, {
+      type: 'question', title: 'Lumen Presenter', message: 'Quit Lumen Presenter?',
+      detail: `${output.join(' and ')} ${output.length > 1 ? 'are' : 'is'} still running. Quitting turns ` +
+        `${output.length > 1 ? 'them' : 'it'} off. Keep the screens running to leave them up, with Lumen in the tray.`,
+      buttons: ['Quit Lumen', 'Keep Screens Running', 'Cancel'], defaultId: 0, cancelId: 2, noLink: true,
+      checkboxLabel: 'Don’t ask again',
+    }).finally(() => { asking = false; });
+    action = ['quit', 'keep', 'cancel'][response];
+    if (checkboxChecked && action !== 'cancel') { settings.onClose = action; saveSettings(); buildMenus(); }
+  }
+  if (action === 'quit') return app.quit();
+  if (action !== 'keep' || !consoleWin) return;
+  consoleWin.hide();
+  if (!settings.trayHintShown && process.platform === 'win32') {
+    tray.displayBalloon({ title: 'Lumen is still running', iconType: 'info',
+      content: 'The screens stay up. Click the Lumen icon here to bring the console back, or right-click it to quit.' });
+    settings.trayHintShown = true;
+    saveSettings();
+  }
 }
 
 // ---------- keep awake, start at sign-in ----------
@@ -160,6 +185,9 @@ function screensMenu() {
     ndi.menu(buildMenus),
     { type: 'separator' },
     { label: 'Identify Screens', click: () => screens.identify() },
+    { label: 'When the Console Closes', submenu: [['ask', 'Ask'], ['quit', 'Quit Lumen'], ['keep', 'Keep Screens Running']]
+      .map(([value, label]) => ({ label, type: 'radio', checked: (settings.onClose || 'ask') === value,
+        click: () => { settings.onClose = value; saveSettings(); buildMenus(); } })) },
     { type: 'separator' },
     { label: 'Keep Screens Awake', type: 'checkbox', checked: settings.keepAwake,
       click: item => { setKeepAwake(item.checked); saveSettings(); } },
