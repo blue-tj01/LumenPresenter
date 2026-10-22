@@ -98,14 +98,14 @@ function output({ settings = {}, load, platform = 'win32' } = {}) {
 
 const image = (width, height) => ({ isEmpty: () => false, getSize: () => ({ width, height }), toBitmap: () => Buffer.alloc(width * height * 4, 7) });
 
-it('is off until turned on, with 1080p at 30 frames a second to start with', () => {
+it('is off until turned on, with words only at 1080p and 30 frames a second to start with', () => {
   const { out, settings } = output();
   assert.equal(out.on, false);
-  assert.deepEqual(settings.ndi, { on: false, size: '1920x1080', fps: 30, alpha: false });
+  assert.deepEqual(settings.ndi, { on: false, size: '1920x1080', fps: 30, alpha: true });
 });
 
 it('draws the audience output off screen and sends each picture over NDI', async () => {
-  const { out, electron, ndi, settings, saves } = output();
+  const { out, electron, ndi, settings, saves } = output({ settings: { ndi: { alpha: false } } });
   await out.set(true);
   assert.equal(out.on, true);
   assert.equal(settings.ndi.on, true);
@@ -155,7 +155,7 @@ it('closes the NDI source only once NDI has finished with the frame it is sendin
 });
 
 it('restarts at a new size or frame rate, and remembers it', async () => {
-  const { out, electron, ndi, settings } = output();
+  const { out, electron, ndi, settings } = output({ settings: { ndi: { alpha: false } } });
   await out.set(true);
   const done = out.configure({ size: '1280x720', fps: 50 });
   await done;
@@ -174,7 +174,7 @@ it('restarts at a new size or frame rate, and remembers it', async () => {
 });
 
 it('sends only the words on a transparent background when asked, and remembers it', async () => {
-  const { out, electron, ndi, settings } = output();
+  const { out, electron, ndi, settings } = output({ settings: { ndi: { alpha: false } } });
   await out.set(true);
   assert.equal(electron.opened[0].opts.transparent, false);
   assert.equal(electron.opened[0].opts.backgroundColor, '#000000');
@@ -195,9 +195,6 @@ it('sends only the words on a transparent background when asked, and remembers i
   await new Promise(r => setTimeout(r, 50));
   assert.deepEqual([...ndi.senders[1].frames[0].data], [0, 0, 0, 0, 10, 20, 30, 255, 128, 64, 0, 128]);
 
-  // Words only never plays video sound: there is no video on that page.
-  out.check();
-  assert.equal(win.webContents.muted, true);
   const stopped = out.stop();
   ndi.senders[1].pending();
   await stopped;

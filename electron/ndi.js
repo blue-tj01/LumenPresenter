@@ -1,13 +1,14 @@
 // Sends the audience output over the network as an NDI source, for vision mixers, streaming software and other
 // computers to pick up without OBS in between. The output page is drawn in a hidden window and each frame goes
-// to NDI as it is. Picture only: video sound still plays from this computer. With a transparent background, only
-// the words go out, over see-through pixels, so streaming software lays them over its own picture.
+// to NDI as it is. Picture only: video sound still plays from this computer. With a transparent background (the
+// default), only the words and a slide's own video go out, over see-through pixels, so streaming software lays them
+// over its own picture.
 'use strict';
 const ndiLib = require('./ndi-lib.js');
 
 const SIZES = { '1280x720': '720p (1280×720)', '1920x1080': '1080p (1920×1080)', '3840x2160': '4K (3840×2160)' };
 const RATES = [25, 30, 50, 60];
-const DEFAULTS = { on: false, size: '1920x1080', fps: 30, alpha: false };
+const DEFAULTS = { on: false, size: '1920x1080', fps: 30, alpha: true };
 
 /** The NDI library, or why it can't be used. */
 function loadNdi() {
@@ -143,7 +144,7 @@ class NdiOutput {
   }
 
   /** How many receivers are watching, and whether the page should be quiet: video sound plays from the audience
-   * output window when one is open, and from here only when NDI is the sole output and sends the whole picture. */
+   * output window when one is open, and from here only when NDI is the sole output. */
   check() {
     if (!this.sender) return;
     const n = this.sender.connections();
@@ -151,7 +152,7 @@ class NdiOutput {
     const wc = this.win?.webContents;
     if (!wc || wc.isDestroyed()) return;
     const isOutput = other => { try { return new URL(other.getURL()).pathname === '/output.html'; } catch { return false; } };
-    const shown = !!this.config.alpha || this.electron.webContents.getAllWebContents()
+    const shown = this.electron.webContents.getAllWebContents()
       .some(other => other !== wc && !other.isDestroyed() && !other.isOffscreen() && isOutput(other));
     if (wc.isAudioMuted() !== shown) wc.setAudioMuted(shown);
   }

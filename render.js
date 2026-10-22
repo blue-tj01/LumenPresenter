@@ -188,8 +188,8 @@
   // live = { bg, slide:{elements, play, stageText}, msg, logo, logoText, logoImg, transition:{type, ms} }. With
   // opts.fade, the background and slide change with the live transition (a fade in live state from before
   // transitions), and messages and the logo fade; without it, everything changes at once. With opts.wordsOnly (NDI
-  // on a transparent background) the background, the slide's pictures and videos, and the logo screen are left out,
-  // so only the words, the template's shapes and messages are drawn.
+  // on a transparent background) the background, the slide's pictures, looping videos and the logo screen are left
+  // out, so the words, the template's shapes, messages and a slide's own video are drawn.
   function update(screen, live, opts = {}) {
     const st = screen._pp, inner = screen.firstElementChild;
     const fade = opts.fade ? FADE : null, tr = opts.fade ? live.transition || FADE : null, animate = opts.animate !== false;
@@ -202,7 +202,10 @@
     // The slide's elements: one that is the same as before stays as it is (a picture under changing words, say),
     // and the rest change over.
     const sl = live.slide;
-    const els = legacyElements(sl, t).filter(e => !words || (e.type !== 'image' && e.type !== 'video'));
+    // Words only still plays a slide's own video (one that plays once, such as a video in the playlist), without
+    // its black backing, so it fades out to see-through when it ends.
+    const els = legacyElements(sl, t).flatMap(e => !words || e.type === 'text' || e.type === 'shape' ? [e]
+      : e.type === 'video' && e.loop === false ? [{ ...e, fill: undefined }] : []);
     const keyOf = e => JSON.stringify(e) + (e.type === 'video' && e.loop === false ? '|' + ((sl.play && sl.play.startAt) || '') : '');
     const old = st.slide, next = [];
     for (const e of els) {

@@ -32,7 +32,7 @@
     showHint('Click here to turn on video sound');
     document.addEventListener('click', () => { v.muted = false; hint.style.opacity = 0; }, { once: true });
   };
-  Lumen.on('state', d => PP.update(screen, d.live, { fade: true, sound: !alpha, wordsOnly: alpha, onMuted }));
+  Lumen.on('state', d => PP.update(screen, d.live, { fade: true, sound: true, wordsOnly: alpha, onMuted }));
   Lumen.init().then(online => { if (!online) Lumen.hello(); });
   const fs = () => document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
   document.ondblclick = fs;
