@@ -5,6 +5,8 @@ import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackgroun
 import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
 import { addService, duplicateService, nextSunday, openService, removeService, serviceLabel, sortedServices, switchService, updateService } from './services.js';
 import { isXml, parseSongXml } from './openlyrics.js';
+import { isProPresenterFile, parseProPresenter } from './propresenter.js';
+import { parseEasyWorship } from './easyworship.js';
 import { decode, findSame, parseSongSelect } from './songselect.js';
 import { slideFiles } from './powerpoint.js';
 import { renderTheme } from './themes.js';
@@ -180,23 +182,43 @@ export function renderMessages() {
 
 
 /** Songs from files added to the library: CCLI SongSelect (.usr or .txt), OpenLyrics (.xml, as OpenLP exports
- * them) and OpenSong (which have no extension), told apart by what they hold. A song already there, by its CCLI
- * song number (or its title, for one without), is left as it is. */
+ * them), OpenSong (which have no extension), ProPresenter (.pro, or the .probundle and .proplaylist files that hold
+ * several) and an EasyWorship 2009 library (Songs.DB, with Songs.MB chosen alongside it), told apart by their names
+ * and what they hold. A song already there, by its CCLI song number (or its title, for one without), is left as it
+ * is. */
 const MAX_SONG_BYTES = 2 * 1024 * 1024; // far more than any song; a picture or video dropped by mistake is bigger
+const MAX_BUNDLE_BYTES = 1024 * 1024 * 1024; // a ProPresenter bundle can carry its pictures and videos
+const isLibraryFile = name => /\.(pro|probundle|proplaylist|db|mb)$/i.test(name); // files that hold many songs
+const stem = name => name.replace(/\.[^.]*$/, '').toLowerCase();
 async function importSongs(files) {
   const added = [], kept = [], failed = [];
-  for (const f of [...files]) { // a copy: the file input is cleared while these are read
-    if (f.size > MAX_SONG_BYTES) { failed.push(f.name); continue; }
+  let needMemo = 0;
+  const list = [...files]; // a copy: the file input is cleared while these are read
+  const memos = list.filter(f => /\.mb$/i.test(f.name));
+  for (const f of list) {
+    if (memos.includes(f)) continue; // read with its Songs.DB
+    if (f.size > (isLibraryFile(f.name) ? MAX_BUNDLE_BYTES : MAX_SONG_BYTES)) { failed.push(f.name); continue; }
     try {
-      const text = decode(await f.arrayBuffer());
-      let p;
-      if (isXml(text)) p = parseSongXml(text);
-      else if (/\.(usr|txt)$/i.test(f.name)) p = parseSongSelect(f.name, text);
-      else { failed.push(f.name); continue; }
-      if (findSame([...state.db.presentations, ...added], p)) { kept.push(p.name); continue; }
-      added.push(p);
+      let songs;
+      if (isProPresenterFile(f.name)) songs = await parseProPresenter(await f.arrayBuffer(), f.name);
+      else if (/\.db$/i.test(f.name)) {
+        // Songs.MB goes with Songs.DB by name, or is the only memo file chosen.
+        const memo = memos.find(m => stem(m.name) === stem(f.name)) || (memos.length === 1 ? memos[0] : null);
+        const ew = parseEasyWorship(await f.arrayBuffer(), memo && await memo.arrayBuffer());
+        songs = ew.songs; needMemo += ew.cut;
+      } else {
+        const text = decode(await f.arrayBuffer());
+        if (isXml(text)) songs = [parseSongXml(text)];
+        else if (/\.(usr|txt)$/i.test(f.name)) songs = [parseSongSelect(f.name, text)];
+        else { failed.push(f.name); continue; }
+      }
+      for (const p of songs) {
+        if (findSame([...state.db.presentations, ...added], p)) kept.push(p.name);
+        else added.push(p);
+      }
     } catch { failed.push(f.name); }
   }
+  if (memos.length && !list.some(f => /\.db$/i.test(f.name))) failed.push(...memos.map(f => f.name));
   if (added.length) {
     state.db.presentations.push(...added);
     state.selectedId = added[added.length - 1].id;
@@ -205,6 +227,7 @@ async function importSongs(files) {
   const n = (k, one) => `${k.length} ${one}${k.length === 1 ? '' : 's'}`;
   toast([added.length === 1 ? `Imported “${added[0].name}”` : added.length && `Imported ${n(added, 'song')}`,
     kept.length && `${kept.length === 1 ? `“${kept[0]}” is` : `${n(kept, 'song')} are`} already in the library`,
+    needMemo && `${needMemo === 1 ? '1 song needs' : `${needMemo} songs need`} Songs.MB too: choose it with Songs.DB`,
     failed.length && `${failed.length === 1 ? failed[0] : n(failed, 'file')} could not be read as ${failed.length === 1 ? 'a song' : 'songs'}`]
     .filter(Boolean).join(' · ') || 'No songs found');
 }
