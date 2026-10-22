@@ -39,7 +39,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Transitions.** Cut, fade, dip to black, push or zoom between slides, for every song or one presentation, the same on every screen and over NDI.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
-- **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between.
+- **NDI output.** Send the audience output to a vision mixer, streaming software or another computer over the network, without OBS in between, or just the words on a transparent background to lay over a live stream.
 - **Phone remote.** Step through the service from a phone: next and previous, the playlist and its slides, and clearing the screen.
 - **Network mode.** Drive screens on other devices through one-time token links, with device sign-in and sign-out.
 - **Never loses the show.** Library, media and live state are saved on disk, so reloading a window or restarting the server never blanks the projector.
@@ -110,6 +110,8 @@ The desktop app can send the audience output over the network as an [NDI®](http
 1. Install the free [NDI Tools](https://ndi.video/tools/) on the computer running Lumen, which installs the NDI Runtime Lumen uses. If Lumen was open while you installed it, choose **Screens → NDI Output → Look for NDI Again**.
 2. Turn on **Screens → NDI Output → Send Audience Output over NDI**. The source appears on the network as *COMPUTER-NAME (Lumen Presenter)*. The same menu shows how many receivers are watching.
 3. Choose the size (720p, 1080p or 4K) and frame rate (25, 30, 50 or 60) in the same menu. 1080p at 30 is the default. Higher settings use more processor time and network bandwidth.
+
+**Words only, for streaming.** **Screens → NDI Output → Words Only, on a Transparent Background**, on to start with, sends just the words, using the same template as the audience output, with see-through pixels everywhere else. OBS, Ecamm Live, vMix and other receivers that take NDI with alpha lay the words straight over their own camera or scene, with no black box to key out. A video in the playlist, or on a slide with `@video:`, still plays over the stream, and once it ends or the next slide goes up the stream is see-through again. Backgrounds (including a video chosen from the media bin), pictures on slides (including imported PowerPoint and PDF slides, which are pictures) and the logo screen are left out; messages and any box the template draws behind the words stay. Turn it off to send the whole audience output. In OBS or Ecamm, add it as an NDI source and place it above the camera.
 
 NDI carries the picture only. Video sound plays from the computer running Lumen, as it does now. NDI stays on, and comes back on the next time Lumen starts, until it's turned off. The first time, Windows may ask whether Lumen can use the network: allow it on private networks so receivers can find the source.
 

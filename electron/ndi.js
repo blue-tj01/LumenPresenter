@@ -1,17 +1,32 @@
 // Sends the audience output over the network as an NDI source, for vision mixers, streaming software and other
 // computers to pick up without OBS in between. The output page is drawn in a hidden window and each frame goes
-// to NDI as it is. Picture only: video sound still plays from this computer.
+// to NDI as it is. Picture only: video sound still plays from this computer. With a transparent background (the
+// default), only the words and a slide's own video go out, over see-through pixels, so streaming software lays them
+// over its own picture.
 'use strict';
 const ndiLib = require('./ndi-lib.js');
 
 const SIZES = { '1280x720': '720p (1280×720)', '1920x1080': '1080p (1920×1080)', '3840x2160': '4K (3840×2160)' };
 const RATES = [25, 30, 50, 60];
-const DEFAULTS = { on: false, size: '1920x1080', fps: 30 };
+const DEFAULTS = { on: false, size: '1920x1080', fps: 30, alpha: true };
 
 /** The NDI library, or why it can't be used. */
 function loadNdi() {
   try { return { ndi: ndiLib.open() }; }
   catch (e) { return { error: e.message, missing: e.code === 'NDI_MISSING' }; }
+}
+
+/** Chromium paints with premultiplied alpha and NDI's BGRA is straight alpha, so each part-covered pixel's colour is
+ * divided by its coverage. Fully clear and fully solid pixels, nearly all of them, are left as they are. */
+function unpremultiply(data) {
+  for (let i = 3; i < data.length; i += 4) {
+    const a = data[i];
+    if (a === 0 || a === 255) continue;
+    data[i - 3] = Math.min(255, Math.round(data[i - 3] * 255 / a));
+    data[i - 2] = Math.min(255, Math.round(data[i - 2] * 255 / a));
+    data[i - 1] = Math.min(255, Math.round(data[i - 1] * 255 / a));
+  }
+  return data;
 }
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
@@ -89,7 +104,7 @@ class NdiOutput {
     sender.destroy();
   }
 
-  /** Change the picture size or frame rate; a running output restarts with it. */
+  /** Change the picture size, frame rate or background; a running output restarts with it. */
   async configure(change) {
     this.settings.ndi = { ...this.config, ...change };
     this.save();
@@ -100,15 +115,19 @@ class NdiOutput {
   openPage() {
     const { BrowserWindow } = this.electron;
     const [width, height] = this.config.size.split('x').map(Number);
-    const win = this.win = new BrowserWindow({ width, height, show: false, frame: false, backgroundColor: '#000000',
+    const alpha = !!this.config.alpha;
+    const win = this.win = new BrowserWindow({ width, height, show: false, frame: false, transparent: alpha,
+      backgroundColor: alpha ? '#00000000' : '#000000',
       webPreferences: { ...this.webPreferences, offscreen: { deviceScaleFactor: 1 } } });
     const wc = win.webContents;
     wc.setFrameRate(this.config.fps);
     wc.on('paint', (e, dirty, image) => {
-      if (this.win === win && !image.isEmpty()) this.frame = { size: image.getSize(), data: image.toBitmap() };
+      if (this.win !== win || image.isEmpty()) return;
+      const data = image.toBitmap();
+      this.frame = { size: image.getSize(), data: alpha ? unpremultiply(data) : data };
     });
     win.on('closed', () => { if (this.win === win) this.win = null; });
-    wc.loadURL(`${this.origin}/output.html?display`);
+    wc.loadURL(`${this.origin}/output.html?display${alpha ? '&alpha' : ''}`);
     this.check();
   }
 
@@ -162,6 +181,9 @@ class NdiOutput {
         click: then(() => this.set(!this.on)) },
       ...status.length ? [{ type: 'separator' }, ...status] : [],
       { type: 'separator' },
+      { label: 'Words Only, on a Transparent Background', type: 'checkbox', checked: !!this.config.alpha,
+        click: then(() => this.configure({ alpha: !this.config.alpha })) },
+      { type: 'separator' },
       ...Object.entries(SIZES).map(([size, label]) => ({ label, type: 'radio', checked: this.config.size === size,
         click: then(() => this.configure({ size })) })),
       { type: 'separator' },
@@ -171,4 +193,4 @@ class NdiOutput {
   }
 }
 
-module.exports = { NdiOutput, loadNdi, SIZES, RATES };
+module.exports = { NdiOutput, loadNdi, unpremultiply, SIZES, RATES };
