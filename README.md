@@ -35,7 +35,7 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Song search.** Find a song by any words in it, its title, its writers or its CCLI song number, as you type.
 - **CCLI details.** Each song keeps its writers, copyright and CCLI song number, shown with your church's CCLI licence number on its last slide.
 - **CCLI usage report.** Lumen notes each song shown in a service, and lists them by date range to copy into CCLI's reporting page or save as a CSV file.
-- **Song import.** Bring in songs downloaded from CCLI SongSelect (`.usr` or `.txt`), or a library from OpenLP (OpenLyrics) or OpenSong, words, play order and CCLI details included.
+- **Song import.** Bring in songs downloaded from CCLI SongSelect (`.usr` or `.txt`), or a library from ProPresenter 7, OpenLP (OpenLyrics) or OpenSong, words, play order and CCLI details included.
 - **Transitions.** Cut, fade, dip to black, push or zoom between slides, for every song or one presentation, the same on every screen and over NDI.
 - **Saved themes.** One look for every song, or a dedicated theme per presentation.
 - **Stage display.** Clock, countdown, current and next slide, and stage-only messages.
@@ -279,6 +279,15 @@ Songs from OpenLP and OpenSong come in the same way, through **⤓ Songs** or by
 
 Each song keeps its slides as they were, its verses as groups (`v1` becomes Verse 1, `c` Chorus, `b` Bridge, `p` Pre-Chorus and so on), its verse order as the play order, and its writers, copyright and CCLI song number. Chords and comments are left out. A song written in several languages comes in in the first one. As with SongSelect, a song already in the library is left as it is.
 
+### Moving from ProPresenter 7
+
+ProPresenter songs come in the same way, through **⤓ Songs** or by dropping the files onto the library:
+
+- **Songs:** the `.pro` files in ProPresenter's library folder (`Documents/ProPresenter/Libraries` by default), many at a time.
+- **Bundles and playlists:** a `.probundle` or `.proplaylist` exported from ProPresenter brings in every song it holds.
+
+Each song keeps its slides as they were, its groups (Verse 1, Chorus and so on, colour-coded by their names), its arrangements as play orders, with the one selected in ProPresenter playing, and its CCLI details: writers, copyright year and publisher, and song number. Only the words come in: slide designs, backgrounds and media are left out, and the song takes your Lumen theme. A group copied under the same name with the same words plays again rather than coming in twice. As with SongSelect, a song already in the library is left as it is.
+
 ### CCLI usage report
 
 Lumen keeps the record a CCLI licence asks for. Each time a song with a CCLI song number goes live, it is noted with the day and the open service, once however many of its slides are shown. Going back to it later in the same service doesn't count it again, but the same song in an evening service on the same day counts as a second use. Songs without a CCLI song number, such as notices or your own songs, aren't counted.
@@ -438,7 +447,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
-| `console/songselect.js`, `console/openlyrics.js`, `console/xml.js` | Importing songs from SongSelect, OpenLyrics and OpenSong files |
+| `console/songselect.js`, `console/openlyrics.js`, `console/xml.js`, `console/propresenter.js`, `console/zip.js` | Importing songs from SongSelect, OpenLyrics, OpenSong and ProPresenter files |
 | `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |
 | `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
 | `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |

@@ -5,6 +5,7 @@ import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackgroun
 import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
 import { addService, duplicateService, nextSunday, openService, removeService, serviceLabel, sortedServices, switchService, updateService } from './services.js';
 import { isXml, parseSongXml } from './openlyrics.js';
+import { isProPresenterFile, parseProPresenter } from './propresenter.js';
 import { decode, findSame, parseSongSelect } from './songselect.js';
 import { slideFiles } from './powerpoint.js';
 import { renderTheme } from './themes.js';
@@ -180,21 +181,29 @@ export function renderMessages() {
 
 
 /** Songs from files added to the library: CCLI SongSelect (.usr or .txt), OpenLyrics (.xml, as OpenLP exports
- * them) and OpenSong (which have no extension), told apart by what they hold. A song already there, by its CCLI
- * song number (or its title, for one without), is left as it is. */
+ * them), OpenSong (which have no extension) and ProPresenter (.pro, or the .probundle and .proplaylist files that
+ * hold several), told apart by their names and what they hold. A song already there, by its CCLI song number (or
+ * its title, for one without), is left as it is. */
 const MAX_SONG_BYTES = 2 * 1024 * 1024; // far more than any song; a picture or video dropped by mistake is bigger
+const MAX_BUNDLE_BYTES = 1024 * 1024 * 1024; // a ProPresenter bundle can carry its pictures and videos
 async function importSongs(files) {
   const added = [], kept = [], failed = [];
   for (const f of [...files]) { // a copy: the file input is cleared while these are read
-    if (f.size > MAX_SONG_BYTES) { failed.push(f.name); continue; }
+    const pro = isProPresenterFile(f.name);
+    if (f.size > (pro ? MAX_BUNDLE_BYTES : MAX_SONG_BYTES)) { failed.push(f.name); continue; }
     try {
-      const text = decode(await f.arrayBuffer());
-      let p;
-      if (isXml(text)) p = parseSongXml(text);
-      else if (/\.(usr|txt)$/i.test(f.name)) p = parseSongSelect(f.name, text);
-      else { failed.push(f.name); continue; }
-      if (findSame([...state.db.presentations, ...added], p)) { kept.push(p.name); continue; }
-      added.push(p);
+      let songs;
+      if (pro) songs = await parseProPresenter(await f.arrayBuffer(), f.name);
+      else {
+        const text = decode(await f.arrayBuffer());
+        if (isXml(text)) songs = [parseSongXml(text)];
+        else if (/\.(usr|txt)$/i.test(f.name)) songs = [parseSongSelect(f.name, text)];
+        else { failed.push(f.name); continue; }
+      }
+      for (const p of songs) {
+        if (findSame([...state.db.presentations, ...added], p)) kept.push(p.name);
+        else added.push(p);
+      }
     } catch { failed.push(f.name); }
   }
   if (added.length) {
