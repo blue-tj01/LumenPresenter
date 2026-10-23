@@ -1,6 +1,7 @@
 // Lumen Presenter: operator console. Loads the library and live state, then wires the page up.
 import { $, toast } from './dom.js';
 import { setupBackups } from './backups.js';
+import { rebaseUndo, resetUndo, undo } from './undo.js';
 import { saveEditor, setupEditor } from './editor.js';
 import { getPres, keepCopy, loadCopy, normalize, save, state, valid } from './library.js';
 import { adoptLive, broadcast, clear, refreshLive, step, upgradeLive } from './live.js';
@@ -28,6 +29,7 @@ state.db = normalize(state.db);
 const restored = Lumen.online ? (await Lumen.getLive().catch(() => null))?.live : null;
 if (restored) adoptLive(restored);
 const upgraded = upgradeLive();
+resetUndo(state.db);
 state.selectedId = (state.db.playlist[0] || state.db.presentations[0]?.id) ?? null;
 
 setupViews(); setupEditor(); setupMedia(); setupThemes(); setupTimer(); setupNetwork(); setupControl(); setupScripture(); setupPowerPoint(); setupReport(); setupLayoutEditor();
@@ -35,12 +37,24 @@ setupViews(); setupEditor(); setupMedia(); setupThemes(); setupTimer(); setupNet
 const popup = (url, name) => { const w = window.open(url, name, 'width=1280,height=760'); if (!w) toast('Allow pop-ups to open output windows'); else if (!Lumen.online) setTimeout(broadcast, 600); };
 $('#btnOutput').onclick = () => popup('output.html', 'lumen-output');
 $('#btnStage').onclick = () => popup('stage.html', 'lumen-stage');
-setupBackups(() => { state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id; clear('all'); renderAll(); renderMedia(); renderMessages(); renderTheme(); });
+setupBackups(() => { resetUndo(state.db); state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id; clear('all'); renderAll(); renderMedia(); renderMessages(); renderTheme(); });
+
+// Undo and redo, for every change to the library made here.
+const undoRedo = again => undo(state.db, () => {
+  save();
+  if (!getPres(state.selectedId)) state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id;
+  renderAll(); renderMedia(); renderMessages(); renderTheme(); refreshLive();
+}, again);
+$('#btnUndo').onclick = () => undoRedo(false);
+$('#btnRedo').onclick = () => undoRedo(true);
 
 document.addEventListener('keydown', e => {
   if (!$('#layoutEditor').hidden) return; // the layout editor has its own keys
   if (!$('#editor').hidden) { if (e.key === 'Escape') $('#editor').hidden = true; if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveEditor(); } return; }
   if (e.target.matches('input, textarea, select')) return;
+  if ((e.ctrlKey || e.metaKey) && ['z', 'y'].includes(e.key.toLowerCase())) {
+    e.preventDefault(); undoRedo(e.key.toLowerCase() === 'y' || e.shiftKey); return;
+  }
   const map = { ArrowRight: () => step(1), ArrowDown: () => step(1), ' ': () => step(1), PageDown: () => step(1),
     ArrowLeft: () => step(-1), ArrowUp: () => step(-1), PageUp: () => step(-1),
     F1: () => clear('all'), F2: () => clear('slide'), F3: () => clear('bg'), F4: () => clear('msg'), F6: () => clear('logo') };
@@ -67,6 +81,7 @@ Lumen.on('conflict', list => {
 });
 function adoptLibrary(d) {
   state.db = normalize(d);
+  rebaseUndo(state.db);
   keepCopy(state.db);
   if (!getPres(state.selectedId)) state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id;
   renderAll(); renderMedia(); renderMessages(); renderTheme(); refreshLive();

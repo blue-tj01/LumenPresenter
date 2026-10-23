@@ -5,6 +5,7 @@ import { save, state } from './library.js';
 import { goLive } from './live.js';
 import { DEFAULTS, passagePresentation, scriptureTemplate } from './passage.js';
 import { renderAll } from './views.js';
+import { ask } from './dialog.js';
 
 const PREFS = 'lumen.scripture';
 let bibles = [], found = null, asked = 0, timer;
@@ -126,7 +127,7 @@ export function setupScripture() {
   $('#scFile').onchange = e => { const f = e.target.files[0]; if (f) importBible(f); e.target.value = ''; };
   $('#scRemove').onclick = async () => {
     const b = bible();
-    if (!b || b.bundled || !confirm(`Remove ${b.name}? Slides already made from it stay.`)) return;
+    if (!b || b.bundled || !await ask(`Remove ${b.name}? Slides already made from it stay.`, { ok: 'Remove', danger: true })) return;
     try { await Lumen.deleteBible(b.id); await loadBibles(); } catch (e) { toast(e.message); }
   };
   Lumen.on('bibles', loadBibles);

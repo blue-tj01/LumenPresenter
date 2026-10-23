@@ -18,10 +18,12 @@ What changed in each release of Lumen Presenter, newest first. Changes waiting f
 - The browser's own copy of the library moves from localStorage (about 5 MB) to IndexedDB.
 
 ### Added
+- Undo and redo for the library (Ctrl+Z, Ctrl+Shift+Z, and ↶ ↷ in the top bar): editing or deleting a song, themes,
+  the playlist, services, messages and the rest. Changes made within a moment of each other are one step.
 - Backups can be listed and restored from the Library dialog. A backup is made before every import, restore or
   start over, and the last backup of each day is kept for 30 days on top of the latest 50.
-- Questions are asked in Lumen's own dialog rather than the browser's, with Cancel picked for anything that can't
-  be taken back.
+- Every question is asked in Lumen's own dialog rather than the browser's `confirm()`, with Cancel picked for
+  anything that can't be taken back, and keys kept from the slides behind it.
 - An icon for the pages in browser tabs.
 
 ### Development

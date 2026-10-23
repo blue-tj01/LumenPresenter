@@ -121,6 +121,28 @@ describe('console', () => {
     await until(async () => (await songs(c)).includes('Keep Me'), 'the restored library');
   });
 
+  it('asks before deleting a song, and undoes and redoes it', async () => {
+    const c = await open();
+    await c.click('#libList li:has-text("Doxology")');
+    await c.click('#btnDelete');
+    await c.click('.ask-card button:has-text("Cancel")');
+    assert.ok((await songs(c)).includes('Doxology'));
+    await c.click('#btnDelete');
+    await c.click('.ask-card button[type=submit]');
+    await until(async () => !(await songs(c)).includes('Doxology'), 'the song deleted');
+    await c.keyboard.press('Control+z');
+    await until(async () => (await songs(c)).includes('Doxology'), 'the song back');
+    assert.match(await c.textContent('#toast') || '', /Undid “Doxology”/);
+    await c.keyboard.press('Control+Shift+z');
+    await until(async () => !(await songs(c)).includes('Doxology'), 'the song deleted again');
+    await c.click('#btnUndo');
+    await until(async () => (await songs(c)).includes('Doxology'), 'the song back again');
+    await c.waitForTimeout(700);
+    await c.reload();
+    await c.waitForSelector('#libList li');
+    assert.ok((await songs(c)).includes('Doxology'), 'the undo was saved');
+  });
+
   it('opens the theme layout editor and leaves it without changes', async () => {
     const c = await open();
     await c.click('#thLayout');

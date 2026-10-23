@@ -250,5 +250,7 @@ Every font list ends with **Add a font…**, which takes a `.ttf`, `.otf`, `.wof
 | <kbd>F3</kbd> | Clear background media |
 | <kbd>F4</kbd> | Clear message |
 | <kbd>F6</kbd> | Toggle logo screen |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Z</kbd> | Undo the last change to the library (a song edited or deleted, a theme, the playlist, a service); also ↶ in the top bar |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>, <kbd>Ctrl</kbd> + <kbd>Y</kbd> | Redo; also ↷ in the top bar |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> | Save, in the editor |
 | <kbd>Esc</kbd> | Close the editor |

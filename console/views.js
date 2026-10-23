@@ -13,6 +13,7 @@ import { decode, findSame, parseSongSelect } from './songselect.js';
 import { slideFiles } from './powerpoint.js';
 import { renderTheme } from './themes.js';
 import { openSlideDesign, useThemeAgain } from './layout-editor.js';
+import { ask } from './dialog.js';
 
 // With the server, search is the library database's song search, which ranks matches and shows the words that
 // matched; without it, titles, words and song details are matched as typed.
@@ -316,8 +317,8 @@ export function setupViews() {
   });
   $('#btnEdit').onclick = () => state.selectedId && openEditor(state.selectedId);
   $('#btnAddPlaylist').onclick = () => { if (state.selectedId && !state.db.playlist.includes(state.selectedId)) { state.db.playlist.push(state.selectedId); save(); renderPlaylist(); toast('Added to playlist'); } };
-  $('#btnDelete').onclick = () => {
-    const p = getPres(state.selectedId); if (!p || !confirm(`Delete “${p.name}”?`)) return;
+  $('#btnDelete').onclick = async () => {
+    const p = getPres(state.selectedId); if (!p || !await ask(`Delete “${p.name}” from the library? Ctrl+Z undoes it.`, { ok: 'Delete', danger: true })) return;
     if (state.preview === p) state.preview = null;
     state.db.presentations = state.db.presentations.filter(x => x !== p); state.db.playlist = state.db.playlist.filter(id => id !== p.id);
     if (live.presId === p.id) clear('slide');
@@ -342,9 +343,9 @@ export function setupViews() {
     if (!v) return;
     updateService(state.db, s.id, v); save(); renderAll();
   };
-  $('#svcDelete').onclick = () => {
+  $('#svcDelete').onclick = async () => {
     const s = openService(state.db);
-    if (!s || !confirm(`Delete the service “${serviceLabel(s)}”? Its songs stay in the library.`)) return;
+    if (!s || !await ask(`Delete the service “${serviceLabel(s)}”? Its songs stay in the library. Ctrl+Z undoes it.`, { ok: 'Delete service', danger: true })) return;
     if (removeService(state.db, s.id)) showService(state.db.serviceId);
   };
   $('#thumbSize').oninput = e => $('#slideGrid').style.setProperty('--tw', e.target.value + 'px');

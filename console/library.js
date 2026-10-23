@@ -5,6 +5,7 @@ import { arrangement, FORMAT, mainText, migrateLibrary, refUrl, resolveSlide, re
 import { BUILTIN_TEMPLATES } from './seed.js';
 import { ensureServices, stashPlaylist } from './services.js';
 import { groupColor } from './slides.js';
+import { noteChange } from './undo.js';
 
 /** What the modules share: the library, the presentation selected in the console, and a passage the Bible tab put
  * on screen without adding it to the library (kept in memory only, until it is added or replaced). */
@@ -70,6 +71,7 @@ export const save = () => {
     return;
   }
   stashPlaylist(state.db);
+  noteChange(state.db);
   const keep = { ...state.db, media: state.db.media.filter(m => !m.src.startsWith('blob:')) };
   Lumen.saveLibrary(keep);
   keepCopy(keep);

@@ -12,6 +12,7 @@ import { uid } from './slides.js';
 import { ADD_FONT, addTemplate, fontChoices, renderTheme } from './themes.js';
 import { renderGrid } from './views.js';
 import { wordBar } from './word-bar.js';
+import { ask } from './dialog.js';
 
 // doc is what is being edited, { layout, background, layouts }. In 'theme' mode targetId names the theme (null for
 // the default style), and cur the layout of it being edited: '' for its main one, or the id of one of its other
@@ -86,8 +87,8 @@ function show(title, sub, tip) {
   fitCanvas(); renderAll();
 }
 function close() { $('#layoutEditor').hidden = true; doc = hist = null; drag = null; }
-function cancel() {
-  if (hist?.changed && !confirm(`Throw away your changes to this ${mode === 'stage' ? 'stage display' : mode}?`)) return;
+async function cancel() {
+  if (hist?.changed && !await ask(`Throw away your changes to this ${mode === 'stage' ? 'stage display' : mode}?`, { ok: 'Throw away', cancel: 'Keep editing', danger: true })) return;
   close();
 }
 function saveLayout() { if (mode === 'theme') saveTheme(); else if (mode === 'stage') saveStage(); else saveSlide(); }
@@ -97,8 +98,8 @@ function saveStage() {
   toast('Saved the stage display');
 }
 /** Put the standard stage display back. */
-function standardStage() {
-  if (!state.db.stageLayout || !confirm('Throw away the stage display’s own layout and show the standard one again?')) return;
+async function standardStage() {
+  if (!state.db.stageLayout || !await ask('Throw away the stage display’s own layout and show the standard one again? Ctrl+Z undoes it.', { ok: 'Use the standard one', danger: true })) return;
   delete state.db.stageLayout;
   save(); broadcast(); renderStageButtons();
 }
@@ -141,9 +142,9 @@ function saveSlide() {
   toast(target.after ? 'Added a designed slide' : 'Saved the slide’s design');
 }
 /** Give a designed slide back to its theme: it shows its words with the theme again. */
-export function useThemeAgain(pid, slideId) {
+export async function useThemeAgain(pid, slideId) {
   const slide = getPres(pid)?.groups.flatMap(g => g.slides).find(s => s.id === slideId);
-  if (!slide?.layout || !confirm('Throw away this slide’s design and show its words with the theme again?')) return;
+  if (!slide?.layout || !await ask('Throw away this slide’s design and show its words with the theme again? Ctrl+Z undoes it.', { ok: 'Use the theme', danger: true })) return;
   delete slide.layout; delete slide.background;
   save(); broadcast(); renderGrid();
 }
@@ -274,8 +275,8 @@ function renameLayout(l) {
   const name = (prompt('Name for this layout:', l.name) || '').trim();
   if (name && name !== l.name) { l.name = name; commit(); renderLayouts(); }
 }
-function deleteLayout(l) {
-  if (!confirm(`Delete the “${l.name}” layout? Slides using it show with the main layout again.`)) return;
+async function deleteLayout(l) {
+  if (!await ask(`Delete the “${l.name}” layout? Slides using it show with the main layout again.`, { ok: 'Delete', danger: true })) return;
   doc.layouts = doc.layouts.filter(x => x !== l); commit(); showLayout('');
 }
 
@@ -651,7 +652,7 @@ function pointerUp() {
 
 // ---------- keys ----------
 function keyDown(e) {
-  if ($('#layoutEditor').hidden) return;
+  if ($('#layoutEditor').hidden || document.querySelector('.modal.ask')) return; // a question over it has the keys
   const mod = e.ctrlKey || e.metaKey, typing = e.target.matches('input, textarea, select');
   if (e.key === 'Escape') { e.preventDefault(); cancel(); return; }
   if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveLayout(); return; }

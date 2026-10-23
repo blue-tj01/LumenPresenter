@@ -1,6 +1,7 @@
 // @ts-check
 // The Network tab: network mode, the access token, links for other devices, and signed-in devices.
 import { $, toast } from './dom.js';
+import { ask } from './dialog.js';
 
 // ---------- network mode ----------
 function renderNetwork(n) {
@@ -58,12 +59,12 @@ async function changeNetwork(change) {
 /** Wire up the Network tab; called once the library has loaded. */
 export function setupNetwork() {
   $('#netOn').onchange = e => changeNetwork({ network: e.target.checked });
-  $('#netNewToken').onclick = () => {
-    if (confirm('Make a new access token? Other consoles will have to enter the new one.')) changeNetwork({ regenerate: true });
+  $('#netNewToken').onclick = async () => {
+    if (await ask('Make a new access token? Other consoles and phones will have to enter the new one.', { ok: 'Make a new token', danger: true })) changeNetwork({ regenerate: true });
   };
   $('#netCopy').onclick = () => navigator.clipboard?.writeText($('#netToken').textContent).then(() => toast('Token copied'), () => {});
-  $('#netDropAll').onclick = () => { if (confirm('Sign every other device out?')) changeNetwork({ disconnect: 'all' }); };
-  $('#netSignOut').onclick = () => { if (confirm('Sign this device out? You will need the token to open Lumen here again.')) Lumen.signOut(); };
+  $('#netDropAll').onclick = async () => { if (await ask('Sign every other device out? They will need the token to come back.', { ok: 'Sign them out', danger: true })) changeNetwork({ disconnect: 'all' }); };
+  $('#netSignOut').onclick = async () => { if (await ask('Sign this device out? You will need the token to open Lumen here again.', { ok: 'Sign out', danger: true })) Lumen.signOut(); };
   $('.tabs button[data-tab="net"]').addEventListener('click', loadNetwork);
   loadNetwork();
   // Keep the device list current while the tab is showing.
