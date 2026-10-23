@@ -24,39 +24,67 @@ function candidates(env = process.env, platform = process.platform, list = dir =
     const found = [];
     for (const root of new Set([env.ProgramW6432, env.ProgramFiles].filter(Boolean))) {
       let folders = [];
-      try { folders = list(p.join(root, 'NDI')); } catch {}
+      try {
+        folders = list(p.join(root, 'NDI'));
+      } catch {}
       folders.sort((a, b) => Number(/runtime/i.test(b)) - Number(/runtime/i.test(a)) || b.localeCompare(a));
       for (const f of folders) for (const sub of ['v6', '', 'Runtime']) found.push(p.join(root, 'NDI', f, sub, name));
     }
-    return [...dir ? [p.join(dir, name)] : [], ...found, name];
+    return [...(dir ? [p.join(dir, name)] : []), ...found, name];
   }
   if (platform === 'darwin') {
-    return [...dir ? [path.join(dir, 'libndi.dylib')] : [], '/Library/NDI SDK for Apple/lib/macOS/libndi.dylib', '/usr/local/lib/libndi.dylib'];
+    return [
+      ...(dir ? [path.join(dir, 'libndi.dylib')] : []),
+      '/Library/NDI SDK for Apple/lib/macOS/libndi.dylib',
+      '/usr/local/lib/libndi.dylib',
+    ];
   }
-  return [...dir ? [path.join(dir, 'libndi.so.6')] : [], 'libndi.so.6', 'libndi.so'];
+  return [...(dir ? [path.join(dir, 'libndi.so.6')] : []), 'libndi.so.6', 'libndi.so'];
 }
 
 /** Load NDI and return what Lumen uses of it, or throw an Error whose message suits the menu. */
 function open({ env = process.env, koffi = require('koffi'), platform = process.platform } = {}) {
-  let lib = null, failed = null;
+  let lib = null,
+    failed = null;
   for (const file of candidates(env, platform)) {
-    try { lib = koffi.load(file); break; } catch (e) {
+    try {
+      lib = koffi.load(file);
+      break;
+    } catch (e) {
       // There, but Windows or the system wouldn't load it: say so, rather than that NDI isn't installed.
-      if (!failed && path.isAbsolute(file) && fs.existsSync(file)) failed = `NDI is installed but could not be loaded: ${e.message}`;
+      if (!failed && path.isAbsolute(file) && fs.existsSync(file))
+        failed = `NDI is installed but could not be loaded: ${e.message}`;
     }
   }
   if (!lib) {
-    throw Object.assign(new Error(failed || `Install ${download(platform).name} to send over NDI`), failed ? {} : { code: 'NDI_MISSING' });
+    throw Object.assign(
+      new Error(failed || `Install ${download(platform).name} to send over NDI`),
+      failed ? {} : { code: 'NDI_MISSING' },
+    );
   }
 
   // From the NDI 6 SDK headers (Processing.NDI.Lib.h, Processing.NDI.structs.h, Processing.NDI.Send.h). The types
   // are unnamed so the library can be opened more than once.
   const SendCreate = koffi.struct({
-    p_ndi_name: 'const char *', p_groups: 'const char *', clock_video: 'bool', clock_audio: 'bool' });
+    p_ndi_name: 'const char *',
+    p_groups: 'const char *',
+    clock_video: 'bool',
+    clock_audio: 'bool',
+  });
   const VideoFrame = koffi.struct({
-    xres: 'int', yres: 'int', FourCC: 'int', frame_rate_N: 'int', frame_rate_D: 'int', picture_aspect_ratio: 'float',
-    frame_format_type: 'int', timecode: 'int64_t', p_data: 'uint8_t *', line_stride_in_bytes: 'int',
-    p_metadata: 'const char *', timestamp: 'int64_t' });
+    xres: 'int',
+    yres: 'int',
+    FourCC: 'int',
+    frame_rate_N: 'int',
+    frame_rate_D: 'int',
+    picture_aspect_ratio: 'float',
+    frame_format_type: 'int',
+    timecode: 'int64_t',
+    p_data: 'uint8_t *',
+    line_stride_in_bytes: 'int',
+    p_metadata: 'const char *',
+    timestamp: 'int64_t',
+  });
   const Source = koffi.struct({ p_ndi_name: 'const char *', p_url_address: 'const char *' });
   const Instance = koffi.pointer(koffi.opaque());
 
@@ -85,14 +113,36 @@ function open({ env = process.env, koffi = require('koffi'), platform = process.
         video({ width, height, fps, data }) {
           if (closed) return Promise.resolve();
           if (data.length < width * height * 4) return Promise.reject(new Error('NDI frame is smaller than its size'));
-          const frame = { xres: width, yres: height, FourCC: BGRA, frame_rate_N: fps * 1000, frame_rate_D: 1000,
-            picture_aspect_ratio: width / height, frame_format_type: PROGRESSIVE, timecode: SYNTHESIZE, p_data: data,
-            line_stride_in_bytes: width * 4, p_metadata: null, timestamp: 0 };
-          return /** @type {Promise<void>} */ (new Promise((resolve, reject) => sendVideo.async(inst, frame, err => err ? reject(err) : resolve())));
+          const frame = {
+            xres: width,
+            yres: height,
+            FourCC: BGRA,
+            frame_rate_N: fps * 1000,
+            frame_rate_D: 1000,
+            picture_aspect_ratio: width / height,
+            frame_format_type: PROGRESSIVE,
+            timecode: SYNTHESIZE,
+            p_data: data,
+            line_stride_in_bytes: width * 4,
+            p_metadata: null,
+            timestamp: 0,
+          };
+          return /** @type {Promise<void>} */ (
+            new Promise((resolve, reject) => sendVideo.async(inst, frame, err => (err ? reject(err) : resolve())))
+          );
         },
-        connections() { return closed ? 0 : connections(inst, 0); },
-        sourcename() { return closed ? '' : koffi.decode(sourceName(inst), Source).p_ndi_name || ''; },
-        destroy() { if (!closed) { closed = true; destroy(inst); } },
+        connections() {
+          return closed ? 0 : connections(inst, 0);
+        },
+        sourcename() {
+          return closed ? '' : koffi.decode(sourceName(inst), Source).p_ndi_name || '';
+        },
+        destroy() {
+          if (!closed) {
+            closed = true;
+            destroy(inst);
+          }
+        },
       };
     },
   };

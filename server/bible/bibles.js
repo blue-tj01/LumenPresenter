@@ -19,12 +19,33 @@ const MAX_RESULTS = 200;
 /** The translations that come with Lumen, all in the public domain. Raise a version to replace the copy a data
  * folder already has. */
 const BUNDLED = [
-  { id: 'kjv', file: 'kjv.json.gz', version: 1, name: 'King James Version', abbrev: 'KJV', language: 'en',
-    rights: 'Public domain' },
-  { id: 'web', file: 'web.json.gz', version: 1, name: 'World English Bible', abbrev: 'WEB', language: 'en',
-    rights: 'Public domain' },
-  { id: 'bsb', file: 'bsb.json.gz', version: 1, name: 'Berean Standard Bible', abbrev: 'BSB', language: 'en',
-    rights: 'Public domain' },
+  {
+    id: 'kjv',
+    file: 'kjv.json.gz',
+    version: 1,
+    name: 'King James Version',
+    abbrev: 'KJV',
+    language: 'en',
+    rights: 'Public domain',
+  },
+  {
+    id: 'web',
+    file: 'web.json.gz',
+    version: 1,
+    name: 'World English Bible',
+    abbrev: 'WEB',
+    language: 'en',
+    rights: 'Public domain',
+  },
+  {
+    id: 'bsb',
+    file: 'bsb.json.gz',
+    version: 1,
+    name: 'Berean Standard Bible',
+    abbrev: 'BSB',
+    language: 'en',
+    rights: 'Public domain',
+  },
 ];
 
 const MIGRATIONS = [
@@ -70,10 +91,13 @@ class Bibles {
   list() {
     const rows = this.db.prepare('SELECT id, name, abbrev, language, rights, bundled FROM bibles').all();
     const have = new Map(rows.map(r => [r.id, r]));
-    const bundled = BUNDLED.filter(b => fs.existsSync(path.join(this.bundledDir, b.file)))
-      .map(({ id, name, abbrev, language, rights }) => ({ id, name, abbrev, language, rights, bundled: true }));
-    const imported = rows.filter(r => !r.bundled && !BUNDLED.some(b => b.id === r.id))
-      .map(r => /** @type {any} */ ({ ...r, bundled: false })).sort((a, b) => a.name.localeCompare(b.name));
+    const bundled = BUNDLED.filter(b => fs.existsSync(path.join(this.bundledDir, b.file))).map(
+      ({ id, name, abbrev, language, rights }) => ({ id, name, abbrev, language, rights, bundled: true }),
+    );
+    const imported = rows
+      .filter(r => !r.bundled && !BUNDLED.some(b => b.id === r.id))
+      .map(r => /** @type {any} */ ({ ...r, bundled: false }))
+      .sort((a, b) => a.name.localeCompare(b.name));
     return [...bundled, ...imported].map(b => ({ ...b, ...(have.has(b.id) ? {} : { installed: false }) }));
   }
 
@@ -85,8 +109,11 @@ class Bibles {
       const file = path.join(this.bundledDir, b.file);
       if (!fs.existsSync(file)) return row || null;
       const data = JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString('utf8'));
-      this.store(b.id, { ...data, name: b.name, abbrev: b.abbrev, language: b.language, rights: b.rights,
-        format: 'bundled' }, { bundled: true, version: b.version });
+      this.store(
+        b.id,
+        { ...data, name: b.name, abbrev: b.abbrev, language: b.language, rights: b.rights, format: 'bundled' },
+        { bundled: true, version: b.version },
+      );
       return this.db.prepare('SELECT * FROM bibles WHERE id = ?').get(b.id);
     }
     return row || null;
@@ -102,27 +129,65 @@ class Bibles {
     const bible = parseBible(decodeXml(buf));
     const base = path.basename(String(filename)).replace(/\.(xml|osis|usfx|zefania|gz)$/gi, '');
     if (!bible.name) bible.name = base || 'Imported Bible';
-    if (!bible.abbrev) bible.abbrev = bible.name.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 8);
-    const slug = (bible.abbrev || bible.name).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '').slice(0, 24) || 'bible';
+    if (!bible.abbrev)
+      bible.abbrev = bible.name
+        .split(/\s+/)
+        .map(w => w[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 8);
+    const slug =
+      (bible.abbrev || bible.name)
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 24) || 'bible';
     const taken = id => BUNDLED.some(b => b.id === id) || this.db.prepare('SELECT 1 FROM bibles WHERE id = ?').get(id);
     let id = slug;
     for (let n = 2; taken(id); n++) id = `${slug}-${n}`;
     this.store(id, { ...bible, rights: '' }, { bundled: false, version: 1 });
     const verses = bible.books.reduce((n, b) => n + b.verses.length, 0);
-    return { id, name: bible.name, abbrev: bible.abbrev, language: bible.language, format: bible.format, verses,
-      books: bible.books.length };
+    return {
+      id,
+      name: bible.name,
+      abbrev: bible.abbrev,
+      language: bible.language,
+      format: bible.format,
+      verses,
+      books: bible.books.length,
+    };
   }
 
   store(id, bible, { bundled, version }) {
     this.transaction(() => {
       this.drop(id);
-      this.db.prepare('INSERT INTO bibles (id, name, abbrev, language, rights, format, bundled, version, added) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(id, bible.name, bible.abbrev || '', bible.language || '', bible.rights || '', bible.format, bundled ? 1 : 0, version, Date.now());
+      this.db
+        .prepare(
+          'INSERT INTO bibles (id, name, abbrev, language, rights, format, bundled, version, added) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(
+          id,
+          bible.name,
+          bible.abbrev || '',
+          bible.language || '',
+          bible.rights || '',
+          bible.format,
+          bundled ? 1 : 0,
+          version,
+          Date.now(),
+        );
       const addBook = this.db.prepare('INSERT INTO books (bible, number, name, chapters) VALUES (?, ?, ?, ?)');
-      const addVerse = this.db.prepare('INSERT OR REPLACE INTO verses (bible, book, chapter, verse, text) VALUES (?, ?, ?, ?, ?)');
+      const addVerse = this.db.prepare(
+        'INSERT OR REPLACE INTO verses (bible, book, chapter, verse, text) VALUES (?, ?, ?, ?, ?)',
+      );
       for (const b of bible.books) {
-        addBook.run(id, b.number, b.name || book(b.number)?.name || `Book ${b.number}`, Math.max(...b.verses.map(v => v[0])));
+        addBook.run(
+          id,
+          b.number,
+          b.name || book(b.number)?.name || `Book ${b.number}`,
+          Math.max(...b.verses.map(v => v[0])),
+        );
         for (const [chapter, verse, text] of b.verses) addVerse.run(id, b.number, chapter, verse, text);
       }
       this.db.prepare('INSERT INTO verses_fts (rowid, text) SELECT id, text FROM verses WHERE bible = ?').run(id);
@@ -138,13 +203,17 @@ class Bibles {
   }
 
   drop(id) {
-    this.db.prepare("INSERT INTO verses_fts (verses_fts, rowid, text) SELECT 'delete', id, text FROM verses WHERE bible = ?").run(id);
+    this.db
+      .prepare("INSERT INTO verses_fts (verses_fts, rowid, text) SELECT 'delete', id, text FROM verses WHERE bible = ?")
+      .run(id);
     this.db.prepare('DELETE FROM verses WHERE bible = ?').run(id);
     this.db.prepare('DELETE FROM bibles WHERE id = ?').run(id);
   }
 
   books(id) {
-    return this.db.prepare('SELECT number, name, chapters FROM books WHERE bible = ? ORDER BY number').all(id)
+    return this.db
+      .prepare('SELECT number, name, chapters FROM books WHERE bible = ? ORDER BY number')
+      .all(id)
       .map(r => ({ ...r }));
   }
 
@@ -158,7 +227,9 @@ class Bibles {
     const n = fromName(name);
     if (n && books.some(b => b.number === n)) return n;
     if (k.length < 2) return 0;
-    const starts = books.filter(b => key(b.name).startsWith(k) || (Number(b.number) <= KNOWN && key(book(b.number).name).startsWith(k)));
+    const starts = books.filter(
+      b => key(b.name).startsWith(k) || (Number(b.number) <= KNOWN && key(book(b.number).name).startsWith(k)),
+    );
     return starts.length === 1 ? starts[0].number : 0;
   }
 
@@ -173,7 +244,8 @@ class Bibles {
     const end = this.db.prepare('SELECT max(verse) AS v FROM verses WHERE bible = ? AND book = ? AND chapter = ?');
     const all = this.books(id);
     const books = new Map(all.map(b => [b.number, b.name]));
-    const verses = [], names = [];
+    const verses = [],
+      names = [];
     for (const { book: n, ranges } of refs) {
       const found = [];
       for (const [c1, v1, c2, v2] of ranges) {
@@ -183,8 +255,13 @@ class Bibles {
       }
       if (!found.length) continue;
       const ends = new Map();
-      const chapterEnd = c => { if (!ends.has(c)) ends.set(c, end.get(id, n, c).v); return ends.get(c); };
-      names.push(formatReference(String(books.get(n)), found, chapterEnd, all.find(b => b.number === n).chapters === 1));
+      const chapterEnd = c => {
+        if (!ends.has(c)) ends.set(c, end.get(id, n, c).v);
+        return ends.get(c);
+      };
+      names.push(
+        formatReference(String(books.get(n)), found, chapterEnd, all.find(b => b.number === n).chapters === 1),
+      );
       for (const v of found) verses.push({ ...v, ref: `${books.get(n)} ${v.chapter}:${v.verse}` });
     }
     if (!verses.length) return { reference: '', verses: [] };
@@ -198,14 +275,24 @@ class Bibles {
     if (!match) return [];
     const n = Math.min(Math.max(1, limit | 0), MAX_RESULTS);
     const books = new Map(this.books(id).map(b => [b.number, b.name]));
-    return this.db.prepare(`SELECT v.book, v.chapter, v.verse, v.text FROM verses_fts JOIN verses v ON v.id = verses_fts.rowid
-      WHERE verses_fts MATCH ? AND v.bible = ? ORDER BY rank LIMIT ?`).all(match, id, n)
+    return this.db
+      .prepare(
+        `SELECT v.book, v.chapter, v.verse, v.text FROM verses_fts JOIN verses v ON v.id = verses_fts.rowid
+      WHERE verses_fts MATCH ? AND v.bible = ? ORDER BY rank LIMIT ?`,
+      )
+      .all(match, id, n)
       .map(r => ({ ...r, ref: `${books.get(r.book)} ${r.chapter}:${r.verse}` }));
   }
 
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE');
-    try { fn(); this.db.exec('COMMIT'); } catch (e) { this.db.exec('ROLLBACK'); throw e; }
+    try {
+      fn();
+      this.db.exec('COMMIT');
+    } catch (e) {
+      this.db.exec('ROLLBACK');
+      throw e;
+    }
   }
 
   close() {
@@ -219,7 +306,11 @@ function decodeXml(buf) {
   if (buf[0] === 0xfe && buf[1] === 0xff) return new TextDecoder('utf-16be').decode(buf);
   const decl = /^\uFEFF?\s*<\?xml[^>]*encoding\s*=\s*["']([\w.:-]+)["']/i.exec(buf.subarray(0, 200).toString('latin1'));
   const enc = decl ? decl[1].toLowerCase() : 'utf-8';
-  try { return new TextDecoder(enc === 'utf8' ? 'utf-8' : enc).decode(buf); } catch { return buf.toString('utf8'); }
+  try {
+    return new TextDecoder(enc === 'utf8' ? 'utf-8' : enc).decode(buf);
+  } catch {
+    return buf.toString('utf8');
+  }
 }
 
 module.exports = { Bibles, BUNDLED, FILE, ftsQuery };

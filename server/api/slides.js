@@ -25,7 +25,9 @@ module.exports = {
   /** The file as the body, its name in X-Filename. Answers {name, slides: ['media/<name>.png', ...], via}; the
    * console makes the presentation, as it does a slideshow of uploaded pictures. */
   async 'POST slides'() {
-    const name = Array.from(unquote(this.header('x-filename') || 'Slides')).slice(0, 200).join('');
+    const name = Array.from(unquote(this.header('x-filename') || 'Slides'))
+      .slice(0, 200)
+      .join('');
     const ext = path.extname(name).slice(1).toLowerCase();
     if (!SLIDE_EXT.has(ext)) throw bad('choose a PowerPoint (.pptx, .ppt, .ppsx), Impress (.odp) or PDF file');
     const n = Number(this.header('content-length') || 0);
@@ -35,10 +37,16 @@ module.exports = {
     try {
       // A fixed name: what the uploader called the file never reaches a command line.
       const src = path.join(work, `slides.${ext}`);
-      try { await pipeline(this.req, fs.createWriteStream(src)); } catch { throw bad('upload interrupted'); }
+      try {
+        await pipeline(this.req, fs.createWriteStream(src));
+      } catch {
+        throw bad('upload interrupted');
+      }
       if (fs.statSync(src).size !== n) throw bad('upload interrupted');
       let result;
-      try { result = await convert(src, work); } catch (e) {
+      try {
+        result = await convert(src, work);
+      } catch (e) {
         logImport(this.store.dir, name, `${e.message}${e.log ? '\n' + e.log : ''}`);
         throw new HttpError(422, e.message);
       }

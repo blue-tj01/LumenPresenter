@@ -4,7 +4,12 @@ const assert = require('assert/strict');
 const { it } = require('node:test');
 const { findDisplay, displayName, remember } = require('../electron/screens.js');
 
-const display = (id, label, width = 1920, height = 1080) => ({ id, label, size: { width, height }, bounds: { x: 0, y: 0, width, height } });
+const display = (id, label, width = 1920, height = 1080) => ({
+  id,
+  label,
+  size: { width, height },
+  bounds: { x: 0, y: 0, width, height },
+});
 const laptop = display(1, 'Built-in Retina Display', 1512, 982);
 const projector = display(2, 'EPSON PJ');
 
@@ -38,17 +43,37 @@ const { Screens } = require('../electron/screens.js');
 
 function fakeElectron(displays) {
   const screen = Object.assign(new EventEmitter(), {
-    getAllDisplays: () => displays, getPrimaryDisplay: () => displays[0],
+    getAllDisplays: () => displays,
+    getPrimaryDisplay: () => displays[0],
   });
   const opened = [];
   class BrowserWindow extends EventEmitter {
-    constructor(opts) { super(); this.opts = opts; this.destroyed = false; opened.push(this); }
-    loadURL(url) { this.url = url; this.emit('ready-to-show'); }
-    showInactive() { this.visible = true; }
-    setFullScreen(on) { this.fullScreen = on; }
-    setBounds(b) { this.bounds = b; }
-    setAlwaysOnTop(on) { this.top = on; }
-    close() { this.destroyed = true; this.emit('closed'); }
+    constructor(opts) {
+      super();
+      this.opts = opts;
+      this.destroyed = false;
+      opened.push(this);
+    }
+    loadURL(url) {
+      this.url = url;
+      this.emit('ready-to-show');
+    }
+    showInactive() {
+      this.visible = true;
+    }
+    setFullScreen(on) {
+      this.fullScreen = on;
+    }
+    setBounds(b) {
+      this.bounds = b;
+    }
+    setAlwaysOnTop(on) {
+      this.top = on;
+    }
+    close() {
+      this.destroyed = true;
+      this.emit('closed');
+    }
   }
   return { screen, BrowserWindow, opened };
 }
@@ -56,7 +81,13 @@ function fakeElectron(displays) {
 function manager(displays, settings = {}) {
   const electron = fakeElectron(displays);
   let saves = 0;
-  const screens = new Screens({ electron, origin: 'http://127.0.0.1:8642', webPreferences: {}, settings, save: () => saves++ });
+  const screens = new Screens({
+    electron,
+    origin: 'http://127.0.0.1:8642',
+    webPreferences: {},
+    settings,
+    save: () => saves++,
+  });
   return { electron, screens, settings, saves: () => saves };
 }
 
@@ -72,7 +103,7 @@ it('opens a screen full screen on its display and keeps it above other windows',
   assert.equal(electron.opened.length, 1); // the button brings the same window up again
 });
 
-it('does not keep a screen on top of the operator\'s own display', () => {
+it("does not keep a screen on top of the operator's own display", () => {
   const { screens } = manager([laptop, projector]);
   screens.assign('stage', laptop);
   assert.equal(screens.windows.stage.top, false);
@@ -103,8 +134,13 @@ it('reopens the chosen screens at start and closes one set back to a window', ()
 
 it('lists the displays for the console, and sets a screen by display id', () => {
   const { screens } = manager([laptop, projector]);
-  assert.deepEqual(screens.summary(), { displays: [{ id: 1, name: '1: Built-in Retina Display (1512×982), main screen' },
-    { id: 2, name: '2: EPSON PJ (1920×1080)' }], chosen: { output: null, stage: null } });
+  assert.deepEqual(screens.summary(), {
+    displays: [
+      { id: 1, name: '1: Built-in Retina Display (1512×982), main screen' },
+      { id: 2, name: '2: EPSON PJ (1920×1080)' },
+    ],
+    chosen: { output: null, stage: null },
+  });
   assert.equal(screens.assignById('output', 2), true);
   assert.equal(screens.summary().chosen.output, 2);
   assert.ok(screens.windows.output);

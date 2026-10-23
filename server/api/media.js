@@ -16,7 +16,9 @@ module.exports = {
     const n = Number(this.header('content-length') || 0);
     if (!Number.isInteger(n) || n <= 0) throw bad('empty upload');
     if (n > this.srv.maxUpload) return this.error(413, 'file too large');
-    const name = Array.from(unquote(this.header('x-filename') || 'upload')).slice(0, 200).join('');
+    const name = Array.from(unquote(this.header('x-filename') || 'upload'))
+      .slice(0, 200)
+      .join('');
     let ext = path.extname(name).slice(1).toLowerCase();
     if (!MEDIA_EXT[kind].has(ext)) ext = EXT_FOR_TYPE[ctype] || '';
     if (!MEDIA_EXT[kind].has(ext)) throw bad(`unsupported ${kind} type`);
@@ -24,7 +26,11 @@ module.exports = {
     const final = path.join(this.store.mediaDir, fname);
     const tmp = final + '.part';
     try {
-      try { await pipeline(this.req, fs.createWriteStream(tmp)); } catch { throw bad('upload interrupted'); }
+      try {
+        await pipeline(this.req, fs.createWriteStream(tmp));
+      } catch {
+        throw bad('upload interrupted');
+      }
       if (fs.statSync(tmp).size !== n) throw bad('upload interrupted');
       fs.renameSync(tmp, final);
     } finally {
@@ -35,11 +41,16 @@ module.exports = {
 
   async 'GET folders'() {
     const local = this.isLocal();
-    const folders = await Promise.all(this.srv.folders.list().map(async f => ({
-      id: f.id, name: path.basename(f.path) || f.path, fixed: f.fixed, missing: !fs.existsSync(f.path),
-      ...local ? { path: f.path } : {}, // where things are on this computer is only shown on it
-      files: await this.srv.folders.files(f),
-    })));
+    const folders = await Promise.all(
+      this.srv.folders.list().map(async f => ({
+        id: f.id,
+        name: path.basename(f.path) || f.path,
+        fixed: f.fixed,
+        missing: !fs.existsSync(f.path),
+        ...(local ? { path: f.path } : {}), // where things are on this computer is only shown on it
+        files: await this.srv.folders.files(f),
+      })),
+    );
     this.sendJson({ folders, local });
   },
 

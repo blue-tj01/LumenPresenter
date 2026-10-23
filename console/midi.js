@@ -29,12 +29,15 @@ export const MIDI_ACTIONS = [
 export const REPEAT_MS = 150;
 export function midiTrigger(data, held = new Map(), now = Date.now()) {
   const [status, a, b] = data;
-  const kind = status & 0xf0, ch = (status & 0x0f) + 1;
+  const kind = status & 0xf0,
+    ch = (status & 0x0f) + 1;
   let id = null;
   if (kind === 0x90 && b > 0) id = `note:${ch}:${a}`;
   else if (kind === 0xc0) id = `pc:${ch}:${a}`;
   else if (kind === 0xb0) {
-    const cc = `cc:${ch}:${a}`, up = b >= 64, was = held.get(cc) || false;
+    const cc = `cc:${ch}:${a}`,
+      up = b >= 64,
+      was = held.get(cc) || false;
     held.set(cc, up);
     if (up && !was) id = cc;
   }
@@ -50,7 +53,8 @@ const NOTES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A�
 export function triggerLabel(trigger) {
   const m = /^(note|cc|pc):(\d+):(\d+)$/.exec(trigger || '');
   if (!m) return '';
-  const n = Number(m[3]), ch = `channel ${m[2]}`;
+  const n = Number(m[3]),
+    ch = `channel ${m[2]}`;
   if (m[1] === 'note') return `Note ${NOTES[n % 12]}${Math.floor(n / 12) - 1} (${n}), ${ch}`;
   return m[1] === 'cc' ? `Controller ${n}, ${ch}` : `Program ${n + 1}, ${ch}`;
 }
@@ -59,7 +63,8 @@ export function triggerLabel(trigger) {
 export function midiSettings(saved) {
   const s = saved && typeof saved === 'object' ? saved : {};
   const map = {};
-  for (const [key] of MIDI_ACTIONS) if (typeof s.map?.[key] === 'string' && triggerLabel(s.map[key])) map[key] = s.map[key];
+  for (const [key] of MIDI_ACTIONS)
+    if (typeof s.map?.[key] === 'string' && triggerLabel(s.map[key])) map[key] = s.map[key];
   return { on: !!s.on, device: typeof s.device === 'string' ? s.device : '', map };
 }
 

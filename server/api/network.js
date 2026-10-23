@@ -9,11 +9,19 @@ async function networkInfo(r) {
   const info = { network: srv.network, local: r.isLocal(), signedIn: !!r.session() };
   if (info.local) {
     const sessions = r.store.settings.sessions;
-    const devices = Object.entries(sessions).map(([id, s]) => ({ id, ...s, seen: srv.seen.get(id) ?? null,
-      open: [...new Set(srv.streams.get(id) || [])].sort() }));
-    Object.assign(info, { locked: srv.hostLocked, token: srv.explicitToken || r.store.settings.token, port: srv.port,
+    const devices = Object.entries(sessions).map(([id, s]) => ({
+      id,
+      ...s,
+      seen: srv.seen.get(id) ?? null,
+      open: [...new Set(srv.streams.get(id) || [])].sort(),
+    }));
+    Object.assign(info, {
+      locked: srv.hostLocked,
+      token: srv.explicitToken || r.store.settings.token,
+      port: srv.port,
       addresses: srv.network ? await lanAddresses() : [],
-      devices: devices.sort((a, b) => (b.seen || b.created || 0) - (a.seen || a.created || 0)) });
+      devices: devices.sort((a, b) => (b.seen || b.created || 0) - (a.seen || a.created || 0)),
+    });
   }
   return info;
 }
@@ -33,7 +41,8 @@ module.exports = {
       this.store.dropSessions();
       srv.hub.send('ping', { time: nowMs() }); // event streams of signed-out devices close
     }
-    if ('disconnect' in body) { // a device id, or 'all'
+    if ('disconnect' in body) {
+      // a device id, or 'all'
       this.store.dropSessions(body.disconnect === 'all' ? null : [String(body.disconnect)]);
       srv.hub.send('ping', { time: nowMs() });
     }

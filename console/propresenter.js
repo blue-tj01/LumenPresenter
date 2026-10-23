@@ -17,35 +17,56 @@ export function fields(b) {
   const out = [];
   let i = 0;
   const varint = () => {
-    let n = 0, m = 1, c;
+    let n = 0,
+      m = 1,
+      c;
     do {
       if (i >= b.length) throw new Error('not a ProPresenter file');
-      c = b[i++]; n += (c & 0x7f) * m; m *= 128;
+      c = b[i++];
+      n += (c & 0x7f) * m;
+      m *= 128;
     } while (c & 0x80);
     return n;
   };
   while (i < b.length) {
-    const key = varint(), f = Math.floor(key / 8), wire = key % 8;
+    const key = varint(),
+      f = Math.floor(key / 8),
+      wire = key % 8;
     if (!f) throw new Error('not a ProPresenter file');
     if (wire === 0) out.push([f, varint()]);
     else if (wire === 1) i += 8;
     else if (wire === 5) i += 4;
-    else if (wire === 2) { const n = varint(); if (i + n > b.length) throw new Error('not a ProPresenter file'); out.push([f, b.subarray(i, i + n)]); i += n; }
-    else throw new Error('not a ProPresenter file');
+    else if (wire === 2) {
+      const n = varint();
+      if (i + n > b.length) throw new Error('not a ProPresenter file');
+      out.push([f, b.subarray(i, i + n)]);
+      i += n;
+    } else throw new Error('not a ProPresenter file');
   }
   if (i > b.length) throw new Error('not a ProPresenter file');
   return out;
 }
-const all = (msg, f) => msg ? fields(msg).filter(([n, v]) => n === f && v instanceof Uint8Array).map(([, v]) => v) : [];
+const all = (msg, f) =>
+  msg
+    ? fields(msg)
+        .filter(([n, v]) => n === f && v instanceof Uint8Array)
+        .map(([, v]) => v)
+    : [];
 const one = (msg, f) => all(msg, f)[0];
-const num = (msg, f) => msg ? fields(msg).find(([n, v]) => n === f && typeof v === 'number')?.[1] : undefined;
-const str = b => b ? new TextDecoder().decode(b) : '';
+const num = (msg, f) => (msg ? fields(msg).find(([n, v]) => n === f && typeof v === 'number')?.[1] : undefined);
+const str = b => (b ? new TextDecoder().decode(b) : '');
 /** A child message following a path of field numbers. */
 const path = (msg, ...fs) => fs.reduce((m, f) => one(m, f), msg);
 const uuid = msg => str(one(msg, 1)).toUpperCase(); // ProPresenter's UUID message holds the text in field 1
 
 /** A slide's words as lines: each line trimmed, blank lines dropped. */
-const lines = s => s.replace(/[\u2028\u2029\r]/g, '\n').split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+const lines = s =>
+  s
+    .replace(/[\u2028\u2029\r]/g, '\n')
+    .split('\n')
+    .map(l => l.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join('\n');
 
 // ---------- the song ----------
 // A Presentation holds its name (field 3), the selected arrangement (10), its arrangements (11: uuid, name, group
@@ -73,26 +94,40 @@ function cueText(cue) {
 export function parsePro(bytes, fileName = '') {
   const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   const cues = new Map(all(b, 13).map(c => [uuid(one(c, 1)), cueText(c)]));
-  const groups = [], written = [], byUuid = new Map(), base = new Map(); // base: each group's name before numbering
+  const groups = [],
+    written = [],
+    byUuid = new Map(),
+    base = new Map(); // base: each group's name before numbering
   for (const cg of all(b, 12)) {
     const g = one(cg, 1);
-    const slides = all(cg, 2).map(id => cues.get(uuid(id))).filter(Boolean);
+    const slides = all(cg, 2)
+      .map(id => cues.get(uuid(id)))
+      .filter(Boolean);
     if (!slides.length) continue; // a blank group, or one holding only media
-    const label = tidy(str(one(g, 2))) || 'Slides', words = slides.join('\n\n');
+    const label = tidy(str(one(g, 2))) || 'Slides',
+      words = slides.join('\n\n');
     // A copy of a group, under the same name with the same words, plays that group again rather than adding one.
-    let ng = groups.find(x => base.get(x).toLowerCase() === label.toLowerCase() && x.slides.map(s => s.text).join('\n\n') === words);
+    let ng = groups.find(
+      x => base.get(x).toLowerCase() === label.toLowerCase() && x.slides.map(s => s.text).join('\n\n') === words,
+    );
     if (!ng) {
-      let name = label, n = 2;
+      let name = label,
+        n = 2;
       while (groups.some(x => x.name.toLowerCase() === name.toLowerCase())) name = `${label} (${n++})`;
       ng = { id: uid(), name, slides: slides.map(text => ({ id: uid(), text })) };
-      groups.push(ng); base.set(ng, label);
+      groups.push(ng);
+      base.set(ng, label);
     }
-    written.push(ng.id); byUuid.set(uuid(one(g, 1)), ng.id);
+    written.push(ng.id);
+    byUuid.set(uuid(one(g, 1)), ng.id);
   }
   if (!groups.length) throw new Error('no words found');
 
-  const ccli = one(b, 14), year = num(ccli, 5), publisher = tidy(str(one(ccli, 4)));
-  const title = tidy(str(one(b, 3))) || tidy(str(one(ccli, 3))) || fileName.replace(/^.*[\\/]/, '').replace(/\.pro$/i, '');
+  const ccli = one(b, 14),
+    year = num(ccli, 5),
+    publisher = tidy(str(one(ccli, 4)));
+  const title =
+    tidy(str(one(b, 3))) || tidy(str(one(ccli, 3))) || fileName.replace(/^.*[\\/]/, '').replace(/\.pro$/i, '');
   const p = presentation(title, groups, written, {
     author: str(one(ccli, 1)) || str(one(ccli, 2)),
     copyright: [year, publisher].filter(Boolean).join(' '),
@@ -100,11 +135,15 @@ export function parsePro(bytes, fileName = '') {
   });
 
   const selected = uuid(one(b, 10));
-  const arrangements = all(b, 11).map(a => ({
-    uuid: uuid(one(a, 1)),
-    name: tidy(str(one(a, 2))) || 'Arrangement',
-    order: all(a, 3).map(id => byUuid.get(uuid(id))).filter(Boolean),
-  })).filter(a => a.order.length);
+  const arrangements = all(b, 11)
+    .map(a => ({
+      uuid: uuid(one(a, 1)),
+      name: tidy(str(one(a, 2))) || 'Arrangement',
+      order: all(a, 3)
+        .map(id => byUuid.get(uuid(id)))
+        .filter(Boolean),
+    }))
+    .filter(a => a.order.length);
   arrangements.sort((x, y) => Number(y.uuid === selected) - Number(x.uuid === selected));
   if (arrangements.length) p.arrangements = arrangements.map(({ name, order }) => ({ id: uid(), name, order }));
   return p;
@@ -119,7 +158,11 @@ export async function parseProPresenter(bytes, fileName = '') {
   if (!isZip(b)) return [parsePro(b, fileName)];
   const songs = [];
   for (const f of await unzip(b, isPro)) {
-    try { songs.push(parsePro(f.data, f.name)); } catch { /* a .pro with no words, such as a media-only one */ }
+    try {
+      songs.push(parsePro(f.data, f.name));
+    } catch {
+      /* a .pro with no words, such as a media-only one */
+    }
   }
   if (!songs.length) throw new Error('no ProPresenter songs found');
   return songs;

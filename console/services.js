@@ -10,19 +10,28 @@ const pad = n => String(n).padStart(2, '0');
 export const isoDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const validDate = s => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00Z'));
 /** A YYYY-MM-DD date moved on by some days. */
-export const addDays = (date, days) => new Date(Date.parse(date + 'T00:00:00Z') + days * DAY).toISOString().slice(0, 10);
+export const addDays = (date, days) =>
+  new Date(Date.parse(date + 'T00:00:00Z') + days * DAY).toISOString().slice(0, 10);
 /** The coming Sunday: today, if today is one. */
-export const nextSunday = (from = new Date()) => isoDate(new Date(from.getFullYear(), from.getMonth(), from.getDate() + (7 - from.getDay()) % 7));
+export const nextSunday = (from = new Date()) =>
+  isoDate(new Date(from.getFullYear(), from.getMonth(), from.getDate() + ((7 - from.getDay()) % 7)));
 
 export const findService = (lib, id) => lib.services.find(s => s.id === id) || null;
 export const openService = lib => findService(lib, lib.serviceId);
 /** Newest first, then by name. */
-export const sortedServices = lib => [...lib.services].sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name));
+export const sortedServices = lib =>
+  [...lib.services].sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name));
 
 /** "Sun 26 Oct 2026 · Morning service" */
 export function serviceLabel(s) {
   const d = new Date(Date.parse(s.date + 'T00:00:00Z'));
-  const day = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const day = d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
   return s.name ? `${day} · ${s.name}` : day;
 }
 
@@ -30,11 +39,17 @@ export function serviceLabel(s) {
  * the console last edited, so it stays the open service's items. */
 export function ensureServices(lib, today = new Date()) {
   const ids = new Set(lib.presentations.map(p => p.id));
-  lib.services = (Array.isArray(lib.services) ? lib.services : []).filter(s => s && typeof s === 'object' && s.id)
-    .map(s => ({ ...s, name: String(s.name ?? ''), date: validDate(s.date) ? s.date : nextSunday(today),
-      items: (Array.isArray(s.items) ? s.items : []).filter(id => ids.has(id)) }));
+  lib.services = (Array.isArray(lib.services) ? lib.services : [])
+    .filter(s => s && typeof s === 'object' && s.id)
+    .map(s => ({
+      ...s,
+      name: String(s.name ?? ''),
+      date: validDate(s.date) ? s.date : nextSunday(today),
+      items: (Array.isArray(s.items) ? s.items : []).filter(id => ids.has(id)),
+    }));
   if (!lib.services.length) lib.services.push({ id: uid(), name: 'Service', date: nextSunday(today), items: [] });
-  if (!openService(lib)) lib.serviceId = sortedServices(lib).find(s => s.date <= nextSunday(today))?.id ?? sortedServices(lib).at(-1).id;
+  if (!openService(lib))
+    lib.serviceId = sortedServices(lib).find(s => s.date <= nextSunday(today))?.id ?? sortedServices(lib).at(-1).id;
   if (!Array.isArray(lib.playlist)) lib.playlist = [];
   stashPlaylist(lib);
   return lib;
@@ -89,7 +104,7 @@ export function removeService(lib, id) {
   lib.services = lib.services.filter(x => x !== s);
   if (lib.serviceId === id) {
     const gap = x => Math.abs(Date.parse(x.date) - Date.parse(s.date));
-    const near = lib.services.reduce((a, b) => gap(b) < gap(a) ? b : a);
+    const near = lib.services.reduce((a, b) => (gap(b) < gap(a) ? b : a));
     lib.serviceId = near.id;
     lib.playlist = [...near.items];
   }

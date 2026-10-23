@@ -15,13 +15,21 @@ const delay = ms => new Promise(r => setTimeout(r, ms));
 /** A server on a free port with its own data directory; restart() keeps the directory. */
 function harness(opts = {}) {
   const t = {
-    data: null, srv: null, port: 0, token: opts.token || '',
+    data: null,
+    srv: null,
+    port: 0,
+    token: opts.token || '',
     async start(extra = {}) {
       t.srv = new server.LumenServer({ host: '127.0.0.1', port: 0, data: t.data, token: t.token, ...opts, ...extra });
       t.port = await t.srv.listen();
     },
-    async stop() { await t.srv.close(); },
-    async restart() { await t.stop(); await t.start(); },
+    async stop() {
+      await t.srv.close();
+    },
+    async restart() {
+      await t.stop();
+      await t.start();
+    },
     /** One request; returns {status, headers, body (Buffer), json}. */
     req(method, p, body, headers = {}) {
       const h = { ...headers };
@@ -37,7 +45,9 @@ function harness(opts = {}) {
           res.on('end', () => {
             const buf = Buffer.concat(chunks);
             let json;
-            try { json = JSON.parse(buf.toString()); } catch {}
+            try {
+              json = JSON.parse(buf.toString());
+            } catch {}
             resolve({ status: res.statusCode, headers: res.headers, body: buf, json });
           });
         });
@@ -51,23 +61,43 @@ function harness(opts = {}) {
         const r = http.get({ host: '127.0.0.1', port: t.port, path: '/api/events', headers, agent: false }, res => {
           assert.equal(res.headers['content-type'], 'text/event-stream');
           let buf = '';
-          const queue = [], waiting = [];
+          const queue = [],
+            waiting = [];
           let ended = false;
-          const flush = () => { while (queue.length && waiting.length) waiting.shift()(queue.shift()); if (ended) while (waiting.length) waiting.shift()(null); };
+          const flush = () => {
+            while (queue.length && waiting.length) waiting.shift()(queue.shift());
+            if (ended) while (waiting.length) waiting.shift()(null);
+          };
           res.setEncoding('utf8');
           res.on('data', d => {
             buf += d;
             let i;
             while ((i = buf.indexOf('\n\n')) >= 0) {
-              const block = buf.slice(0, i); buf = buf.slice(i + 2);
-              const ev = /^event: (.*)$/m.exec(block), data = /^data: (.*)$/m.exec(block);
+              const block = buf.slice(0, i);
+              buf = buf.slice(i + 2);
+              const ev = /^event: (.*)$/m.exec(block),
+                data = /^data: (.*)$/m.exec(block);
               if (ev) queue.push([ev[1], data ? JSON.parse(data[1]) : null]);
             }
             flush();
           });
-          res.on('end', () => { ended = true; flush(); });
-          res.on('error', () => { ended = true; flush(); });
-          resolve({ res, close: () => r.destroy(), next: () => new Promise(ok => { waiting.push(ok); flush(); }) });
+          res.on('end', () => {
+            ended = true;
+            flush();
+          });
+          res.on('error', () => {
+            ended = true;
+            flush();
+          });
+          resolve({
+            res,
+            close: () => r.destroy(),
+            next: () =>
+              new Promise(ok => {
+                waiting.push(ok);
+                flush();
+              }),
+          });
         });
         r.on('error', reject);
       });
@@ -95,8 +125,23 @@ describe('server', () => {
     const mod = await t.req('GET', '/console/main.js');
     assert.equal(mod.status, 200);
     assert.match(mod.headers['content-type'], /^application\/javascript/); // browsers load modules only as JavaScript
-    for (const p of ['/server.js', '/server.py', '/.git/config', '/data/library.json', '/data/lumen.db', '/../etc/passwd',
-      '/tests/server.test.js', '/package.json', '/electron/main.js', '/server/util.js', '/console/package.json', '/app.js', '/console/nope.js', '/console/..%2Fserver.js', '/console/Main.js']) {
+    for (const p of [
+      '/server.js',
+      '/server.py',
+      '/.git/config',
+      '/data/library.json',
+      '/data/lumen.db',
+      '/../etc/passwd',
+      '/tests/server.test.js',
+      '/package.json',
+      '/electron/main.js',
+      '/server/util.js',
+      '/console/package.json',
+      '/app.js',
+      '/console/nope.js',
+      '/console/..%2Fserver.js',
+      '/console/Main.js',
+    ]) {
       assert.equal((await t.req('GET', p)).status, 404, p);
     }
   });
@@ -109,8 +154,15 @@ describe('server', () => {
       assert.doesNotMatch(r.body.toString(), /token/);
       assert.equal((await t.req('PUT', '/api/library', { library: LIB }, { Host: host })).status, 403, host);
     }
-    for (const host of ['localhost:8642', '127.0.0.1', '[::1]:8642', 'app.localhost', '192.168.1.20:8642',
-      os.hostname(), `${os.hostname()}.local`]) {
+    for (const host of [
+      'localhost:8642',
+      '127.0.0.1',
+      '[::1]:8642',
+      'app.localhost',
+      '192.168.1.20:8642',
+      os.hostname(),
+      `${os.hostname()}.local`,
+    ]) {
       assert.equal((await t.req('GET', '/api/network', undefined, { Host: host })).status, 200, host);
     }
   });
@@ -125,8 +177,14 @@ describe('server', () => {
   it('refuses changes from another site', async () => {
     const live = { live: { slide: { text: 'hijacked' } } };
     // A plain cross-site form or fetch can only send text/plain without the browser asking first.
-    assert.equal((await t.req('POST', '/api/live', JSON.stringify(live), { 'Content-Type': 'text/plain' })).status, 400);
-    assert.equal((await t.req('POST', '/api/network', '{"network": true}', { 'Content-Type': 'text/plain' })).status, 400);
+    assert.equal(
+      (await t.req('POST', '/api/live', JSON.stringify(live), { 'Content-Type': 'text/plain' })).status,
+      400,
+    );
+    assert.equal(
+      (await t.req('POST', '/api/network', '{"network": true}', { 'Content-Type': 'text/plain' })).status,
+      400,
+    );
     assert.equal(t.srv.network, false);
     for (const site of ['cross-site', 'same-site']) {
       assert.equal((await t.req('POST', '/api/live', live, { 'Sec-Fetch-Site': site })).status, 403, site);
@@ -142,14 +200,21 @@ describe('server', () => {
     assert.equal((await t.req('GET', '/remote.html')).status, 200);
     assert.equal((await t.req('POST', '/api/remote', { action: 'next' })).status, 409); // nothing to move the slides
 
-    const output = await t.events(page('output.html')), remote = await t.events(page('remote.html'));
-    await output.next(); await remote.next();
+    const output = await t.events(page('output.html')),
+      remote = await t.events(page('remote.html'));
+    await output.next();
+    await remote.next();
     assert.equal((await t.req('POST', '/api/remote', { action: 'next' })).status, 409); // neither is a console
 
     const consoles = [await t.events(page('')), await t.events(page('index.html'))];
     for (const c of consoles) await c.next();
-    for (const bad of [{}, { action: 'jump' }, { action: 'go', presId: 'a' }, { action: 'go', presId: 'a', idx: -1 },
-      { action: 'clear', what: 'everything' }]) {
+    for (const bad of [
+      {},
+      { action: 'jump' },
+      { action: 'go', presId: 'a' },
+      { action: 'go', presId: 'a', idx: -1 },
+      { action: 'clear', what: 'everything' },
+    ]) {
       assert.equal((await t.req('POST', '/api/remote', bad)).status, 400, JSON.stringify(bad));
     }
     assert.equal((await t.req('POST', '/api/remote', { action: 'go', presId: 'a', idx: 2, extra: 1 })).status, 200);
@@ -178,22 +243,38 @@ describe('server', () => {
 
   it('searches the library', async () => {
     assert.deepEqual((await t.req('GET', '/api/search?q=song')).json, { results: [] });
-    await t.req('PUT', '/api/library', { client: 'x', library: { presentations: [
-      { id: 'a', name: 'Amazing Grace', meta: { ccli: '22025' }, groups: [] }, { id: 'b', name: 'Notices', groups: [] }] } });
-    assert.deepEqual((await t.req('GET', '/api/search?q=22025')).json, { results: [{ id: 'a', name: 'Amazing Grace', snippet: '' }] });
-    assert.deepEqual((await t.req('GET', '/api/search?q=amaz%20gr')).json.results.map(r => r.id), ['a']);
+    await t.req('PUT', '/api/library', {
+      client: 'x',
+      library: {
+        presentations: [
+          { id: 'a', name: 'Amazing Grace', meta: { ccli: '22025' }, groups: [] },
+          { id: 'b', name: 'Notices', groups: [] },
+        ],
+      },
+    });
+    assert.deepEqual((await t.req('GET', '/api/search?q=22025')).json, {
+      results: [{ id: 'a', name: 'Amazing Grace', snippet: '' }],
+    });
+    assert.deepEqual(
+      (await t.req('GET', '/api/search?q=amaz%20gr')).json.results.map(r => r.id),
+      ['a'],
+    );
     assert.deepEqual((await t.req('GET', '/api/search')).json, { results: [] });
   });
 
   it('reads a library saved by the Python server', async () => {
     await t.stop();
     // server.py wrote ASCII-escaped JSON with ", " separators.
-    fs.writeFileSync(path.join(t.data, 'library.json'),
-      '{"rev": 7, "saved": 1, "library": {"presentations": [{"id": "a", "name": "Caf\\u00e9"}], "playlist": []}}');
+    fs.writeFileSync(
+      path.join(t.data, 'library.json'),
+      '{"rev": 7, "saved": 1, "library": {"presentations": [{"id": "a", "name": "Caf\\u00e9"}], "playlist": []}}',
+    );
     fs.writeFileSync(path.join(t.data, 'live.json'), '{"saved": 1, "live": {"idx": 2}}');
     await t.start();
-    assert.deepEqual((await t.req('GET', '/api/library')).json,
-      { rev: 7, library: { presentations: [{ id: 'a', name: 'Café' }], playlist: [] } });
+    assert.deepEqual((await t.req('GET', '/api/library')).json, {
+      rev: 7,
+      library: { presentations: [{ id: 'a', name: 'Café' }], playlist: [] },
+    });
     assert.deepEqual((await t.req('GET', '/api/live')).json.live, { idx: 2 });
   });
 
@@ -203,18 +284,35 @@ describe('server', () => {
     const s = await t.events();
     await s.next(); // hello
     const song = { id: 'b', name: 'Another', groups: [] };
-    let r = await t.req('PATCH', '/api/library', { client: 'op2', base: 1, changes: { presentations: { put: [song] }, set: { playlist: ['a', 'b'] } } });
+    let r = await t.req('PATCH', '/api/library', {
+      client: 'op2',
+      base: 1,
+      changes: { presentations: { put: [song] }, set: { playlist: ['a', 'b'] } },
+    });
     assert.deepEqual(r.json, { rev: 2, prev: 1, conflicts: [], resend: [] });
     const [ev, d] = await s.next();
-    assert.deepEqual([ev, d.rev, d.prev, d.origin, d.changes.presentations, d.changes.set],
-      ['library', 2, 1, 'op2', { put: [song], remove: [] }, { playlist: ['a', 'b'] }]); // added at the end: no order
+    assert.deepEqual(
+      [ev, d.rev, d.prev, d.origin, d.changes.presentations, d.changes.set],
+      ['library', 2, 1, 'op2', { put: [song], remove: [] }, { playlist: ['a', 'b'] }],
+    ); // added at the end: no order
     s.close();
     // op1, still at revision 1, renames a song op2 has not touched, and edits one op2 just added: no conflict.
-    r = await t.req('PATCH', '/api/library', { client: 'op1', base: 1, changes: { presentations: { put: [{ ...LIB.presentations[0], name: 'Renamed' }] } } });
+    r = await t.req('PATCH', '/api/library', {
+      client: 'op1',
+      base: 1,
+      changes: { presentations: { put: [{ ...LIB.presentations[0], name: 'Renamed' }] } },
+    });
     assert.deepEqual(r.json.conflicts, []);
-    r = await t.req('PATCH', '/api/library', { client: 'op1', base: 1, changes: { presentations: { put: [{ ...song, name: 'Mine' }] } } });
+    r = await t.req('PATCH', '/api/library', {
+      client: 'op1',
+      base: 1,
+      changes: { presentations: { put: [{ ...song, name: 'Mine' }] } },
+    });
     assert.deepEqual(r.json.conflicts, [{ list: 'presentations', id: 'b', name: 'Another' }]);
-    assert.deepEqual((await t.req('GET', '/api/library')).json.library.presentations.map(p => p.name), ['Renamed', 'Another']);
+    assert.deepEqual(
+      (await t.req('GET', '/api/library')).json.library.presentations.map(p => p.name),
+      ['Renamed', 'Another'],
+    );
     assert.equal((await t.req('PATCH', '/api/library', { base: 'x', changes: {} })).status, 400);
     assert.equal((await t.req('PATCH', '/api/library', { base: 1 })).status, 400);
   });
@@ -291,14 +389,20 @@ describe('server', () => {
 
   it('stores fonts, by their own extension', async () => {
     const font = Buffer.from('wOF2 not really');
-    let r = await t.req('POST', '/api/media', font, { 'Content-Type': 'font/woff2', 'X-Filename': 'Brand%20Sans.woff2' });
+    let r = await t.req('POST', '/api/media', font, {
+      'Content-Type': 'font/woff2',
+      'X-Filename': 'Brand%20Sans.woff2',
+    });
     assert.deepEqual([r.status, r.json.type, r.json.name], [201, 'font', 'Brand Sans.woff2']);
     assert.match(r.json.src, /^media\/[a-z0-9]{16}\.woff2$/);
     r = await t.req('GET', '/' + r.json.src);
     assert.deepEqual([r.status, r.headers['content-type']], [200, 'font/woff2']);
     r = await t.req('POST', '/api/media', font, { 'Content-Type': 'font/ttf', 'X-Filename': 'a.html' });
     assert.ok(r.json.src.endsWith('.ttf'));
-    assert.equal((await t.req('POST', '/api/media', font, { 'Content-Type': 'font/x-made-up', 'X-Filename': 'a.js' })).status, 400);
+    assert.equal(
+      (await t.req('POST', '/api/media', font, { 'Content-Type': 'font/x-made-up', 'X-Filename': 'a.js' })).status,
+      400,
+    );
   });
 
   it('rejects other types and bad media names', async () => {
@@ -324,26 +428,49 @@ describe('server', () => {
       r = await t.req('GET', '/api/folders');
       const [f] = r.json.folders;
       assert.deepEqual([f.id, f.name, f.path, f.fixed, f.missing], [id, path.basename(dir), dir, false, false]);
-      assert.deepEqual(f.files.map(x => [x.path, x.type]),
-        [['cross.JPG', 'image'], ['Loops/Easter/Sunrise 2.mp4', 'video'], ['Loops/Sunrise 10.mp4', 'video']]);
+      assert.deepEqual(
+        f.files.map(x => [x.path, x.type]),
+        [
+          ['cross.JPG', 'image'],
+          ['Loops/Easter/Sunrise 2.mp4', 'video'],
+          ['Loops/Sunrise 10.mp4', 'video'],
+        ],
+      );
 
       r = await t.req('GET', `/folders/${id}/Loops/Easter/Sunrise%202.mp4`, undefined, { Range: 'bytes=0-99' });
       assert.deepEqual([r.status, r.headers['content-type'], r.body.length], [206, 'video/mp4', 100]);
       assert.match(r.headers['content-security-policy'], /sandbox/);
       r = await t.req('GET', `/folders/${id}/cross.JPG`, undefined, { 'If-None-Match': r.headers.etag });
       assert.equal(r.status, 200); // a different file's tag
-      assert.equal((await t.req('GET', `/folders/${id}/cross.JPG`, undefined, { 'If-None-Match': r.headers.etag })).status, 304);
+      assert.equal(
+        (await t.req('GET', `/folders/${id}/cross.JPG`, undefined, { 'If-None-Match': r.headers.etag })).status,
+        304,
+      );
 
-      try { fs.symlinkSync(path.join(t.data, 'secret.mp4'), path.join(dir, 'link.mp4')); } catch {} // Windows may not allow links
-      for (const bad of [`/folders/${id}/notes.txt`, `/folders/${id}/../secret.mp4`, `/folders/${id}/%2e%2e/secret.mp4`,
-        `/folders/${id}/..%2Fsecret.mp4`, `/folders/${id}/Loops%5C..%5C..%5Csecret.mp4`, `/folders/${id}/link.mp4`,
-        `/folders/${id}/cross.JPG:x.mp4`, `/folders/${id}/`, '/folders/nope/cross.JPG', `/folders/${id}`]) {
+      try {
+        fs.symlinkSync(path.join(t.data, 'secret.mp4'), path.join(dir, 'link.mp4'));
+      } catch {} // Windows may not allow links
+      for (const bad of [
+        `/folders/${id}/notes.txt`,
+        `/folders/${id}/../secret.mp4`,
+        `/folders/${id}/%2e%2e/secret.mp4`,
+        `/folders/${id}/..%2Fsecret.mp4`,
+        `/folders/${id}/Loops%5C..%5C..%5Csecret.mp4`,
+        `/folders/${id}/link.mp4`,
+        `/folders/${id}/cross.JPG:x.mp4`,
+        `/folders/${id}/`,
+        '/folders/nope/cross.JPG',
+        `/folders/${id}`,
+      ]) {
         assert.equal((await t.req('GET', bad)).status, 404, bad);
       }
 
       assert.equal((await t.req('POST', '/api/folders', { add: path.join(dir, 'notes.txt') })).status, 400);
       assert.equal((await t.req('POST', '/api/folders', { add: t.data })).status, 400);
-      assert.equal((await t.req('POST', '/api/folders', { add: dir }, { 'X-Forwarded-For': '192.168.1.20' })).status, 403);
+      assert.equal(
+        (await t.req('POST', '/api/folders', { add: dir }, { 'X-Forwarded-For': '192.168.1.20' })).status,
+        403,
+      );
       const remote = (await t.req('GET', '/api/folders', undefined, { 'X-Forwarded-For': '192.168.1.20' })).json;
       assert.equal('path' in remote.folders[0], false); // other devices aren't told where it is on this computer
 
@@ -420,10 +547,14 @@ describe('server', () => {
   it('keeps the latest backups, and one a day before them', async () => {
     const dir = path.join(t.data, 'backups');
     const name = (day, h) => `library-202609${String(day).padStart(2, '0')}-${String(h).padStart(2, '0')}0000.json`;
-    for (let day = 1; day <= 30; day++) for (let h = 10; h < 13; h++) fs.writeFileSync(path.join(dir, name(day, h)), '{}');
+    for (let day = 1; day <= 30; day++)
+      for (let h = 10; h < 13; h++) fs.writeFileSync(path.join(dir, name(day, h)), '{}');
     await t.req('PUT', '/api/library', { library: LIB });
     await t.req('PUT', '/api/library', { library: LIB, replace: true });
-    const kept = fs.readdirSync(dir).filter(f => f.startsWith('library-')).sort();
+    const kept = fs
+      .readdirSync(dir)
+      .filter(f => f.startsWith('library-'))
+      .sort();
     // The 50 newest (today's, then September 30 back to 14 at noon), then the last of each day before: 14 to 1.
     assert.equal(kept.length, 50 + 14);
     assert.ok(kept.includes(name(1, 12)) && !kept.includes(name(1, 11)));
@@ -455,10 +586,15 @@ describe('server', () => {
 
   it('logs a real error in one line', async () => {
     const orig = server.API['GET health'];
-    server.API['GET health'] = () => { throw new RangeError('boom'); };
+    server.API['GET health'] = () => {
+      throw new RangeError('boom');
+    };
     try {
       let r;
-      const out = await captureStderr(async () => { r = await t.req('GET', '/api/health'); await delay(50); });
+      const out = await captureStderr(async () => {
+        r = await t.req('GET', '/api/health');
+        await delay(50);
+      });
       assert.equal(r.status, 500);
       assert.match(out, /^error: request from 127\.0\.0\.1 failed: RangeError: boom at \S+:\d+\n$/);
     } finally {
@@ -470,8 +606,15 @@ describe('server', () => {
 async function captureStderr(fn) {
   const write = process.stderr.write;
   let out = '';
-  process.stderr.write = s => { out += s; return true; };
-  try { await fn(); } finally { process.stderr.write = write; }
+  process.stderr.write = s => {
+    out += s;
+    return true;
+  };
+  try {
+    await fn();
+  } finally {
+    process.stderr.write = write;
+  }
   return out;
 }
 
@@ -480,7 +623,10 @@ describe('token', () => {
 
   it('needs the token for changes', async () => {
     assert.equal((await t.req('POST', '/api/live', { live: {} }, { 'X-Lumen-Token': '' })).status, 401);
-    assert.equal((await t.req('POST', '/api/live', { live: {} }, { 'X-Lumen-Token': '', Authorization: 'Bearer s3cret' })).status, 200);
+    assert.equal(
+      (await t.req('POST', '/api/live', { live: {} }, { 'X-Lumen-Token': '', Authorization: 'Bearer s3cret' })).status,
+      200,
+    );
     assert.equal((await t.req('GET', '/api/health')).json.auth, true);
   });
 });
@@ -570,7 +716,10 @@ describe('network mode', () => {
   });
 
   async function signIn(token, page = '/output.html', agent = 'Mozilla/5.0 (iPhone) Safari/604.1') {
-    const r = await t.req('GET', `${page}?token=${token}`, undefined, { 'X-Forwarded-For': '192.168.1.20', 'User-Agent': agent });
+    const r = await t.req('GET', `${page}?token=${token}`, undefined, {
+      'X-Forwarded-For': '192.168.1.20',
+      'User-Agent': agent,
+    });
     assert.equal(r.status, 303);
     return { 'X-Forwarded-For': '192.168.1.20', Cookie: r.headers['set-cookie'][0].split(';')[0] };
   }
@@ -593,7 +742,10 @@ describe('network mode', () => {
     assert.equal(seenByPhone.signedIn, true);
 
     const r = await t.req('POST', '/api/network', { disconnect: iphone.id }, { 'X-Lumen-Token': token });
-    assert.deepEqual(r.json.devices.map(d => d.device), ['Chrome on Windows']);
+    assert.deepEqual(
+      r.json.devices.map(d => d.device),
+      ['Chrome on Windows'],
+    );
     assert.equal((await t.req('GET', '/api/library', undefined, phone)).status, 401);
     assert.equal((await t.req('GET', '/api/library', undefined, laptop)).status, 200);
     while (await stream.next()); // the phone's open stream is closed too
@@ -610,10 +762,14 @@ describe('network mode', () => {
     const phone = await signIn(token, '/remote.html');
     const page = name => ({ Referer: `http://127.0.0.1:${t.port}/${name}` });
     const here = await t.events(page(''));
-    const laptop = await t.events({ ...await signIn(token, '/'), ...page('') }); // opened later, on another device
-    await here.next(); await laptop.next();
+    const laptop = await t.events({ ...(await signIn(token, '/')), ...page('') }); // opened later, on another device
+    await here.next();
+    await laptop.next();
 
-    assert.equal((await t.req('POST', '/api/remote', { action: 'next' }, { 'X-Forwarded-For': '192.168.1.20' })).status, 401);
+    assert.equal(
+      (await t.req('POST', '/api/remote', { action: 'next' }, { 'X-Forwarded-For': '192.168.1.20' })).status,
+      401,
+    );
     assert.equal((await t.req('POST', '/api/remote', { action: 'next' }, phone)).status, 200);
     assert.deepEqual((await here.next())[1].action, 'next');
     here.close();
@@ -650,16 +806,31 @@ describe('network mode', () => {
 
 describe('options', () => {
   it('reads the command line and environment', () => {
-    const o = server.options(['--port', '9000', '--allowed-host', 'a.example', '-v'],
-      { LUMEN_HOST: '0.0.0.0', LUMEN_TOKEN: 't', LUMEN_ALLOWED_HOSTS: 'b.example,c.example', LUMEN_DATA: '/srv/lumen' });
-    assert.deepEqual(o, { host: '0.0.0.0', port: 9000, data: '/srv/lumen', token: 't', maxUploadMb: 4096, verbose: true, mediaFolders: [],
-      allowedHosts: ['b.example', 'c.example', 'a.example'] });
+    const o = server.options(['--port', '9000', '--allowed-host', 'a.example', '-v'], {
+      LUMEN_HOST: '0.0.0.0',
+      LUMEN_TOKEN: 't',
+      LUMEN_ALLOWED_HOSTS: 'b.example,c.example',
+      LUMEN_DATA: '/srv/lumen',
+    });
+    assert.deepEqual(o, {
+      host: '0.0.0.0',
+      port: 9000,
+      data: '/srv/lumen',
+      token: 't',
+      maxUploadMb: 4096,
+      verbose: true,
+      mediaFolders: [],
+      allowedHosts: ['b.example', 'c.example', 'a.example'],
+    });
     assert.equal(server.options([], {}).host, null);
   });
 
   it('names devices from their browser', () => {
     assert.equal(server.deviceName('Mozilla/5.0 (iPhone) CriOS/120 Safari/604.1'), 'Chrome on iPhone');
-    assert.equal(server.deviceName('Mozilla/5.0 (Windows NT 10.0) Chrome/120 Safari/537.36 Edg/120'), 'Edge on Windows');
+    assert.equal(
+      server.deviceName('Mozilla/5.0 (Windows NT 10.0) Chrome/120 Safari/537.36 Edg/120'),
+      'Edge on Windows',
+    );
     assert.equal(server.deviceName('curl/8'), 'Unknown device');
   });
 });

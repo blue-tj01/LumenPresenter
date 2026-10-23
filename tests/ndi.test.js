@@ -11,7 +11,9 @@ const { candidates, open } = require('../electron/ndi-lib.js');
 it('looks for NDI where NDI Tools puts it, then on the usual library path', () => {
   const dll = `Processing.NDI.Lib.${process.arch === 'ia32' ? 'x86' : 'x64'}.dll`;
   const dir = 'C:\\Program Files\\NDI\\NDI 6 Runtime\\v6';
-  const none = () => { throw new Error('ENOENT'); };
+  const none = () => {
+    throw new Error('ENOENT');
+  };
   assert.deepEqual(candidates({ NDI_RUNTIME_DIR_V6: dir }, 'win32', none), [`${dir}\\${dll}`, dll]);
   assert.deepEqual(candidates({}, 'linux'), ['libndi.so.6', 'libndi.so']);
   assert.deepEqual(candidates({ LUMEN_NDI_LIB: '/opt/ndi/libndi.so' }, 'linux'), ['/opt/ndi/libndi.so']);
@@ -19,7 +21,10 @@ it('looks for NDI where NDI Tools puts it, then on the usual library path', () =
 
 it('finds NDI in its install folder when Lumen started before NDI was installed', () => {
   const dll = `Processing.NDI.Lib.${process.arch === 'ia32' ? 'x86' : 'x64'}.dll`;
-  const list = dir => { assert.equal(dir, 'C:\\Program Files\\NDI'); return ['NDI 6 Tools', 'NDI 6 Runtime']; };
+  const list = dir => {
+    assert.equal(dir, 'C:\\Program Files\\NDI');
+    return ['NDI 6 Tools', 'NDI 6 Runtime'];
+  };
   const found = candidates({ ProgramFiles: 'C:\\Program Files', ProgramW6432: 'C:\\Program Files' }, 'win32', list);
   assert.equal(found[0], `C:\\Program Files\\NDI\\NDI 6 Runtime\\v6\\${dll}`);
   assert.ok(found.includes(`C:\\Program Files\\NDI\\NDI 6 Tools\\Runtime\\${dll}`));
@@ -28,74 +33,156 @@ it('finds NDI in its install folder when Lumen started before NDI was installed'
 
 it('says when NDI is there but will not load, rather than that it is not installed', () => {
   const file = __filename; // any file that exists
-  const koffi = { load() { throw new Error('%1 is not a valid Win32 application'); } };
-  assert.throws(() => open({ env: { LUMEN_NDI_LIB: file }, koffi }),
-    e => e.code === undefined && /installed but could not be loaded: %1 is not/.test(e.message));
+  const koffi = {
+    load() {
+      throw new Error('%1 is not a valid Win32 application');
+    },
+  };
+  assert.throws(
+    () => open({ env: { LUMEN_NDI_LIB: file }, koffi }),
+    e => e.code === undefined && /installed but could not be loaded: %1 is not/.test(e.message),
+  );
 });
 
 it('says to install NDI Tools when there is no NDI library, or the NDI SDK on Linux', () => {
-  const koffi = { load() { throw new Error('cannot open shared object file'); } };
-  assert.throws(() => open({ env: {}, koffi, platform: 'win32' }),
-    e => e.code === 'NDI_MISSING' && e.message === 'Install NDI Tools to send over NDI');
-  assert.throws(() => open({ env: {}, koffi, platform: 'linux' }),
-    e => e.code === 'NDI_MISSING' && e.message === 'Install the NDI SDK to send over NDI');
+  const koffi = {
+    load() {
+      throw new Error('cannot open shared object file');
+    },
+  };
+  assert.throws(
+    () => open({ env: {}, koffi, platform: 'win32' }),
+    e => e.code === 'NDI_MISSING' && e.message === 'Install NDI Tools to send over NDI',
+  );
+  assert.throws(
+    () => open({ env: {}, koffi, platform: 'linux' }),
+    e => e.code === 'NDI_MISSING' && e.message === 'Install the NDI SDK to send over NDI',
+  );
 });
 
 // ---------- the output, with stand-ins for Electron and NDI ----------
 const tick = () => new Promise(r => setImmediate(r));
 
 function fakeElectron() {
-  const opened = [], external = [];
+  const opened = [],
+    external = [];
   const others = [];
   class WebContents extends EventEmitter {
-    constructor(url = '', offscreen = true) { super(); this.url = url; this.offscreen = offscreen; this.muted = false; this.fps = 0; }
-    setFrameRate(n) { this.fps = n; }
-    loadURL(url) { this.url = url; }
-    getURL() { return this.url; }
-    isDestroyed() { return false; }
-    isOffscreen() { return this.offscreen; }
-    isAudioMuted() { return this.muted; }
-    setAudioMuted(m) { this.muted = m; }
+    constructor(url = '', offscreen = true) {
+      super();
+      this.url = url;
+      this.offscreen = offscreen;
+      this.muted = false;
+      this.fps = 0;
+    }
+    setFrameRate(n) {
+      this.fps = n;
+    }
+    loadURL(url) {
+      this.url = url;
+    }
+    getURL() {
+      return this.url;
+    }
+    isDestroyed() {
+      return false;
+    }
+    isOffscreen() {
+      return this.offscreen;
+    }
+    isAudioMuted() {
+      return this.muted;
+    }
+    setAudioMuted(m) {
+      this.muted = m;
+    }
   }
   class BrowserWindow extends EventEmitter {
-    constructor(opts) { super(); this.opts = opts; this.destroyed = false; this.webContents = new WebContents(); opened.push(this); }
-    isDestroyed() { return this.destroyed; }
-    destroy() { this.destroyed = true; this.emit('closed'); }
+    constructor(opts) {
+      super();
+      this.opts = opts;
+      this.destroyed = false;
+      this.webContents = new WebContents();
+      opened.push(this);
+    }
+    isDestroyed() {
+      return this.destroyed;
+    }
+    destroy() {
+      this.destroyed = true;
+      this.emit('closed');
+    }
   }
-  const electron = { BrowserWindow, opened, others, WebContents,
+  const electron = {
+    BrowserWindow,
+    opened,
+    others,
+    WebContents,
     webContents: { getAllWebContents: () => [...opened.filter(w => !w.destroyed).map(w => w.webContents), ...others] },
-    shell: { openExternal: url => external.push(url) }, external };
+    shell: { openExternal: url => external.push(url) },
+    external,
+  };
   return electron;
 }
 
 /** An NDI sender that records frames; each send waits until the test lets it finish, as NDI does to pace them. */
 function fakeNdi() {
-  const ndi = { senders: [], send({ name }) {
-    const s = { name, frames: [], receivers: 0, destroyed: false, pending: null,
-      video(frame) {
-        assert.ok(!s.destroyed, 'no frames after destroy');
-        s.frames.push(frame);
-        return new Promise(resolve => { s.pending = () => { s.pending = null; resolve(); }; });
-      },
-      connections: () => s.receivers,
-      sourcename: () => `STUDIO-PC (${name})`,
-      destroy() { assert.ok(!s.pending, 'destroyed while NDI was reading a frame'); s.destroyed = true; },
-    };
-    ndi.senders.push(s);
-    return s;
-  } };
+  const ndi = {
+    senders: [],
+    send({ name }) {
+      const s = {
+        name,
+        frames: [],
+        receivers: 0,
+        destroyed: false,
+        pending: null,
+        video(frame) {
+          assert.ok(!s.destroyed, 'no frames after destroy');
+          s.frames.push(frame);
+          return new Promise(resolve => {
+            s.pending = () => {
+              s.pending = null;
+              resolve();
+            };
+          });
+        },
+        connections: () => s.receivers,
+        sourcename: () => `STUDIO-PC (${name})`,
+        destroy() {
+          assert.ok(!s.pending, 'destroyed while NDI was reading a frame');
+          s.destroyed = true;
+        },
+      };
+      ndi.senders.push(s);
+      return s;
+    },
+  };
   return ndi;
 }
 
 function output({ settings = {}, load, platform = 'win32' } = {}) {
-  const electron = fakeElectron(), ndi = fakeNdi();
-  let saves = 0, changes = 0;
-  const out = new NdiOutput({ electron, origin: 'http://127.0.0.1:8642', webPreferences: { sandbox: true }, settings,
-    save: () => saves++, onChange: () => changes++, load: load || (() => ({ ndi })), platform });
+  const electron = fakeElectron(),
+    ndi = fakeNdi();
+  let saves = 0,
+    changes = 0;
+  const out = new NdiOutput({
+    electron,
+    origin: 'http://127.0.0.1:8642',
+    webPreferences: { sandbox: true },
+    settings,
+    save: () => saves++,
+    onChange: () => changes++,
+    load: load || (() => ({ ndi })),
+    platform,
+  });
   return { out, electron, ndi, settings, saves: () => saves, changes: () => changes };
 }
 
-const image = (width, height) => ({ isEmpty: () => false, getSize: () => ({ width, height }), toBitmap: () => Buffer.alloc(width * height * 4, 7) });
+const image = (width, height) => ({
+  isEmpty: () => false,
+  getSize: () => ({ width, height }),
+  toBitmap: () => Buffer.alloc(width * height * 4, 7),
+});
 
 it('is off until turned on, with words only at 1080p and 30 frames a second to start with', () => {
   const { out, settings } = output();
@@ -128,7 +215,8 @@ it('draws the audience output off screen and sends each picture over NDI', async
   assert.equal(sender.frames[0].data.length, 1920 * 1080 * 4);
 
   // While the page is still, the same picture goes out again, so receivers get a steady stream.
-  sender.pending(); await tick();
+  sender.pending();
+  await tick();
   assert.equal(sender.frames.length, 2);
   assert.equal(sender.frames[1].data, sender.frames[0].data);
   const stopped = out.stop();
@@ -190,7 +278,12 @@ it('sends only the words on a transparent background when asked, and remembers i
 
   // Part-covered pixels go out with straight alpha, as NDI expects; clear and solid ones are unchanged.
   const px = Buffer.from([0, 0, 0, 0, 10, 20, 30, 255, 64, 32, 0, 128]);
-  win.webContents.emit('paint', {}, {}, { isEmpty: () => false, getSize: () => ({ width: 3, height: 1 }), toBitmap: () => px });
+  win.webContents.emit(
+    'paint',
+    {},
+    {},
+    { isEmpty: () => false, getSize: () => ({ width: 3, height: 1 }), toBitmap: () => px },
+  );
   await new Promise(r => setTimeout(r, 50));
   assert.deepEqual([...ndi.senders[1].frames[0].data], [0, 0, 0, 0, 10, 20, 30, 255, 128, 64, 0, 128]);
 
@@ -200,7 +293,10 @@ it('sends only the words on a transparent background when asked, and remembers i
 });
 
 it('turns premultiplied pixels into straight alpha without going past full brightness', () => {
-  assert.deepEqual([...unpremultiply(Buffer.from([255, 200, 100, 200, 1, 1, 1, 1]))], [255, 255, 128, 200, 255, 255, 255, 1]);
+  assert.deepEqual(
+    [...unpremultiply(Buffer.from([255, 200, 100, 200, 1, 1, 1, 1]))],
+    [255, 255, 128, 200, 255, 255, 255, 1],
+  );
 });
 
 it('plays video sound only when no audience output window is open', async () => {
@@ -220,7 +316,11 @@ it('plays video sound only when no audience output window is open', async () => 
 it('shows the source name and how many receivers are watching', async () => {
   const { out, ndi, changes } = output();
   await out.set(true);
-  const status = () => out.menu(() => {}).submenu.filter(i => i.enabled === false).map(i => i.label);
+  const status = () =>
+    out
+      .menu(() => {})
+      .submenu.filter(i => i.enabled === false)
+      .map(i => i.label);
   assert.deepEqual(status(), ['Sending as STUDIO-PC (Lumen Presenter)', 'No receivers yet']);
   const before = changes();
   ndi.senders[0].receivers = 2;
@@ -244,8 +344,10 @@ it('offers NDI Tools when NDI is not installed, and stays off', async () => {
 });
 
 it('offers the NDI SDK on Linux, where there is no NDI Tools', () => {
-  const { out, electron } = output({ platform: 'linux',
-    load: () => ({ error: 'Install the NDI SDK to send over NDI', missing: true }) });
+  const { out, electron } = output({
+    platform: 'linux',
+    load: () => ({ error: 'Install the NDI SDK to send over NDI', missing: true }),
+  });
   const menu = out.menu(() => {}).submenu;
   assert.ok(menu.some(i => i.label === 'The NDI SDK isn’t installed on this computer'));
   menu.find(i => i.label === 'Get the NDI SDK…').click();
@@ -255,7 +357,9 @@ it('offers the NDI SDK on Linux, where there is no NDI Tools', () => {
 it('finds NDI installed while Lumen is open', async () => {
   let installed = false;
   const ndi = fakeNdi();
-  const { out } = output({ load: () => installed ? { ndi } : { error: 'Install NDI Tools to send over NDI', missing: true } });
+  const { out } = output({
+    load: () => (installed ? { ndi } : { error: 'Install NDI Tools to send over NDI', missing: true }),
+  });
   let rebuilt = 0;
   const again = out.menu(() => rebuilt++).submenu.find(i => i.label === 'Look for NDI Again');
   assert.equal(out.lib(), null);
@@ -274,16 +378,20 @@ it('comes back on at launch when it was on last time', () => {
 });
 
 // ---------- the real NDI library, when there is one to test with ----------
-it('sends frames through the NDI library', { skip: !process.env.LUMEN_NDI_LIB && 'set LUMEN_NDI_LIB to test with NDI' }, async () => {
-  const ndi = open();
-  assert.match(ndi.version, /NDI/);
-  const sender = ndi.send({ name: 'Lumen Test' });
-  assert.match(sender.sourcename(), /\(Lumen Test\)$/);
-  assert.equal(sender.connections(), 0);
-  const data = Buffer.alloc(64 * 36 * 4, 128);
-  const start = Date.now();
-  for (let i = 0; i < 6; i++) await sender.video({ width: 64, height: 36, fps: 30, data });
-  assert.ok(Date.now() - start >= 100, 'NDI paces frames to the frame rate');
-  await assert.rejects(sender.video({ width: 64, height: 36, fps: 30, data: Buffer.alloc(16) }), /smaller/);
-  sender.destroy();
-});
+it(
+  'sends frames through the NDI library',
+  { skip: !process.env.LUMEN_NDI_LIB && 'set LUMEN_NDI_LIB to test with NDI' },
+  async () => {
+    const ndi = open();
+    assert.match(ndi.version, /NDI/);
+    const sender = ndi.send({ name: 'Lumen Test' });
+    assert.match(sender.sourcename(), /\(Lumen Test\)$/);
+    assert.equal(sender.connections(), 0);
+    const data = Buffer.alloc(64 * 36 * 4, 128);
+    const start = Date.now();
+    for (let i = 0; i < 6; i++) await sender.video({ width: 64, height: 36, fps: 30, data });
+    assert.ok(Date.now() - start >= 100, 'NDI paces frames to the frame rate');
+    await assert.rejects(sender.video({ width: 64, height: 36, fps: 30, data: Buffer.alloc(16) }), /smaller/);
+    sender.destroy();
+  },
+);

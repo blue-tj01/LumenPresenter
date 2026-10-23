@@ -4,16 +4,32 @@ const assert = require('assert/strict');
 const { it, before } = require('node:test');
 
 let w;
-before(async () => { w = await import('../console/words.js'); });
+before(async () => {
+  w = await import('../console/words.js');
+});
 
 it('reads formatting marks into runs of text', () => {
-  assert.deepEqual(w.parseWords('Amazing **grace**, how *sweet*'), [{ text: 'Amazing ' }, { text: 'grace', bold: true },
-    { text: ', how ' }, { text: 'sweet', italic: true }]);
-  assert.deepEqual(w.parseWords('{gold}Jesus{/} is __Lord__'), [{ text: 'Jesus', color: '#ffd54f' }, { text: ' is ' },
-    { text: 'Lord', underline: true }]);
-  assert.deepEqual(w.parseWords('**{#ff0000}All{/} of me**\nnext'), [{ text: 'All', bold: true, color: '#ff0000' },
-    { text: ' of me', bold: true }, { text: '\nnext' }]);
-  assert.deepEqual(w.parseWords('{orange}a {#123}b{/} c{/}'), [{ text: 'a ', color: 'orange' }, { text: 'b', color: '#123' }, { text: ' c', color: 'orange' }]);
+  assert.deepEqual(w.parseWords('Amazing **grace**, how *sweet*'), [
+    { text: 'Amazing ' },
+    { text: 'grace', bold: true },
+    { text: ', how ' },
+    { text: 'sweet', italic: true },
+  ]);
+  assert.deepEqual(w.parseWords('{gold}Jesus{/} is __Lord__'), [
+    { text: 'Jesus', color: '#ffd54f' },
+    { text: ' is ' },
+    { text: 'Lord', underline: true },
+  ]);
+  assert.deepEqual(w.parseWords('**{#ff0000}All{/} of me**\nnext'), [
+    { text: 'All', bold: true, color: '#ff0000' },
+    { text: ' of me', bold: true },
+    { text: '\nnext' },
+  ]);
+  assert.deepEqual(w.parseWords('{orange}a {#123}b{/} c{/}'), [
+    { text: 'a ', color: 'orange' },
+    { text: 'b', color: '#123' },
+    { text: ' c', color: 'orange' },
+  ]);
 });
 
 it('shows marks with no partner, and escaped ones, as typed', () => {

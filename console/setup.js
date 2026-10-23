@@ -9,15 +9,27 @@ const STEPS = ['welcome', 'screens', 'songs', 'look', 'done'];
 let step = 0;
 let onFinish = () => {};
 
-const SAMPLE = { id: 'setup-sample', name: 'Amazing Grace', meta: { author: 'John Newton', copyright: 'Public Domain' },
-  groups: [{ id: 'g1', name: 'Verse 1', slides: [{ id: 's1', text: 'Amazing grace! How sweet the sound\nThat saved a wretch like me!' }] }] };
+const SAMPLE = {
+  id: 'setup-sample',
+  name: 'Amazing Grace',
+  meta: { author: 'John Newton', copyright: 'Public Domain' },
+  groups: [
+    {
+      id: 'g1',
+      name: 'Verse 1',
+      slides: [{ id: 's1', text: 'Amazing grace! How sweet the sound\nThat saved a wretch like me!' }],
+    },
+  ],
+};
 const FALLBACK_BG = { type: 'gradient', src: 'linear-gradient(160deg,#0f2027,#203a43,#2c5364)' };
 
 /** Show the step, and its buttons. */
 function show(i) {
   step = i;
   const name = STEPS[i];
-  document.querySelectorAll('#setupDialog [data-step]').forEach(el => { /** @type {HTMLElement} */ (el).hidden = el.getAttribute('data-step') !== name; });
+  document.querySelectorAll('#setupDialog [data-step]').forEach(el => {
+    /** @type {HTMLElement} */ (el).hidden = el.getAttribute('data-step') !== name;
+  });
   $('#setupCount').textContent = i < STEPS.length - 1 ? `Step ${i + 1} of ${STEPS.length - 1}` : '';
   $('#setupBack').hidden = i === 0 || i === STEPS.length - 1;
   $('#setupSkip').hidden = i === STEPS.length - 1;
@@ -37,13 +49,14 @@ async function renderScreens() {
   $('#setupScreensWeb').hidden = !!desk;
   if (!desk) return;
   for (const name of ['output', 'stage']) {
-    const sel = $(`#setupScreen-${name}`); sel.textContent = '';
+    const sel = $(`#setupScreen-${name}`);
+    sel.textContent = '';
     sel.append(new Option('In a window I place myself', ''));
     desk.displays.forEach(d => sel.append(new Option(`Full screen on ${d.name}`, String(d.id))));
     sel.value = desk.chosen[name] === null ? '' : String(desk.chosen[name]);
     sel.onchange = async () => {
       const ok = await window.lumenDesktop.setScreen(name, sel.value === '' ? null : Number(sel.value));
-      if (!ok) toast('That display is not connected any more'), renderScreens();
+      if (!ok) (toast('That display is not connected any more'), renderScreens());
     };
   }
   $('#setupNoSecond').hidden = desk.displays.length > 1;
@@ -51,24 +64,32 @@ async function renderScreens() {
 
 // ---------- the look ----------
 function renderLooks() {
-  const box = $('#setupLooks'); box.textContent = '';
+  const box = $('#setupLooks');
+  box.textContent = '';
   const choices = [{ id: '', name: 'Default style' }, ...state.db.templates.map(t => ({ id: t.id, name: t.name }))];
   for (const c of choices) {
     const pres = { ...SAMPLE, ...(c.id ? { templateId: c.id } : {}) };
     const [s] = flat(pres);
-    const card = document.createElement('button'); card.type = 'button'; card.className = 'setup-look';
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'setup-look';
     card.setAttribute('aria-pressed', String((state.db.defaultTemplateId || '') === c.id));
     card.innerHTML = '<div class="setup-look-screen"></div><span></span>';
     /** @type {HTMLElement} */ (card.lastChild).textContent = c.name;
     card.onclick = () => {
-      if (c.id) state.db.defaultTemplateId = c.id; else delete state.db.defaultTemplateId;
+      if (c.id) state.db.defaultTemplateId = c.id;
+      else delete state.db.defaultTemplateId;
       save();
       box.querySelectorAll('.setup-look').forEach(b => b.setAttribute('aria-pressed', String(b === card)));
       onFinish();
     };
     box.append(card);
     const scr = PP.createScreen(card.firstChild);
-    PP.update(scr, { bg: slideBackground(pres, s?.slide) || FALLBACK_BG, slide: { elements: s?.elements || [] } }, { animate: false, still: true });
+    PP.update(
+      scr,
+      { bg: slideBackground(pres, s?.slide) || FALLBACK_BG, slide: { elements: s?.elements || [] } },
+      { animate: false, still: true },
+    );
   }
 }
 
@@ -101,15 +122,21 @@ export function setupSetup(changed) {
     // The demo hymns and their service go; the backgrounds and themes stay.
     state.db = normalize({ ...state.db, presentations: [], playlist: [], services: [] });
     state.selectedId = null;
-    save(); changed();
+    save();
+    changed();
     show(1);
   };
   $('#setupIdentify').onclick = () => window.lumenDesktop?.identifyScreens?.();
   $('#setupImport').onclick = () => $('#songFile').click();
   $('#setupLicence').onchange = e => {
     const v = e.target.value.trim();
-    if (v) state.db.ccliLicence = v; else delete state.db.ccliLicence;
-    save(); changed();
+    if (v) state.db.ccliLicence = v;
+    else delete state.db.ccliLicence;
+    save();
+    changed();
   };
-  $('#setupDialog').onkeydown = e => { e.stopPropagation(); if (e.key === 'Escape') finish(); };
+  $('#setupDialog').onkeydown = e => {
+    e.stopPropagation();
+    if (e.key === 'Escape') finish();
+  };
 }

@@ -32,29 +32,50 @@ const MIGRATIONS = [
       const old = db.prepare(`SELECT pos, ${cols.join(', ')}, data FROM ${t} ORDER BY pos`).all();
       db.exec(`DROP TABLE ${t};
         CREATE TABLE ${t} (n INTEGER PRIMARY KEY, key TEXT NOT NULL UNIQUE, pos INTEGER NOT NULL,
-          rev INTEGER NOT NULL DEFAULT 0, ${cols.filter(c => c !== 'id').map(c => `${c} TEXT`).join(', ')}, data TEXT NOT NULL) STRICT;`);
+          rev INTEGER NOT NULL DEFAULT 0, ${cols
+            .filter(c => c !== 'id')
+            .map(c => `${c} TEXT`)
+            .join(', ')}, data TEXT NOT NULL) STRICT;`);
       const keys = new Set();
-      const put = db.prepare(`INSERT INTO ${t} (n, key, pos, ${cols.filter(c => c !== 'id').join(', ')}, data) VALUES (?, ?, ?, ${cols.filter(c => c !== 'id').map(() => '?').join(', ')}, ?)`);
+      const put = db.prepare(
+        `INSERT INTO ${t} (n, key, pos, ${cols.filter(c => c !== 'id').join(', ')}, data) VALUES (?, ?, ?, ${cols
+          .filter(c => c !== 'id')
+          .map(() => '?')
+          .join(', ')}, ?)`,
+      );
       old.forEach(r => {
-        let x; try { x = JSON.parse(r.data); } catch { x = null; }
+        let x;
+        try {
+          x = JSON.parse(r.data);
+        } catch {
+          x = null;
+        }
         put.run(r.pos, keyFor(x, keys, r.pos), r.pos, ...cols.filter(c => c !== 'id').map(c => r[c]), r.data);
       });
     }
-    db.exec('CREATE TABLE removed (tbl TEXT NOT NULL, id TEXT NOT NULL, rev INTEGER NOT NULL, PRIMARY KEY (tbl, id)) STRICT;');
+    db.exec(
+      'CREATE TABLE removed (tbl TEXT NOT NULL, id TEXT NOT NULL, rev INTEGER NOT NULL, PRIMARY KEY (tbl, id)) STRICT;',
+    );
   },
 ];
 const SEARCH_WEIGHTS = [10, 4, 1, 4, 1]; // a match in the name counts most, then author or song number
-const MARK = ['\u0002', '\u0003'];     // around matched words in a search result's snippet
+const MARK = ['\u0002', '\u0003']; // around matched words in a search result's snippet
 const MAX_RESULTS = 100;
 
 /** What search indexes of a presentation, in either library format. Media lines are left out of the words. */
 function searchFields(p) {
   if (!isObject(p)) return ['', '', '', '', ''];
   const meta = isObject(p.meta) ? p.meta : {};
-  const text = s => plainWords((typeof s === 'string' ? s : isObject(s) ? String(s.text ?? '') : '')
-    .split('\n').filter(l => !l.trimStart().startsWith('@')).join('\n'));
+  const text = s =>
+    plainWords(
+      (typeof s === 'string' ? s : isObject(s) ? String(s.text ?? '') : '')
+        .split('\n')
+        .filter(l => !l.trimStart().startsWith('@'))
+        .join('\n'),
+    );
   const lyrics = (Array.isArray(p.groups) ? p.groups : [])
-    .flatMap(g => (isObject(g) && Array.isArray(g.slides) ? g.slides : []).map(text)).join('\n');
+    .flatMap(g => (isObject(g) && Array.isArray(g.slides) ? g.slides : []).map(text))
+    .join('\n');
   return [p.name, meta.author, meta.copyright, meta.ccli, lyrics].map(v => String(v ?? ''));
 }
 
@@ -76,7 +97,7 @@ const TOMBSTONES = 5000; // deleted ids remembered, newest first, to notice a ch
  * its own, which the console never names in a change. */
 function keyFor(x, taken, n) {
   let key = isObject(x) && typeof x.id === 'string' && x.id && !x.id.startsWith('#') && !taken.has(x.id) ? x.id : null;
-  if (key === null) for (let i = n; taken.has(key = `#${i}`); i++);
+  if (key === null) for (let i = n; taken.has((key = `#${i}`)); i++);
   taken.add(key);
   return key;
 }
@@ -84,8 +105,10 @@ function keyFor(x, taken, n) {
 /** Whether `next` is `prev` with some keys taken out and new ones added at the end: an order a change need not
  * send, as anyone can work it out from what was removed and added. */
 function appendOnly(prev, next) {
-  const had = new Set(prev), has = new Set(next);
-  const kept = prev.filter(k => has.has(k)), added = next.filter(k => !had.has(k));
+  const had = new Set(prev),
+    has = new Set(next);
+  const kept = prev.filter(k => has.has(k)),
+    added = next.filter(k => !had.has(k));
   return next.length === kept.length + added.length && [...kept, ...added].every((k, i) => k === next[i]);
 }
 
@@ -134,7 +157,7 @@ class Library {
     const version = Number(this.db.prepare('PRAGMA user_version').get().user_version);
     if (version >= MIGRATIONS.length) return;
     this.transaction(() => {
-      MIGRATIONS.slice(version).forEach(m => typeof m === 'function' ? m(this.db) : this.db.exec(m));
+      MIGRATIONS.slice(version).forEach(m => (typeof m === 'function' ? m(this.db) : this.db.exec(m)));
       this.db.exec(`PRAGMA user_version = ${MIGRATIONS.length}`);
     });
   }
@@ -157,15 +180,33 @@ class Library {
   /** The whole library, as the console saves it, kept in memory for reads: this.library, and each list's rows
    * by key (this.rows) in order (this.order). */
   load() {
-    const meta = Object.fromEntries(this.db.prepare('SELECT key, value FROM meta').all().map(r => [r.key, String(r.value)]));
+    const meta = Object.fromEntries(
+      this.db
+        .prepare('SELECT key, value FROM meta')
+        .all()
+        .map(r => [r.key, String(r.value)]),
+    );
     this.rev = JSON.parse(meta.rev ?? '0');
     this.saved = JSON.parse(meta.saved ?? 'null');
-    this.meta = {}; this.fields = {}; // the library's other fields, as saved JSON and as values
-    for (const [k, v] of Object.entries(meta)) if (k.startsWith('library.')) { this.meta[k.slice(8)] = v; this.fields[k.slice(8)] = JSON.parse(v); }
-    this.rows = {}; this.order = {};
+    this.meta = {};
+    this.fields = {}; // the library's other fields, as saved JSON and as values
+    for (const [k, v] of Object.entries(meta))
+      if (k.startsWith('library.')) {
+        this.meta[k.slice(8)] = v;
+        this.fields[k.slice(8)] = JSON.parse(v);
+      }
+    this.rows = {};
+    this.order = {};
     for (const t of Object.keys(TABLES)) {
-      this.rows[t] = new Map(this.db.prepare(`SELECT n, key, rev, data FROM ${t} ORDER BY pos`).all()
-        .map(r => [String(r.key), { n: Number(r.n), rev: Number(r.rev), json: String(r.data), value: JSON.parse(String(r.data)) }]));
+      this.rows[t] = new Map(
+        this.db
+          .prepare(`SELECT n, key, rev, data FROM ${t} ORDER BY pos`)
+          .all()
+          .map(r => [
+            String(r.key),
+            { n: Number(r.n), rev: Number(r.rev), json: String(r.data), value: JSON.parse(String(r.data)) },
+          ]),
+      );
       this.order[t] = [...this.rows[t].keys()];
     }
     this.compose();
@@ -173,7 +214,10 @@ class Library {
 
   /** this.library from the rows and fields. */
   compose() {
-    if (this.saved === null) { this.library = null; return; }
+    if (this.saved === null) {
+      this.library = null;
+      return;
+    }
     const library = { ...this.fields };
     for (const t of Object.keys(TABLES)) {
       if (t === 'presentations' || this.order[t].length) library[t] = this.order[t].map(k => this.rows[t].get(k).value);
@@ -224,8 +268,10 @@ class Library {
       };
       const put = [];
       for (const x of Array.isArray(c.put) ? c.put : []) {
-        if (!isObject(x) || typeof x.id !== 'string' || !x.id || x.id.startsWith('#')) throw bad(`${t}: every item needs an id`);
-        if (busy(x.id, JSON.stringify(x))) conflicts.push({ list: t, id: x.id, name: String(rows.get(x.id)?.value?.name ?? x.name ?? '') });
+        if (!isObject(x) || typeof x.id !== 'string' || !x.id || x.id.startsWith('#'))
+          throw bad(`${t}: every item needs an id`);
+        if (busy(x.id, JSON.stringify(x)))
+          conflicts.push({ list: t, id: x.id, name: String(rows.get(x.id)?.value?.name ?? x.name ?? '') });
         else if (rows.get(x.id)?.json !== JSON.stringify(x)) put.push([x.id, x]);
       }
       const remove = [];
@@ -237,10 +283,16 @@ class Library {
       // The order asked for, less anything not there, then anything added elsewhere (or not named) where it was.
       const gone = new Set(remove);
       const exists = id => !gone.has(id) && (rows.has(id) || put.some(([k]) => k === id));
-      const want = Array.isArray(c.order) ? c.order.filter((id, i, a) => typeof id === 'string' && exists(id) && a.indexOf(id) === i) : null;
+      const want = Array.isArray(c.order)
+        ? c.order.filter((id, i, a) => typeof id === 'string' && exists(id) && a.indexOf(id) === i)
+        : null;
       let order = want ?? this.order[t].filter(k => !gone.has(k));
       const named = new Set(order);
-      order = [...order, ...this.order[t].filter(k => !gone.has(k) && !named.has(k)), ...new Set(put.map(([k]) => k).filter(k => !named.has(k) && !rows.has(k)))];
+      order = [
+        ...order,
+        ...this.order[t].filter(k => !gone.has(k) && !named.has(k)),
+        ...new Set(put.map(([k]) => k).filter(k => !named.has(k) && !rows.has(k))),
+      ];
       const moved = order.length !== this.order[t].length || order.some((k, i) => k !== this.order[t][i]);
       if (put.length || remove.length || moved) {
         changed = true;
@@ -251,22 +303,36 @@ class Library {
     }
     for (const [k, v] of Object.entries(isObject(changes.set) ? changes.set : {})) {
       if (k in TABLES || this.meta[k] === JSON.stringify(v ?? null)) continue;
-      out.set[k] = v ?? null; changed = true;
+      out.set[k] = v ?? null;
+      changed = true;
     }
     // Lists kept as fields, merged an item at a time; one that can't be read that way is asked for whole.
     const resend = [];
     for (const [k, c] of Object.entries(isObject(changes.merge) ? changes.merge : {})) {
       if (k in TABLES || k in out.set || !isObject(c)) continue;
       const merged = mergeField(this.fields[k], c, c.mode === 'id' ? 'id' : 'value');
-      if (merged === null) { resend.push(k); continue; }
-      if (this.meta[k] !== JSON.stringify(merged)) { out.set[k] = merged; changed = true; }
+      if (merged === null) {
+        resend.push(k);
+        continue;
+      }
+      if (this.meta[k] !== JSON.stringify(merged)) {
+        out.set[k] = merged;
+        changed = true;
+      }
     }
     for (const k of Array.isArray(changes.unset) ? changes.unset : []) {
-      if (typeof k === 'string' && k in this.meta && !(k in out.set)) { out.unset.push(k); changed = true; }
+      if (typeof k === 'string' && k in this.meta && !(k in out.set)) {
+        out.unset.push(k);
+        changed = true;
+      }
     }
     if (!changed) return { rev: this.rev, prev, conflicts, resend, applied: null };
     const apply = { set: out.set, unset: out.unset };
-    for (const t of Object.keys(TABLES)) if (out[t]) { apply[t] = out[t]._apply; delete out[t]._apply; }
+    for (const t of Object.keys(TABLES))
+      if (out[t]) {
+        apply[t] = out[t]._apply;
+        delete out[t]._apply;
+      }
     this.transaction(() => this.apply(apply, this.rev + 1, nowMs()));
     return { rev: this.rev, prev, conflicts, resend, applied: out };
   }
@@ -277,16 +343,22 @@ class Library {
       const c = changes[t];
       if (!c) continue;
       const rows = this.rows[t];
-      const insert = this.db.prepare(`INSERT INTO ${t} (key, pos, rev, ${cols.join(', ')}, data) VALUES (?, -1, ?, ${cols.map(() => '?').join(', ')}, ?)`);
-      const update = this.db.prepare(`UPDATE ${t} SET rev = ?, ${cols.map(c => `${c} = ?`).join(', ')}, data = ? WHERE n = ?`);
+      const insert = this.db.prepare(
+        `INSERT INTO ${t} (key, pos, rev, ${cols.join(', ')}, data) VALUES (?, -1, ?, ${cols.map(() => '?').join(', ')}, ?)`,
+      );
+      const update = this.db.prepare(
+        `UPDATE ${t} SET rev = ?, ${cols.map(c => `${c} = ?`).join(', ')}, data = ? WHERE n = ?`,
+      );
       const forget = this.db.prepare('DELETE FROM removed WHERE tbl = ? AND id = ?');
       for (const [key, x] of c.put) {
         const json = JSON.stringify(x);
         const r = rows.get(key);
         if (r?.json === json) continue;
-        const fields = cols.map(f => isObject(x) ? String(x[f] ?? '') : '');
-        if (r) { update.run(rev, ...fields, json, r.n); Object.assign(r, { rev, json, value: JSON.parse(json) }); }
-        else {
+        const fields = cols.map(f => (isObject(x) ? String(x[f] ?? '') : ''));
+        if (r) {
+          update.run(rev, ...fields, json, r.n);
+          Object.assign(r, { rev, json, value: JSON.parse(json) });
+        } else {
           const n = Number(insert.run(key, rev, ...fields, json).lastInsertRowid);
           rows.set(key, { n, rev, json, value: JSON.parse(json) });
           forget.run(t, key);
@@ -305,16 +377,28 @@ class Library {
       }
       const pos = this.db.prepare(`UPDATE ${t} SET pos = ? WHERE n = ?`);
       const old = new Map(this.order[t].map((k, i) => [k, i]));
-      c.order.forEach((k, i) => { if (old.get(k) !== i || !old.has(k)) pos.run(i, rows.get(k).n); });
+      c.order.forEach((k, i) => {
+        if (old.get(k) !== i || !old.has(k)) pos.run(i, rows.get(k).n);
+      });
       this.order[t] = c.order;
     }
     const set = this.db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)');
     for (const [k, v] of Object.entries(changes.set || {})) {
       const json = JSON.stringify(v ?? null);
-      if (this.meta[k] !== json) { set.run(`library.${k}`, json); this.meta[k] = json; this.fields[k] = JSON.parse(json); }
+      if (this.meta[k] !== json) {
+        set.run(`library.${k}`, json);
+        this.meta[k] = json;
+        this.fields[k] = JSON.parse(json);
+      }
     }
-    for (const k of changes.unset || []) { this.db.prepare('DELETE FROM meta WHERE key = ?').run(`library.${k}`); delete this.meta[k]; delete this.fields[k]; }
-    this.db.prepare('DELETE FROM removed WHERE rev <= (SELECT rev FROM removed ORDER BY rev DESC LIMIT 1 OFFSET ?)').run(TOMBSTONES);
+    for (const k of changes.unset || []) {
+      this.db.prepare('DELETE FROM meta WHERE key = ?').run(`library.${k}`);
+      delete this.meta[k];
+      delete this.fields[k];
+    }
+    this.db
+      .prepare('DELETE FROM removed WHERE rev <= (SELECT rev FROM removed ORDER BY rev DESC LIMIT 1 OFFSET ?)')
+      .run(TOMBSTONES);
     set.run('rev', JSON.stringify(rev));
     set.run('saved', JSON.stringify(saved));
     this.rev = rev;
@@ -324,7 +408,8 @@ class Library {
 
   index(n, p) {
     this.db.prepare('DELETE FROM search WHERE rowid = ?').run(n);
-    this.db.prepare('INSERT INTO search (rowid, name, author, copyright, ccli, lyrics) VALUES (?, ?, ?, ?, ?, ?)')
+    this.db
+      .prepare('INSERT INTO search (rowid, name, author, copyright, ccli, lyrics) VALUES (?, ?, ?, ?, ?, ?)')
       .run(n, ...searchFields(p));
   }
 
@@ -344,16 +429,23 @@ class Library {
   search(q, limit = MAX_RESULTS) {
     const match = searchQuery(q);
     if (!match || !this.library) return [];
-    const rows = this.db.prepare(`SELECT p.data AS data, snippet(search, 4, ?, ?, '…', 10) AS lyrics,
+    const rows = this.db
+      .prepare(
+        `SELECT p.data AS data, snippet(search, 4, ?, ?, '…', 10) AS lyrics,
         snippet(search, 1, ?, ?, '…', 10) AS author
       FROM search JOIN presentations p ON p.n = search.rowid
-      WHERE search MATCH ? ORDER BY bm25(search, ${SEARCH_WEIGHTS.join(', ')}) LIMIT ?`)
+      WHERE search MATCH ? ORDER BY bm25(search, ${SEARCH_WEIGHTS.join(', ')}) LIMIT ?`,
+      )
       .all(...MARK, ...MARK, match, Math.max(1, Math.min(limit, MAX_RESULTS)));
-    return rows.map(r => {
-      const p = JSON.parse(String(r.data));
-      const snippet = [r.author, r.lyrics].map(s => String(s ?? '')).find(s => s.includes(MARK[0])) || '';
-      return isObject(p) ? { id: p.id, name: String(p.name ?? ''), snippet: snippet.replace(/\s*\n\s*/g, ' / ') } : null;
-    }).filter(Boolean);
+    return rows
+      .map(r => {
+        const p = JSON.parse(String(r.data));
+        const snippet = [r.author, r.lyrics].map(s => String(s ?? '')).find(s => s.includes(MARK[0])) || '';
+        return isObject(p)
+          ? { id: p.id, name: String(p.name ?? ''), snippet: snippet.replace(/\s*\n\s*/g, ' / ') }
+          : null;
+      })
+      .filter(Boolean);
   }
 
   /** The library as one JSON document: what backups hold and what library.json used to. */
@@ -363,7 +455,13 @@ class Library {
 
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE');
-    try { fn(); this.db.exec('COMMIT'); } catch (e) { this.db.exec('ROLLBACK'); throw e; }
+    try {
+      fn();
+      this.db.exec('COMMIT');
+    } catch (e) {
+      this.db.exec('ROLLBACK');
+      throw e;
+    }
   }
 
   close() {

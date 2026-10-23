@@ -23,16 +23,27 @@ const oneOf = (v, list, what) => {
  * slide in play order. */
 function command(body) {
   switch (body.action) {
-    case 'next': case 'prev': case 'nextItem': case 'prevItem': case 'auto': return { action: body.action };
-    case 'item': return { action: 'item', item: index(body.item, 'item') };
-    case 'slide': return { action: 'slide', idx: index(body.idx, 'idx') };
+    case 'next':
+    case 'prev':
+    case 'nextItem':
+    case 'prevItem':
+    case 'auto':
+      return { action: body.action };
+    case 'item':
+      return { action: 'item', item: index(body.item, 'item') };
+    case 'slide':
+      return { action: 'slide', idx: index(body.idx, 'idx') };
     case 'go':
       if (typeof body.presId !== 'string' || !body.presId) throw bad('presId is missing');
       return { action: 'go', presId: body.presId, idx: index(body.idx, 'idx') };
-    case 'clear': return { action: 'clear', what: oneOf(body.what, CLEAR, 'what') };
-    case 'video': return { action: 'video', what: oneOf(body.what, VIDEO, 'what') };
-    case 'timer': return { action: 'timer', what: oneOf(body.what, TIMER, 'what') };
-    default: throw bad(`action must be one of ${ACTIONS.join(', ')}`);
+    case 'clear':
+      return { action: 'clear', what: oneOf(body.what, CLEAR, 'what') };
+    case 'video':
+      return { action: 'video', what: oneOf(body.what, VIDEO, 'what') };
+    case 'timer':
+      return { action: 'timer', what: oneOf(body.what, TIMER, 'what') };
+    default:
+      throw bad(`action must be one of ${ACTIONS.join(', ')}`);
   }
 }
 

@@ -28,8 +28,9 @@ export function cleanTransition(t) {
  * type comes first, then the library's. A length set in the library applies to whichever type is used; without
  * one, each type takes its own time. */
 export function transitionFor(pres, lib) {
-  const own = cleanTransition(pres?.transition), all = cleanTransition(lib?.transition);
+  const own = cleanTransition(pres?.transition),
+    all = cleanTransition(lib?.transition);
   const type = own?.type || all?.type || DEFAULT;
-  const secs = type === 'cut' ? 0 : own?.secs ?? all?.secs ?? find(type).secs;
+  const secs = type === 'cut' ? 0 : (own?.secs ?? all?.secs ?? find(type).secs);
   return { type, ms: Math.round(secs * 1000) };
 }

@@ -19,7 +19,12 @@ const { options } = require('./server/options.js');
 
 async function main() {
   let opts;
-  try { opts = options(); } catch (e) { console.error(`error: ${e.message}`); process.exit(2); }
+  try {
+    opts = options();
+  } catch (e) {
+    console.error(`error: ${e.message}`);
+    process.exit(2);
+  }
   const srv = new LumenServer(opts);
   try {
     await srv.listen();
@@ -30,8 +35,10 @@ async function main() {
   console.log(`Lumen Presenter on http://localhost:${srv.port}  (data: ${srv.store.dir})`);
   if (srv.network) {
     const hosts = ['0.0.0.0', '::'].includes(srv.host) ? await lanAddresses() : [srv.host];
-    console.log(`Network mode on: ${hosts.map(h => `http://${h}:${srv.port}`).join(', ') || srv.host}` +
-      `  token: ${opts.token ? '(from --token)' : srv.token}`);
+    console.log(
+      `Network mode on: ${hosts.map(h => `http://${h}:${srv.port}`).join(', ') || srv.host}` +
+        `  token: ${opts.token ? '(from --token)' : srv.token}`,
+    );
   }
   const stop = () => srv.close().then(() => process.exit(0));
   process.on('SIGINT', stop);
