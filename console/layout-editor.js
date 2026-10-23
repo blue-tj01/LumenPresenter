@@ -38,7 +38,7 @@ export function openLayoutEditor() {
   start({ layout: structuredClone(t.layout), background: structuredClone(t.background || null) });
   selId = mainText(asTemplate())?.id || null;
   presId = flat(p).some(s => !s.slide.layout) ? p.id : null;
-  slideIdx = 0;
+  slideIdx = firstThemed();
   const users = state.db.presentations.filter(q => templateFor(q) === t).length;
   show(`Theme: ${t.name || 'Default style'}`, `· used by ${users}`,
     `${users} presentation${users === 1 ? '' : 's'} show with this theme`);
@@ -142,12 +142,15 @@ function previewSlides() {
     return list.map((s, index) => ({ ...s, elements: resolveSlide(s.slide, { ...opts, template: templateFor(p), pres: p,
       group: s.group, index, count: list.length }), bg: slideBackground(p, s.slide) || DEFAULT_BG }));
   }
-  const list = p ? flat(p).filter(s => !s.slide.layout) : [SAMPLE];
+  // Slides with their own design don't use the theme: they show as they are, dimmed, so none seems to go missing.
+  const list = p ? flat(p).map(s => ({ ...s, other: !!s.slide.layout })) : [SAMPLE];
   const pres = p || SAMPLE.pres;
   return list.map((s, index) => ({ ...s, elements: resolveSlide(s.slide, { ...opts, template: asTemplate(), pres,
     group: s.group, index, count: list.length }),
-    bg: bgUrl(s.slide.background || p?.background || doc.background) || DEFAULT_BG }));
+    bg: bgUrl(s.slide.background || p?.background || (s.other ? null : doc.background)) || DEFAULT_BG }));
 }
+/** The first slide the theme shows on, to preview it with. */
+const firstThemed = () => Math.max(0, previewSlides().findIndex(s => !s.other));
 
 // ---------- drawing ----------
 function fitCanvas() {
@@ -263,8 +266,9 @@ function renderStrip() {
       card.className = 'le-thumb' + (i === slideIdx ? ' sel' : '') + (s.other ? ' other' : '');
       card.innerHTML = '<div></div><div class="cap"><span class="dot"></span><span></span></div>';
       card.querySelector('.dot').style.background = s.color || '#4f8cff';
-      card.querySelector('.cap span:last-child').textContent = s.group;
-      if (mode === 'theme') card.onclick = () => { slideIdx = i; renderCanvas(); $$('#leStrip .le-thumb').forEach((c, j) => c.classList.toggle('sel', j === i)); };
+      card.querySelector('.cap span:last-child').textContent = s.group + (mode === 'theme' && s.other ? ' ✎' : '');
+      if (s.slide.layout) card.title = 'This slide has its own design, so the theme doesn’t change it';
+      if (mode === 'theme' && !s.other) card.onclick = () => { slideIdx = i; renderCanvas(); $$('#leStrip .le-thumb').forEach((c, j) => c.classList.toggle('sel', j === i)); };
       box.appendChild(card);
       const scr = PP.createScreen(card.firstChild);
       PP.update(scr, { bg: s.bg, slide: { elements: s.elements } }, { animate: false, still: true });
@@ -272,7 +276,7 @@ function renderStrip() {
       const drawn = scr.querySelector('.pp-slideL').children;
       const small = s.elements.map((e, j) => e.type === 'text' && parseFloat(drawn[j]?.firstChild?.style.fontSize) < e.style.size
         ? parseFloat(drawn[j].firstChild.style.fontSize) : 0).filter(Boolean);
-      if (small.length) {
+      if (small.length && !s.other) {
         shrunk++;
         card.querySelector('.cap').insertAdjacentHTML('beforeend', '<span class="warn"></span>');
         card.querySelector('.warn').textContent = `· shrunk to ${Math.min(...small)} px`;
@@ -560,7 +564,7 @@ export function setupLayoutEditor() {
   $('#leFile').onchange = filePicked;
   $('#leAlign').onchange = e => { align(e.target.value); e.target.value = ''; };
   $('#leOrder').onchange = e => { arrange(e.target.value); e.target.value = ''; };
-  $('#lePres').onchange = e => { presId = e.target.value || null; slideIdx = 0; renderCanvas(); renderStrip(); };
+  $('#lePres').onchange = e => { presId = e.target.value || null; slideIdx = firstThemed(); renderCanvas(); renderStrip(); };
   const ov = $('#leOverlay');
   ov.onpointerdown = pointerDown; ov.onpointermove = pointerMove; ov.onpointerup = ov.onpointercancel = pointerUp;
   ov.ondblclick = () => { const t = $('#leContent'); if (t) { t.focus(); t.select(); } };
