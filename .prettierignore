@@ -1,0 +1,13 @@
+# Formatting is checked for the code and styles (npm run format:check). Third-party and generated files are left
+# as they are, and so are the pages' HTML and the docs, whose line breaks are written by hand.
+vendor/
+bibles/
+dist/
+data/
+node_modules/
+companion-module/
+*.html
+*.md
+*.json
+*.yml
+*.py

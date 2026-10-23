@@ -45,3 +45,4 @@ What changed in each release of Lumen Presenter, newest first. Changes waiting f
 ### Development
 - Browser tests of the console (Playwright), ESLint, and type checking of every file of the server, desktop app
   and console, all run in CI.
+- The code and styles are formatted by Prettier, checked in CI.
