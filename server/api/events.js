@@ -1,3 +1,4 @@
+// @ts-check
 // Health and the live event stream every page keeps open.
 'use strict';
 const { nowMs, VERSION } = require('../util.js');

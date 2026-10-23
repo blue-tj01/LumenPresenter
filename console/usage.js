@@ -1,3 +1,4 @@
+// @ts-check
 // CCLI song use: which songs went live, and when, for the church's CCLI usage report. CCLI has no reporting API
 // for an app like Lumen, so the report is a list to copy into CCLI's site, or a CSV file. No DOM, so it is tested
 // under Node (tests/usage.test.js).

@@ -1,3 +1,4 @@
+// @ts-check
 // Link to the Lumen server (server.js): library storage, media uploads, and live state pushed to every window
 // on any device. When the pages are served without the server, windows in the same browser fall back to a
 // BroadcastChannel and the library stays in localStorage.
@@ -27,7 +28,8 @@
       let data = body;
       if (body instanceof Blob) {
         headers['Content-Type'] = body.type || 'application/octet-stream';
-        if (body.name) headers['X-Filename'] = encodeURIComponent(body.name);
+        const name = /** @type {Blob & {name?: string}} */ (body).name;
+        if (name) headers['X-Filename'] = encodeURIComponent(name);
       } else if (body !== undefined) {
         headers['Content-Type'] = 'application/json'; data = JSON.stringify(body);
       }
@@ -39,7 +41,7 @@
         authDeclined = true;
       }
       if (!r.ok) {
-        const e = new Error((await r.json().catch(() => ({}))).error || r.statusText);
+        const e = /** @type {Error & {status?: number}} */ (new Error((await r.json().catch(() => ({}))).error || r.statusText));
         e.status = r.status; throw e;
       }
       return r.json();

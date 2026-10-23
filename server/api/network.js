@@ -1,3 +1,4 @@
+// @ts-check
 // Network mode: whether other devices can reach Lumen, its token and the devices signed in with it.
 'use strict';
 const { COOKIE, newToken, nowMs, lanAddresses } = require('../util.js');

@@ -2,7 +2,6 @@
 // With LUMEN_NDI_LIB set to an NDI library (libndi.so.6, or the Windows DLL), one test also sends real frames.
 'use strict';
 const assert = require('assert/strict');
-const path = require('path');
 const { it } = require('node:test');
 const EventEmitter = require('events');
 const { NdiOutput, unpremultiply } = require('../electron/ndi.js');

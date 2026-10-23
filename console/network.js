@@ -1,3 +1,4 @@
+// @ts-check
 // The Network tab: network mode, the access token, links for other devices, and signed-in devices.
 import { $, toast } from './dom.js';
 

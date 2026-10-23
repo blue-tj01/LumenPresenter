@@ -1,3 +1,4 @@
+// @ts-check
 // Importing a PowerPoint, Impress or PDF file as one picture per slide.
 'use strict';
 const crypto = require('crypto');

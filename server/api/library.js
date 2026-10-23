@@ -1,3 +1,4 @@
+// @ts-check
 // The library (presentations, playlist, themes, media list, messages), searching it, and what is on screen now.
 'use strict';
 const { bad, nowMs, isObject } = require('../util.js');

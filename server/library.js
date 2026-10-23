@@ -1,3 +1,4 @@
+// @ts-check
 // The library, kept in an SQLite database (data/lumen.db): one row per presentation and one per service, so a large
 // library is saved a row at a time, and room for more tables as Lumen grows. The rest of the library (playlist,
 // themes, media list, messages, and any field Lumen adds later) is kept as named JSON values.
@@ -88,6 +89,8 @@ const stamp = (d = new Date()) => {
 
 class Library {
   constructor(dir, backupDir) {
+    /** @type {any} the library as the console saves it, or null before the first save */
+    this.library = null;
     this.path = path.join(dir, FILE);
     this.db = new DatabaseSync(this.path);
     this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA foreign_keys = ON;');
@@ -98,7 +101,7 @@ class Library {
   }
 
   migrate() {
-    const version = this.db.prepare('PRAGMA user_version').get().user_version;
+    const version = Number(this.db.prepare('PRAGMA user_version').get().user_version);
     if (version >= MIGRATIONS.length) return;
     this.transaction(() => {
       MIGRATIONS.slice(version).forEach(m => typeof m === 'function' ? m(this.db) : this.db.exec(m));
@@ -124,7 +127,7 @@ class Library {
   /** The whole library, as the console saves it, kept in memory for reads: this.library, and each list's rows
    * by key (this.rows) in order (this.order). */
   load() {
-    const meta = Object.fromEntries(this.db.prepare('SELECT key, value FROM meta').all().map(r => [r.key, r.value]));
+    const meta = Object.fromEntries(this.db.prepare('SELECT key, value FROM meta').all().map(r => [r.key, String(r.value)]));
     this.rev = JSON.parse(meta.rev ?? '0');
     this.saved = JSON.parse(meta.saved ?? 'null');
     this.meta = {}; this.fields = {}; // the library's other fields, as saved JSON and as values
@@ -132,7 +135,7 @@ class Library {
     this.rows = {}; this.order = {};
     for (const t of Object.keys(TABLES)) {
       this.rows[t] = new Map(this.db.prepare(`SELECT n, key, rev, data FROM ${t} ORDER BY pos`).all()
-        .map(r => [r.key, { n: r.n, rev: r.rev, json: r.data, value: JSON.parse(r.data) }]));
+        .map(r => [String(r.key), { n: Number(r.n), rev: Number(r.rev), json: String(r.data), value: JSON.parse(String(r.data)) }]));
       this.order[t] = [...this.rows[t].keys()];
     }
     this.compose();
@@ -307,8 +310,8 @@ class Library {
       WHERE search MATCH ? ORDER BY bm25(search, ${SEARCH_WEIGHTS.join(', ')}) LIMIT ?`)
       .all(...MARK, ...MARK, match, Math.max(1, Math.min(limit, MAX_RESULTS)));
     return rows.map(r => {
-      const p = JSON.parse(r.data);
-      const snippet = [r.author, r.lyrics].find(s => s?.includes(MARK[0])) || '';
+      const p = JSON.parse(String(r.data));
+      const snippet = [r.author, r.lyrics].map(s => String(s ?? '')).find(s => s.includes(MARK[0])) || '';
       return isObject(p) ? { id: p.id, name: String(p.name ?? ''), snippet: snippet.replace(/\s*\n\s*/g, ' / ') } : null;
     }).filter(Boolean);
   }

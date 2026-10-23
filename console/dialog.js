@@ -1,3 +1,4 @@
+// @ts-check
 // Questions asked in the console's own dialog, in place of the browser's confirm(): the same look as the rest of
 // Lumen, the safe answer picked by default for anything that can't be taken back, and nothing that a stray Enter
 // or space bar press in the middle of a service can say yes to by accident.
@@ -26,7 +27,7 @@ export function ask(message, { title = '', ok = 'OK', cancel = 'Cancel', danger 
       input.oninput = () => { yes.disabled = input.value.trim().toUpperCase() !== typed.toUpperCase(); };
     }
     card.append(row); back.append(card);
-    const was = document.activeElement;
+    const was = /** @type {HTMLElement | null} */ (document.activeElement);
     const done = v => { back.remove(); was?.focus?.(); resolve(v); };
     no.onclick = () => done(false);
     back.onmousedown = e => { if (e.target === back) done(false); };
@@ -36,8 +37,9 @@ export function ask(message, { title = '', ok = 'OK', cancel = 'Cancel', danger 
       e.stopPropagation();
       if (e.key === 'Escape') { e.preventDefault(); done(false); }
       if (e.key === 'Tab') { // keep focus inside
-        const f = [...card.querySelectorAll('button:not(:disabled), input')];
-        const i = f.indexOf(document.activeElement);
+        /** @type {HTMLElement[]} */
+        const f = [...card.querySelectorAll('button:not(:disabled), input')].map(el => /** @type {HTMLElement} */ (el));
+        const i = f.findIndex(el => el === document.activeElement);
         if (e.shiftKey && i <= 0) { e.preventDefault(); f.at(-1).focus(); }
         else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
       }

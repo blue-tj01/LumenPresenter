@@ -590,8 +590,7 @@ describe('network mode', () => {
     assert.deepEqual(r.json.devices.map(d => d.device), ['Chrome on Windows']);
     assert.equal((await t.req('GET', '/api/library', undefined, phone)).status, 401);
     assert.equal((await t.req('GET', '/api/library', undefined, laptop)).status, 200);
-    let ev;
-    while ((ev = await stream.next())); // the phone's open stream is closed too
+    while (await stream.next()); // the phone's open stream is closed too
     stream.close();
 
     await t.req('POST', '/api/network', { disconnect: 'all' }, { 'X-Lumen-Token': token });

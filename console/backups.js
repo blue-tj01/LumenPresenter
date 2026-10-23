@@ -1,3 +1,4 @@
+// @ts-check
 // The Library dialog: exporting the library to a file, importing one, putting a backup back, and starting over
 // with the demo library. Everything that replaces the library asks first and keeps a backup of it.
 import { $, toast } from './dom.js';

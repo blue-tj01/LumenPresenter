@@ -1,3 +1,4 @@
+// @ts-check
 // Reading Bible files: Zefania XML, OSIS and USFX. Each becomes { name, abbrev, language, books: [{ number, name,
 // verses: [[chapter, verse, text]] }] }, with footnotes, cross-references and headings left out.
 'use strict';
@@ -37,7 +38,7 @@ function walk(xml, { open, close, text }) {
   if (at < xml.length) text(decode(xml.slice(at)));
 }
 
-const clean = s => s.replace(/\s+/g, ' ').replace(/\s+([,.;:!?’”)\]])/g, '$1').replace(/([‘“(\[])\s+/g, '$1').trim();
+const clean = s => s.replace(/\s+/g, ' ').replace(/\s+([,.;:!?’”)\]])/g, '$1').replace(/([‘“([])\s+/g, '$1').trim();
 
 /** Collects verse text for the books of one file. */
 class Collector {

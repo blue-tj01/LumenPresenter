@@ -1,3 +1,4 @@
+// @ts-check
 // One HTTP request: who it is from, what it may do, and the files it asks for.
 'use strict';
 const fs = require('fs');

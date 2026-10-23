@@ -1,3 +1,4 @@
+// @ts-check
 // Shared 1920x1080 slide renderer used by the operator preview, thumbnails, the audience output and NDI. A slide
 // arrives as a list of positioned elements, already resolved by the console (console/format.js).
 (function () {
@@ -182,7 +183,7 @@
   // A window opened late, or reloaded, joins it part-way through.
   function syncVideo(v, play, opts) {
     play = play || {};
-    const now = window.Lumen ? Lumen.now() : Date.now();
+    const now = window.Lumen ? window.Lumen.now() : Date.now();
     const at = play.paused ? play.pos || 0 : Math.max(0, (now - (play.startAt || now)) / 1000 + (play.pos || 0));
     const seek = () => {
       const t = isFinite(v.duration) ? Math.min(at, v.duration) : at;

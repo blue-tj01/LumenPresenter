@@ -1,3 +1,4 @@
+// @ts-check
 // The clock, countdown timer, video time, auto-advance, and stage messages.
 import { $, toast } from './dom.js';
 import { autoSecs, getPres } from './library.js';

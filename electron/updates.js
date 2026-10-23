@@ -1,3 +1,4 @@
+// @ts-check
 // Updates for the installed app. A new version downloads in the background and is installed when Lumen is next
 // quit, never in the middle of a service; the menu offers to restart for it sooner.
 'use strict';

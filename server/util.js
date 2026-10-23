@@ -1,3 +1,4 @@
+// @ts-check
 // Small helpers shared by the server's modules.
 'use strict';
 const crypto = require('crypto');
@@ -23,7 +24,7 @@ function newToken() {
 
 /** 'Chrome on iPhone' from a User-Agent, for the list of signed-in devices. */
 function deviceName(agent) {
-  const find = pairs => (pairs.find(([k]) => agent.includes(k)) || [, ''])[1];
+  const find = pairs => (pairs.find(([k]) => agent.includes(k)) || [null, ''])[1];
   const system = find([['iPhone', 'iPhone'], ['iPad', 'iPad'], ['Android', 'Android'], ['CrOS', 'Chromebook'],
     ['Macintosh', 'Mac'], ['Windows', 'Windows'], ['Linux', 'Linux']]);
   const browser = find([['Edg/', 'Edge'], ['Firefox/', 'Firefox'], ['CriOS/', 'Chrome'], ['Chrome/', 'Chrome'],
@@ -40,11 +41,11 @@ async function lanAddresses() {
     const done = a => { try { s.close(); } catch {} resolve(a); };
     s.on('error', () => done(null));
     try {
-      s.connect(9, '192.0.2.1', err => { if (err) return done(null); try { done(s.address().address); } catch { done(null); } });
+      s.connect(9, '192.0.2.1', (/** @type {any[]} */ ...err) => { if (err[0]) return done(null); try { done(s.address().address); } catch { done(null); } });
     } catch { done(null); }
   }));
   for (const list of Object.values(os.networkInterfaces())) {
-    for (const a of list || []) if (a.family === 'IPv4' || a.family === 4) found.push(a.address);
+    for (const a of list || []) if (a.family === 'IPv4' || /** @type {unknown} */ (a.family) === 4) found.push(a.address);
   }
   return found.filter((a, i) => a && found.indexOf(a) === i && !a.startsWith('127.'));
 }

@@ -1,3 +1,4 @@
+// @ts-check
 // The bar of formatting buttons over a box of slide words: bold, italic, underline and colours for the selected
 // words, written as marks in the words (console/words.js). Ctrl+B, Ctrl+I and Ctrl+U work in the box too.
 import { toggleMark, WORD_COLORS } from './words.js';

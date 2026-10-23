@@ -1,3 +1,4 @@
+// @ts-check
 // What the desktop app adds to Lumen's pages: its folder picker, for the console's ＋ Folder button.
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');

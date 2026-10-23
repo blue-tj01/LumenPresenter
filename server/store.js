@@ -1,3 +1,4 @@
+// @ts-check
 // Lumen's data folder: the library, what is on screen, settings, media and backups.
 'use strict';
 const crypto = require('crypto');

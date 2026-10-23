@@ -1,3 +1,4 @@
+// @ts-check
 // The Theme tab: the all-songs template, a presentation's own template, and saved templates. The console still
 // calls them themes; its controls edit the template's main text box.
 import { $, $$, toast } from './dom.js';

@@ -1,3 +1,4 @@
+// @ts-check
 // The phone remote (remote.html) and Bitfocus Companion: their commands are handed to one open console (see
 // control.js).
 'use strict';

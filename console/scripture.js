@@ -1,3 +1,4 @@
+// @ts-check
 // The Bible tab: pick a translation, type a reference or some words, and make slides of the passage.
 import { $, toast } from './dom.js';
 import { save, state } from './library.js';

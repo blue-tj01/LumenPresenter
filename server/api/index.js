@@ -1,3 +1,4 @@
+// @ts-check
 // The HTTP API, one handler per 'METHOD name' (/api/<name>[/...]). Each runs with `this` as the Request.
 'use strict';
 

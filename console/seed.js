@@ -1,3 +1,4 @@
+// @ts-check
 // What a new library starts with: public-domain hymns, background colours and templates.
 import { BUILTIN_THEMES_V1, DEFAULT_THEME_V1, migrateLibrary } from './format.js';
 import { makePres, uid } from './slides.js';

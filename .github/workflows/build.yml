@@ -29,6 +29,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: npm run lint
+      - run: npm run typecheck
+
+      # The console in a real browser: writing a song, going live, two operators at once, backups.
+      - name: Install Chromium for the browser tests
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests
+        if: runner.os == 'Linux'
+        run: npm run test:e2e
 
       - name: Check the tag matches package.json
         if: startsWith(github.ref, 'refs/tags/v')

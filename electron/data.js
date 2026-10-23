@@ -1,3 +1,4 @@
+// @ts-check
 // Bringing a library in from another data folder, e.g. the one next to server.js in a copy of the source.
 'use strict';
 const fs = require('fs');

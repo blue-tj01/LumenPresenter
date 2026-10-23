@@ -216,7 +216,7 @@ class Bibles {
 function decodeXml(buf) {
   if (buf[0] === 0xff && buf[1] === 0xfe) return new TextDecoder('utf-16le').decode(buf);
   if (buf[0] === 0xfe && buf[1] === 0xff) return new TextDecoder('utf-16be').decode(buf);
-  const decl = /^﻿?\s*<\?xml[^>]*encoding\s*=\s*["']([\w.:-]+)["']/i.exec(buf.subarray(0, 200).toString('latin1'));
+  const decl = /^\uFEFF?\s*<\?xml[^>]*encoding\s*=\s*["']([\w.:-]+)["']/i.exec(buf.subarray(0, 200).toString('latin1'));
   const enc = decl ? decl[1].toLowerCase() : 'utf-8';
   try { return new TextDecoder(enc === 'utf8' ? 'utf-8' : enc).decode(buf); } catch { return buf.toString('utf8'); }
 }
