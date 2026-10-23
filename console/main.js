@@ -11,6 +11,7 @@ import { setupNetwork } from './network.js';
 import { setupPowerPoint } from './powerpoint.js';
 import { setupReport } from './report.js';
 import { setupScripture } from './scripture.js';
+import { openSetup, setupSetup } from './setup.js';
 import { seed } from './seed.js';
 import { setupLayoutEditor } from './layout-editor.js';
 import { renderTheme, setupThemes } from './themes.js';
@@ -23,6 +24,7 @@ let loadFailed = false;
 state.db = Lumen.online ? await Lumen.loadLibrary().catch(() => { loadFailed = true; return null; }) : null;
 const fresh = !valid(state.db) && !loadFailed; // nothing on the server yet: bring over this browser's library, or the demo
 if (!valid(state.db)) state.db = await loadCopy();
+const firstRun = !valid(state.db); // no library anywhere yet: the demo, and the first-run setup
 if (!valid(state.db)) state.db = seed();
 state.db = normalize(state.db);
 
@@ -38,6 +40,8 @@ const popup = (url, name) => { const w = window.open(url, name, 'width=1280,heig
 $('#btnOutput').onclick = () => popup('output.html', 'lumen-output');
 $('#btnStage').onclick = () => popup('stage.html', 'lumen-stage');
 setupBackups(() => { resetUndo(state.db); state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id; clear('all'); renderAll(); renderMedia(); renderMessages(); renderTheme(); });
+setupSetup(() => { resetUndo(state.db); renderAll(); renderMedia(); renderMessages(); renderTheme(); });
+$('#btnSetup').onclick = () => { $('#libDialog').hidden = true; openSetup(); };
 
 // Undo and redo, for every change to the library made here.
 const undoRedo = again => undo(state.db, () => {
@@ -101,4 +105,5 @@ renderAll(); renderMedia(); renderMessages(); renderTheme(); loadFolders();
 if (Lumen.online && !upgraded) refreshLive(); else broadcast();
 if (fresh || !Lumen.online) save();
 if (Lumen.outdated) setTimeout(() => toast('The server is older than this page. Restart Lumen to finish updating.'), 2500);
+if (firstRun && !state.db.setupDone) openSetup();
 if (loadFailed) toast('Could not load the library from the server — showing this browser\'s copy');

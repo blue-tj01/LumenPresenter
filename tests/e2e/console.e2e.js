@@ -38,14 +38,15 @@ afterEach(async () => {
   assert.deepEqual(seen, [], 'no errors in the pages');
 });
 
-/** A page of Lumen, with its errors collected. */
-async function open(page = '') {
+/** A page of Lumen, with its errors collected. The first-run setup a new library opens with is skipped, unless asked. */
+async function open(page = '', setup = 'skip') {
   const p = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   pages.push(p);
   p.on('pageerror', e => errors.push(`${page || 'console'}: ${e.message}`));
   p.on('console', m => { if (m.type() === 'error') errors.push(`${page || 'console'}: ${m.text()} ${m.location().url}`); });
   await p.goto(url + page);
   if (!page) await p.waitForSelector('#libList li');
+  if (!page && setup === 'skip' && await p.isVisible('#setupDialog')) await p.click('#setupSkip');
   return p;
 }
 const songs = p => p.$$eval('#libList li', l => l.map(li => li.textContent.replace('♪', '').trim()));
@@ -176,6 +177,36 @@ describe('console', () => {
     await until(async () => await count() > 150, 'more songs as the list scrolls');
     await c.fill('#libSearch', 'song 2999');
     await until(async () => (await songs(c))[0]?.startsWith('Song 2999'), 'the search result');
+  });
+
+  it('walks through the first-run setup once, on a new library', async () => {
+    const c = await open('', 'keep');
+    await c.waitForSelector('#setupDialog:not([hidden])');
+    await c.click('#setupEmpty'); // no demo songs
+    await until(async () => (await c.$$('#libList li[data-id]')).length === 0, 'an empty library');
+    assert.equal(await c.isVisible('#setupScreensWeb'), true); // in a browser: how to place the windows
+    await c.click('#setupNext');
+    await c.fill('#setupLicence', '123456');
+    await c.press('#setupLicence', 'Tab');
+    await c.click('#setupNext');
+    await c.click('#setupLooks .setup-look >> nth=1');
+    assert.equal(await c.getAttribute('#setupLooks .setup-look >> nth=1', 'aria-pressed'), 'true');
+    await c.click('#setupNext');
+    assert.match(await c.textContent('#setupSummary') || '', /An empty library/);
+    await c.click('#setupNext');
+    await c.waitForSelector('#setupDialog', { state: 'hidden' });
+    await until(async () => {
+      const lib = (await (await fetch(url + 'api/library')).json()).library;
+      return lib?.setupDone && lib.ccliLicence === '123456' && lib.defaultTemplateId && lib.presentations.length === 0;
+    }, 'the choices saved');
+    await c.reload();
+    await c.waitForTimeout(500);
+    assert.equal(await c.isVisible('#setupDialog'), false, 'not shown again');
+    await c.click('#btnLibrary');
+    await c.click('#btnSetup');
+    assert.equal(await c.isVisible('#setupDialog'), true, 'brought back from the Library dialog');
+    await c.keyboard.press('Escape');
+    await c.waitForSelector('#setupDialog', { state: 'hidden' });
   });
 
   it('keeps the stage display, network and control settings under Setup', async () => {

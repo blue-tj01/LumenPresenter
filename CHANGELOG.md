@@ -31,6 +31,9 @@ What changed in each release of Lumen Presenter, newest first. Changes waiting f
   needs a restart.
 
 ### Added
+- A first-run setup on a new library: keep the demo songs or start empty, choose where the audience output and
+  stage display go, import songs with the church's CCLI licence number, and pick the look of the words. **Library…**
+  can run it again.
 - Undo and redo for the library (Ctrl+Z, Ctrl+Shift+Z, and ↶ ↷ in the top bar): editing or deleting a song, themes,
   the playlist, services, messages and the rest. Changes made within a moment of each other are one step.
 - Backups can be listed and restored from the Library dialog. A backup is made before every import, restore or

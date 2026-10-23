@@ -100,3 +100,16 @@ it('reopens the chosen screens at start and closes one set back to a window', ()
   assert.equal(win.destroyed, true);
   assert.equal(settings.screens.output, null);
 });
+
+it('lists the displays for the console, and sets a screen by display id', () => {
+  const { screens } = manager([laptop, projector]);
+  assert.deepEqual(screens.summary(), { displays: [{ id: 1, name: '1: Built-in Retina Display (1512×982), main screen' },
+    { id: 2, name: '2: EPSON PJ (1920×1080)' }], chosen: { output: null, stage: null } });
+  assert.equal(screens.assignById('output', 2), true);
+  assert.equal(screens.summary().chosen.output, 2);
+  assert.ok(screens.windows.output);
+  assert.equal(screens.assignById('output', 99), false); // not connected
+  assert.equal(screens.assignById('nope', 2), false);
+  assert.equal(screens.assignById('output', null), true);
+  assert.equal(screens.windows.output, undefined);
+});

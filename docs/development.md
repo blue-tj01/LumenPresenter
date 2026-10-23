@@ -23,6 +23,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
 | `console/undo.js` | Undo and redo of library changes, keeping only what each step changed |
+| `console/setup.js` | The first-run setup on a new library: demo songs, screens, importing, the look of the words |
 | `console/dialog.js`, `console/backups.js` | Questions in the console's own dialog instead of `confirm()`; the Library dialog (export, import, backups, starting over) |
 | `console/songselect.js`, `console/openlyrics.js`, `console/xml.js`, `console/propresenter.js`, `console/zip.js`, `console/easyworship.js`, `console/rtf.js`, `console/sqlite.js` | Importing songs from SongSelect, OpenLyrics, OpenSong, ProPresenter and EasyWorship files |
 | `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |

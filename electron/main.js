@@ -252,6 +252,16 @@ async function start() {
   app.on('web-contents-created', (_, wc) => { if (['window', 'offscreen'].includes(wc.getType())) guard(wc); });
   // Only the console, on Lumen's own page, may open the folder picker.
   ipcMain.handle('lumen:pick-folder', e => e.sender === consoleWin?.webContents && sameOrigin(e.senderFrame.url) ? pickFolder() : '');
+  // And may see the displays and choose where the screens go, for its first-run setup.
+  const fromConsole = e => e.sender === consoleWin?.webContents && sameOrigin(e.senderFrame.url);
+  ipcMain.handle('lumen:displays', e => fromConsole(e) ? screens.summary() : null);
+  ipcMain.handle('lumen:set-screen', (e, name, id) => {
+    if (!fromConsole(e) || typeof name !== 'string' || !(id === null || typeof id === 'number')) return false;
+    const ok = screens.assignById(name, id);
+    if (ok) buildMenus();
+    return ok;
+  });
+  ipcMain.handle('lumen:identify-screens', e => { if (fromConsole(e)) screens.identify(); });
 
   updates = new Updates({ app, onChange: () => buildMenus(), notify });
   screens = new Screens({ electron, origin, webPreferences, settings, save: saveSettings, icon: ICON });

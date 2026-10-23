@@ -110,6 +110,25 @@ class Screens {
     });
   }
 
+  /** The connected displays, and which each screen is set to, for the console's first-run setup:
+   * {displays: [{id, name}], chosen: {output: id or null, stage: id or null}}. */
+  summary() {
+    const primaryId = this.electron.screen.getPrimaryDisplay().id;
+    return {
+      displays: this.displays().map((d, i) => ({ id: d.id, name: displayName(d, i, primaryId) })),
+      chosen: Object.fromEntries(Object.keys(SCREENS).map(name => [name, this.displayFor(name)?.id ?? null])),
+    };
+  }
+
+  /** Set a screen's display by its id, or null for an ordinary window. False for an unknown screen or display. */
+  assignById(name, id) {
+    if (!(name in SCREENS)) return false;
+    const display = id === null ? null : this.displays().find(d => d.id === id);
+    if (display === undefined) return false;
+    this.assign(name, display);
+    return true;
+  }
+
   /** Menu items for choosing each screen's display. */
   menu(rebuild) {
     const { screen } = this.electron;
