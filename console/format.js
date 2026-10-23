@@ -2,6 +2,7 @@
 // on a 1920×1080 canvas. Converts libraries saved before it (format 1), and resolves a slide into what a screen
 // draws. No DOM, so it is tested under Node (tests/format.test.js).
 import { splitSlide, uid } from './slides.js';
+import { hasMarks, parseWords, plainWords } from './words.js';
 
 export const FORMAT = 2;
 export const W = 1920, H = 1080;
@@ -173,7 +174,10 @@ export function resolveSlide(slide, { template, pres = null, group = '', index =
     if (el.type === 'text') {
       const content = boundText(el, ctx);
       if (!content) continue;
-      out.push({ ...e, content, style: { ...TEXT_STYLE, ...el.style } });
+      // Words with formatting marks go out as runs to draw, with the plain words beside them.
+      const marked = hasMarks(content) ? { content: plainWords(content), runs: parseWords(content) } : { content };
+      if (!marked.content.trim()) continue;
+      out.push({ ...e, ...marked, style: { ...TEXT_STYLE, ...el.style } });
     } else if (el.type === 'image' || el.type === 'video') {
       const src = media(el.src, ctx);
       if (src) out.push({ ...e, src });
@@ -185,8 +189,8 @@ export function resolveSlide(slide, { template, pres = null, group = '', index =
 /** The words of a slide for the stage display and the console: its text, or what its media is. */
 export function slideSummary(slide) {
   if (!slide) return '';
-  if (slide.text) return slide.text;
-  const words = (slide.layout?.elements || []).filter(e => e.type === 'text' && e.content).map(e => e.content).join('\n');
+  if (slide.text) return plainWords(slide.text);
+  const words = (slide.layout?.elements || []).filter(e => e.type === 'text' && e.content).map(e => plainWords(e.content)).join('\n');
   return words || (slide.media?.type === 'video' ? '[Video]' : slide.media ? '[Image]' : '');
 }
 

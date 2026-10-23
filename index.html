@@ -223,13 +223,14 @@
       <input id="edImageFile" type="file" accept="image/*,video/*" multiple hidden>
       <button id="edCancel" class="btn ghost">Cancel</button><button id="edSave" class="btn primary">Save</button></div>
     <div class="ed-body">
-      <textarea id="edText" spellcheck="false"></textarea>
+      <div class="ed-main"><textarea id="edText" spellcheck="false"></textarea></div>
       <div class="ed-help">
         <b>How to write slides</b>
         <p><code>[Verse 1]</code> on its own line starts a group.</p>
         <p>A blank line starts a new slide inside the group.</p>
         <p>Groups named Verse, Chorus, Bridge, Pre-Chorus, Tag, Intro or Ending get colour-coded automatically.</p>
         <p>Optional first line <code>@bg: #hex</code> or an image URL sets the presentation's default background.</p>
+        <p><b>Bold</b>, <i>italic</i>, underlined or coloured words: select them and use the buttons above the words, or Ctrl+B, Ctrl+I and Ctrl+U. They show as <code>**bold**</code>, <code>*italic*</code>, <code>__underlined__</code> and <code>{gold}coloured{/}</code>, which you can type too.</p>
         <p><code>@image: …</code> on a slide shows a picture on it, with any other lines on that slide as text over it.</p>
         <p><code>@video: …</code> on a slide plays a video on it, once, with sound on the audience output.</p>
         <p><code>@slide: …</code> stands for a slide with its own design, followed by its first words. Keep the line to keep the slide, or delete it to remove it. Right-click a slide in the slide grid to design it.</p>

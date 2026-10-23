@@ -75,7 +75,18 @@
     Object.assign(d.style, { justifyContent: v, textAlign: t.align || 'center', padding: (t.padding || 0) + 'px' });
     const span = document.createElement('div');
     span.className = 'pp-words';
-    span.textContent = e.content;
+    // Words with some of them bold, italic, underlined or coloured come as runs ({ text, bold, italic, underline,
+    // color }), each drawn in its own span.
+    if (Array.isArray(e.runs)) for (const r of e.runs) {
+      const s = document.createElement('span');
+      s.textContent = r.text;
+      if (r.bold) s.style.fontWeight = 'bolder';
+      if (r.italic) s.style.fontStyle = 'italic';
+      if (r.underline) s.style.textDecoration = 'underline';
+      if (r.color) s.style.color = r.color;
+      span.appendChild(s);
+    }
+    else span.textContent = e.content;
     Object.assign(span.style, {
       fontFamily: t.font, fontSize: t.size + 'px', color: t.color, fontWeight: t.weight || 400,
       fontStyle: t.italic ? 'italic' : 'normal', textTransform: t.upper ? 'uppercase' : 'none',

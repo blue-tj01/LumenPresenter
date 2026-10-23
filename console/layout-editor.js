@@ -11,6 +11,7 @@ import { storeSlideMedia } from './media.js';
 import { uid } from './slides.js';
 import { addTemplate, renderTheme } from './themes.js';
 import { renderGrid } from './views.js';
+import { wordBar } from './word-bar.js';
 
 // doc is what is being edited, { layout, background }. In 'theme' mode targetId names the theme (null for the default
 // style); in 'slide' mode target is { presId, slideId, after }, after meaning a new slide to go after that one.
@@ -357,10 +358,11 @@ function renderInspector() {
   if (el.type === 'text') {
     box.append(field('Shows', choice(BINDS.filter(([b]) => mode === 'theme' || b !== 'slide.text' || el.bind === b), el.bind || '', v => { if (v) el.bind = v; else { delete el.bind; el.content ||= 'Text'; } })));
     if (isMain(el)) box.lastChild.querySelector('select').disabled = true;
-    if (!el.bind) box.append(field('Words', (() => {
-      const t = node('textarea', { rows: 3, value: el.content || '', id: 'leContent' });
+    // Not a label: a click on it would go to the formatting bar's first button.
+    if (!el.bind) box.append(node('div', { className: 'le-f' }, node('span', { textContent: 'Words' }), (() => {
+      const t = node('textarea', { rows: 4, value: el.content || '', id: 'leContent' });
       t.oninput = () => { el.content = t.value; live(); }; t.onchange = () => { commit(); relabel(); };
-      return t;
+      return node('div', { className: 'le-words' }, wordBar(t, () => { commit(); relabel(); }), t);
     })()));
   }
   box.append(node('div', { className: 'sub-h', textContent: 'Position' }),

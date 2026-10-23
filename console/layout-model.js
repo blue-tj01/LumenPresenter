@@ -2,6 +2,7 @@
 // frames, finding the element under the pointer, arranging, colours, and undo. Tested under Node
 // (tests/layout.test.js); console/layout-editor.js is the screen around them.
 import { H, TEXT_STYLE, W } from './format.js';
+import { plainWords } from './words.js';
 
 // ---------- what a text box can show ----------
 /** The fields a text box can show, as the inspector names them; '' is words typed into the box itself. */
@@ -15,7 +16,7 @@ const KIND = { text: 'Text', image: 'Picture', video: 'Video', shape: 'Shape' };
 export function elementName(el) {
   if (el.name) return el.name;
   if (el.type === 'text') return el.bind ? BINDS.find(([b]) => b === el.bind)?.[1] || 'Text'
-    : (el.content || '').split('\n')[0].slice(0, 30) || 'Text';
+    : plainWords(el.content).split('\n')[0].slice(0, 30) || 'Text';
   if (el.type === 'shape') return el.kind === 'ellipse' ? 'Circle' : 'Box';
   return KIND[el.type] || el.type;
 }

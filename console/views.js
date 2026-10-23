@@ -1,5 +1,6 @@
 // The library list, services and their playlist, slide grid and messages, and their controls.
 import { $, $$, toast } from './dom.js';
+import { plainWords } from './words.js';
 import { openEditor } from './editor.js';
 import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackground, state, templateFor } from './library.js';
 import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
@@ -19,7 +20,7 @@ let searchSeq = 0;
 function localSearch(q) {
   const has = v => String(v ?? '').toLowerCase().includes(q);
   return state.db.presentations.filter(p => has(p.name) || has(p.meta?.author) || has(p.meta?.copyright) || has(p.meta?.ccli)
-    || p.groups.some(g => g.slides.some(s => has(s.text)))).map(p => ({ id: p.id }));
+    || p.groups.some(g => g.slides.some(s => has(plainWords(s.text))))).map(p => ({ id: p.id }));
 }
 async function renderLibrary() {
   const q = $('#libSearch').value.trim().toLowerCase(), seq = ++searchSeq;

@@ -140,3 +140,14 @@ it("shows a song's credits on its last slide, with the church's licence number",
   assert.deepEqual(draw(2, { template: own }), ['Words']);
   assert.deepEqual(draw(0, { template: own }), ['Words', 'Public Domain']);
 });
+
+it('sends formatted words to the screens as runs, with the plain words for everything else', () => {
+  const template = f.textTemplate();
+  const [words] = f.resolveSlide({ id: 's', text: 'Jesus is **{gold}Lord{/}**' }, { template, showCredits: false });
+  assert.equal(words.content, 'Jesus is Lord');
+  assert.deepEqual(words.runs, [{ text: 'Jesus is ' }, { text: 'Lord', bold: true, color: '#ffd54f' }]);
+  const [plain] = f.resolveSlide({ id: 's', text: '5 * 3' }, { template, showCredits: false });
+  assert.deepEqual([plain.content, 'runs' in plain], ['5 * 3', false]);
+  assert.deepEqual(f.resolveSlide({ id: 's', text: '****' }, { template, showCredits: false }), [], 'marks with no words draw nothing');
+  assert.equal(f.slideSummary({ text: 'Amazing **grace**' }), 'Amazing grace');
+});
