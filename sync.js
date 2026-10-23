@@ -117,14 +117,14 @@
     }
     return { lists, fields };
   }
-  /** What changed from `from` to `to` as the server's PATCH takes it, {} if nothing, or null if only a whole save
-   * will do (a list appeared or went). */
+  /** What changed from `from` to `to` as the server's PATCH takes it, or {} if nothing did. A list that appeared
+   * or went is every item added or removed. */
   function diff(to, from) {
     const changes = {};
+    const none = { items: new Map(), order: [] };
     const names = new Set([...Object.keys(to.lists), ...Object.keys(from.lists)]);
     for (const name of names) {
-      const a = from.lists[name], b = to.lists[name];
-      if (!a || !b) return null;
+      const a = from.lists[name] || none, b = to.lists[name] || none;
       const put = [...b.items].filter(([id, json]) => a.items.get(id) !== json).map(([, json]) => JSON.parse(json));
       const remove = a.order.filter(id => !b.items.has(id));
       const moved = a.order.length !== b.order.length || b.order.some((id, i) => id !== a.order[i]);

@@ -143,6 +143,33 @@ describe('console', () => {
     assert.ok((await songs(c)).includes('Doxology'), 'the undo was saved');
   });
 
+  it('draws a large library a page at a time', async () => {
+    const lib = { format: 2, presentations: Array.from({ length: 3000 }, (_, i) => ({ id: `p${i}`, name: `Song ${i}`,
+      groups: [{ id: 'g', name: 'Verse 1', slides: [{ id: 's', text: `Words of song ${i}` }] }] })), playlist: [] };
+    const r = await fetch(url + 'api/library', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ library: lib }) });
+    assert.equal(r.status, 200);
+    const c = await open();
+    const count = () => c.$$eval('#libList li[data-id]', l => l.length);
+    assert.equal(await count(), 150);
+    assert.deepEqual((await songs(c)).slice(0, 3), ['Song 0', 'Song 1', 'Song 2']); // numbers in order, not 0, 1, 10
+    await c.$eval('#libList', ul => { ul.scrollTop = ul.scrollHeight; });
+    await until(async () => await count() > 150, 'more songs as the list scrolls');
+    await c.fill('#libSearch', 'song 2999');
+    await until(async () => (await songs(c))[0]?.startsWith('Song 2999'), 'the search result');
+  });
+
+  it('keeps the stage display, network and control settings under Setup', async () => {
+    const c = await open();
+    assert.equal(await c.isVisible('#netOn'), false);
+    await c.click('.tabs > button[data-tab="setup"]');
+    assert.equal(await c.isVisible('#stageInput'), true);
+    await c.click('.subtabs > button[data-tab="net"]');
+    assert.equal(await c.isVisible('#netOn'), true);
+    assert.equal(await c.isVisible('#stageInput'), false);
+    await c.click('.tabs > button[data-tab="bible"]');
+    assert.equal(await c.isVisible('#netOn'), false);
+  });
+
   it('opens the theme layout editor and leaves it without changes', async () => {
     const c = await open();
     await c.click('#thLayout');

@@ -223,7 +223,7 @@ Every font list ends with **Add a font…**, which takes a `.ttf`, `.otf`, `.wof
 
 ### The stage display's layout
 
-**Edit stage layout…**, on the **Stage** tab, opens the stage display in the same editor, starting from a layout like the standard one. Its text boxes show the current slide, the next slide, the current group, the clock, the timer or the stage message, chosen under **Shows**, and you can add your own words, shapes, lines and pictures. **Save stage display** shows it on every stage display at once. A box with nothing to show, such as the message when there is none, is left out, and the timer turns orange in its last minute and red once it runs out. **Use the standard stage display** puts the standard one back.
+**Edit stage layout…**, under **Setup → Stage display**, opens the stage display in the same editor, starting from a layout like the standard one. Its text boxes show the current slide, the next slide, the current group, the clock, the timer or the stage message, chosen under **Shows**, and you can add your own words, shapes, lines and pictures. **Save stage display** shows it on every stage display at once. A box with nothing to show, such as the message when there is none, is left out, and the timer turns orange in its last minute and red once it runs out. **Use the standard stage display** puts the standard one back.
 
 ### Transitions
 

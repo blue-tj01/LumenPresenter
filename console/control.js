@@ -38,7 +38,7 @@ function renderControl(c) {
   $('#ctlCompanionNote').textContent = !c ? 'Companion needs the Lumen desktop app or server (node server.js).'
     : !c.local ? 'Shown on the computer running Lumen.'
     : c.network ? 'Companion on another computer connects with the token.'
-    : 'For Companion on another computer, turn on network mode in the Network tab.';
+    : 'For Companion on another computer, turn on network mode under Setup → Network.';
   const o = c?.osc || {};
   $('#oscOn').checked = !!o.on; $('#oscOn').disabled = !c?.local;
   if (document.activeElement !== $('#oscPort')) $('#oscPort').value = o.port || 8643;
@@ -137,7 +137,7 @@ export function setupControl() {
   $('#oscPort').onchange = e => changeOsc({ port: Math.round(+e.target.value) });
   $('#midiOn').onchange = e => { midi.on = e.target.checked; learning = null; saveMidi(); startMidi(); };
   $('#midiDevice').onchange = e => { midi.device = e.target.value; saveMidi(); };
-  $('.tabs button[data-tab="ctl"]').addEventListener('click', () => { loadControl(); renderMidi(); });
+  $('button[data-tab="ctl"]').addEventListener('click', () => { loadControl(); renderMidi(); });
   loadControl(); renderMidi();
   if (midi.on) startMidi();
 }

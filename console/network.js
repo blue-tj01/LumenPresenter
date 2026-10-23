@@ -65,8 +65,8 @@ export function setupNetwork() {
   $('#netCopy').onclick = () => navigator.clipboard?.writeText($('#netToken').textContent).then(() => toast('Token copied'), () => {});
   $('#netDropAll').onclick = async () => { if (await ask('Sign every other device out? They will need the token to come back.', { ok: 'Sign them out', danger: true })) changeNetwork({ disconnect: 'all' }); };
   $('#netSignOut').onclick = async () => { if (await ask('Sign this device out? You will need the token to open Lumen here again.', { ok: 'Sign out', danger: true })) Lumen.signOut(); };
-  $('.tabs button[data-tab="net"]').addEventListener('click', loadNetwork);
+  $('button[data-tab="net"]').addEventListener('click', loadNetwork);
   loadNetwork();
   // Keep the device list current while the tab is showing.
-  setInterval(() => { if ($('[data-pane="net"]').classList.contains('on') && !document.hidden && Lumen.online) loadNetwork(); }, 5000);
+  setInterval(() => { if ($('[data-pane="setup"]').classList.contains('on') && $('[data-pane="net"]').classList.contains('on') && !document.hidden && Lumen.online) loadNetwork(); }, 5000);
 }

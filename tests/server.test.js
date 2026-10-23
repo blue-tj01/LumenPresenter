@@ -96,7 +96,7 @@ describe('server', () => {
     assert.equal(mod.status, 200);
     assert.match(mod.headers['content-type'], /^application\/javascript/); // browsers load modules only as JavaScript
     for (const p of ['/server.js', '/server.py', '/.git/config', '/data/library.json', '/data/lumen.db', '/../etc/passwd',
-      '/tests/server.test.js', '/package.json', '/electron/main.js', '/server/util.js', '/console/package.json', '/app.js']) {
+      '/tests/server.test.js', '/package.json', '/electron/main.js', '/server/util.js', '/console/package.json', '/app.js', '/console/nope.js', '/console/..%2Fserver.js', '/console/Main.js']) {
       assert.equal((await t.req('GET', p)).status, 404, p);
     }
   });

@@ -16,6 +16,14 @@ What changed in each release of Lumen Presenter, newest first. Changes waiting f
 - Import, Export and Reset move from the top bar into a **Library…** dialog. Starting over needs START OVER typed,
   and importing asks first.
 - The browser's own copy of the library moves from localStorage (about 5 MB) to IndexedDB.
+- A large library is drawn a page at a time, and sorted with numbers in order (Song 2 before Song 10). In a
+  10,000-song library, opening the console went from about 4.8 s to 2.2 s, and picking a song from 2.3 s to 0.5 s.
+- The Stage, Network and Control tabs move under one **⚙ Setup** tab, leaving Theme, Bible, Messages and Timer
+  beside it for use during a service.
+- Screen readers and keyboards: the tabs, library and playlist can be used from the keyboard (arrow keys move along
+  tabs, Enter picks a song), icon-only buttons have names, notes at the bottom are announced, and focus is shown.
+- A server started before an update now serves the console's new files, so the page loads and can say the server
+  needs a restart.
 
 ### Added
 - Undo and redo for the library (Ctrl+Z, Ctrl+Shift+Z, and ↶ ↷ in the top bar): editing or deleting a song, themes,

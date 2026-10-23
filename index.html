@@ -29,20 +29,20 @@
   <!-- Library + Playlist -->
   <aside class="side">
     <section class="panel grow">
-      <div class="panel-h">Library <span><button id="btnImportSongs" class="icon txt" title="Import songs from CCLI SongSelect (.usr or .txt), OpenLP (OpenLyrics .xml), OpenSong, ProPresenter 7 (.pro, .probundle or .proplaylist) or EasyWorship (Songs.DB with Songs.MB from 2009, Songs.db with SongWords.db from versions 6 and 7) files, or drop them on the library">⤓ Songs</button><button id="btnImportSlides" class="icon txt" title="Import a PowerPoint, Impress or PDF file: each slide becomes a picture">⤓ Slides</button><button id="btnNewPres" class="icon" title="New presentation">＋</button></span>
+      <div class="panel-h">Library <span><button id="btnImportSongs" class="icon txt" title="Import songs from CCLI SongSelect (.usr or .txt), OpenLP (OpenLyrics .xml), OpenSong, ProPresenter 7 (.pro, .probundle or .proplaylist) or EasyWorship (Songs.DB with Songs.MB from 2009, Songs.db with SongWords.db from versions 6 and 7) files, or drop them on the library">⤓ Songs</button><button id="btnImportSlides" class="icon txt" title="Import a PowerPoint, Impress or PDF file: each slide becomes a picture">⤓ Slides</button><button id="btnNewPres" class="icon" title="New presentation" aria-label="New presentation">＋</button></span>
         <input id="songFile" type="file" multiple hidden>
         <input id="slidesFile" type="file" accept=".pptx,.ppt,.ppsx,.pps,.odp,.pdf" multiple hidden></div>
-      <input id="libSearch" class="search" placeholder="Search songs…" title="Titles, words, writers or CCLI song number">
-      <ul id="libList" class="list"></ul>
+      <input id="libSearch" class="search" type="search" aria-label="Search songs" placeholder="Search songs…" title="Titles, words, writers or CCLI song number">
+      <ul id="libList" class="list" role="listbox" aria-label="Library"></ul>
     </section>
     <section class="panel grow">
       <div class="panel-h">Service
-        <span class="svc-tools"><button id="svcNew" class="icon" title="New service">＋</button><button id="svcDuplicate" class="icon" title="Duplicate this service for the next week">⧉</button><button id="svcEdit" class="icon" title="Rename this service or change its date">✎</button><button id="svcDelete" class="icon" title="Delete this service (its songs stay in the library)">✕</button></span></div>
+        <span class="svc-tools"><button id="svcNew" class="icon" title="New service" aria-label="New service">＋</button><button id="svcDuplicate" class="icon" title="Duplicate this service for the next week" aria-label="Duplicate this service for the next week">⧉</button><button id="svcEdit" class="icon" title="Rename this service or change its date" aria-label="Rename this service or change its date">✎</button><button id="svcDelete" class="icon" title="Delete this service (its songs stay in the library)" aria-label="Delete this service (its songs stay in the library)">✕</button></span></div>
       <select id="svcSelect" class="search svc-select" title="Open a saved service"></select>
       <div class="panel-h">Playlist <span class="muted small">drag songs in · drag to reorder · drop videos or PowerPoint</span>
         <button id="btnAddVideo" class="icon txt" title="Add videos to the playlist">＋ Video</button>
         <input id="playlistFile" type="file" accept="video/*" multiple hidden></div>
-      <ul id="playList" class="list"></ul>
+      <ul id="playList" class="list" role="listbox" aria-label="Playlist"></ul>
     </section>
   </aside>
 
@@ -91,14 +91,12 @@
       <button id="btnVidRestart" class="btn vidctl" hidden>⟲ Restart</button>
       <button id="btnAuto" class="btn" title="Pause or resume moving to the next slide by itself" hidden>❚❚ Auto<span id="autoLeft" class="muted small"></span></button>
     </div>
-    <nav class="tabs">
-      <button data-tab="theme" class="on">Theme</button>
-      <button data-tab="bible">Bible</button>
-      <button data-tab="msg">Messages</button>
-      <button data-tab="timer">Timer</button>
-      <button data-tab="stage">Stage</button>
-      <button data-tab="net">Network</button>
-      <button data-tab="ctl">Control</button>
+    <nav class="tabs" role="tablist" aria-label="Tools">
+      <button data-tab="theme" class="on" role="tab" aria-selected="true">Theme</button>
+      <button data-tab="bible" role="tab" aria-selected="false" tabindex="-1">Bible</button>
+      <button data-tab="msg" role="tab" aria-selected="false" tabindex="-1">Messages</button>
+      <button data-tab="timer" role="tab" aria-selected="false" tabindex="-1">Timer</button>
+      <button data-tab="setup" role="tab" aria-selected="false" tabindex="-1" title="The stage display, network mode and outside control">⚙ Setup</button>
     </nav>
     <div class="tabbody">
       <div data-pane="theme" class="pane on">
@@ -162,14 +160,20 @@
         <div class="row"><button id="timerStart" class="btn primary">Start</button><button id="timerPause" class="btn">Pause</button><button id="timerReset" class="btn">Reset</button></div>
         <p class="muted small">The countdown appears on the Stage Display.</p>
       </div>
-      <div data-pane="stage" class="pane">
+      <div data-pane="setup" class="pane">
+      <nav class="subtabs" role="tablist" aria-label="Setup">
+        <button data-tab="stage" class="on" role="tab" aria-selected="true">Stage display</button>
+        <button data-tab="net" role="tab" aria-selected="false" tabindex="-1">Network</button>
+        <button data-tab="ctl" role="tab" aria-selected="false" tabindex="-1">Control</button>
+      </nav>
+      <div data-pane="stage" class="subpane on">
         <div class="row"><input id="stageInput" type="text" placeholder="Message to the stage only…"><button id="stageSend" class="btn primary">Send</button></div>
         <button id="stageClear" class="btn wide">Clear stage message</button>
         <p class="muted small">Stage Display shows current &amp; next slide, clock, timer and this message.</p>
         <button id="stageLayout" class="btn wide" title="Move and style what the stage display shows, and add text, shapes and pictures">Edit stage layout…</button>
         <button id="stageStandard" class="btn wide ghost" hidden>Use the standard stage display</button>
       </div>
-      <div data-pane="net" class="pane">
+      <div data-pane="net" class="subpane">
         <label class="chk"><input id="netOn" type="checkbox"> Network mode</label>
         <p id="netNote" class="muted small"></p>
         <div id="netDetails" class="net-details" hidden>
@@ -187,7 +191,7 @@
         </div>
         <button id="netSignOut" class="btn wide" hidden>Sign out of this device</button>
       </div>
-      <div data-pane="ctl" class="pane">
+      <div data-pane="ctl" class="subpane">
         <div class="sub-h">Bitfocus Companion</div>
         <p class="muted small">Add a <b>Lumen Presenter</b> connection in Companion, and give it:</p>
         <ul id="ctlCompanion" class="ctl-facts"></ul>
@@ -213,6 +217,7 @@
         <label>Device <select id="midiDevice"></select></label>
         <p id="midiNote" class="muted small"></p>
         <ul id="midiMap" class="midi-map"></ul>
+      </div>
       </div>
     </div>
   </aside>
@@ -310,7 +315,7 @@
   <div class="le-card">
     <div class="le-top">
       <b id="leTitle"></b><span id="leUsers" class="muted"></span><span class="le-sep"></span>
-      <button id="leUndo" class="btn ghost" title="Undo (Ctrl+Z)">↶</button><button id="leRedo" class="btn ghost" title="Redo (Ctrl+Y)">↷</button><span class="le-sep"></span>
+      <button id="leUndo" class="btn ghost" title="Undo (Ctrl+Z)" aria-label="Undo (Ctrl+Z)">↶</button><button id="leRedo" class="btn ghost" title="Redo (Ctrl+Y)" aria-label="Redo (Ctrl+Y)">↷</button><span class="le-sep"></span>
       <button class="btn" data-add="text">＋ Text</button><button class="btn" data-add="shape">＋ Box</button><button class="btn" data-add="ellipse">＋ Circle</button><button class="btn" data-add="line">＋ Line</button>
       <button class="btn" data-add="image">＋ Picture</button><button class="btn" data-add="video">＋ Video</button>
       <input id="leFile" type="file" hidden><span class="le-sep"></span>
@@ -333,10 +338,10 @@
   </div>
 </div>
 <div id="slideMenu" class="ctx-menu" role="menu" hidden></div>
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 <div id="errBox" class="err-box" role="alert" hidden>
   <div class="err-h">Something went wrong <span class="spacer"></span>
-    <button id="errCopy" class="btn small-btn" title="Copy the error, to report it">Copy</button><button id="errClose" class="icon" title="Close">✕</button></div>
+    <button id="errCopy" class="btn small-btn" title="Copy the error, to report it">Copy</button><button id="errClose" class="icon" title="Close" aria-label="Close">✕</button></div>
   <div id="errList"></div>
 </div>
 

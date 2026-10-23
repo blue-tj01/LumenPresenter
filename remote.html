@@ -193,7 +193,7 @@
     renderNow();
     await loadLibrary();
   } else {
-    $('list').innerHTML = '<p class="msg">The remote needs the Lumen server. Open it from the link in the Network tab of the console.</p>';
+    $('list').innerHTML = '<p class="msg">The remote needs the Lumen server. Open it from the link under Setup → Network in the console.</p>';
     for (const b of document.querySelectorAll('footer button')) b.disabled = true;
   }
 
