@@ -138,3 +138,9 @@ it('reads and writes two-colour gradients', () => {
   assert.equal(m.gradient({ angle: 45, from: '#000000', to: '#ffffff' }), 'linear-gradient(45deg, #000000, #ffffff)');
   assert.deepEqual(m.parseGradient(m.gradient()), { angle: 160, from: '#1b2030', to: '#0d0f15' });
 });
+
+it('makes lines, named as lines', () => {
+  const l = m.newElement('line', 'l1');
+  assert.deepEqual([l.type, l.kind, l.thickness, l.frame.h], ['shape', 'line', 6, 40]);
+  assert.equal(m.elementName(l), 'Line');
+});

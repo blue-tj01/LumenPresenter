@@ -2,6 +2,7 @@
 // on a 1920×1080 canvas. Converts libraries saved before it (format 1), and resolves a slide into what a screen
 // draws. No DOM, so it is tested under Node (tests/format.test.js).
 import { splitSlide, uid } from './slides.js';
+import { hasMarks, parseWords, plainWords } from './words.js';
 
 export const FORMAT = 2;
 export const W = 1920, H = 1080;
@@ -41,7 +42,10 @@ export function slideRefs(slide) {
   const refs = [];
   if (slide.media?.src) refs.push(slide.media.src);
   if (slide.background?.src) refs.push(slide.background.src);
-  for (const el of slide.layout?.elements || []) if (el.src) refs.push(el.src);
+  // A template's other layouts hold pictures and videos too.
+  for (const layout of [slide.layout, ...(slide.layouts || []).map(l => l.layout)]) {
+    for (const el of layout?.elements || []) if (el.src) refs.push(el.src);
+  }
   return refs;
 }
 
@@ -58,6 +62,10 @@ export function textTemplate({ id, name, margin = MARGIN, ...style } = {}) {
   if (id) Object.assign(t, { id, name });
   return t;
 }
+/** The layout a slide shows with from its template: the one it picked by `layoutId` from the template's other
+ * layouts ([{ id, name, layout }], such as a title or a scripture layout), or the template's main one. */
+export const templateLayout = (template, layoutId) =>
+  (layoutId && template?.layouts?.find(l => l.id === layoutId)?.layout) || template?.layout;
 /** The text box a template's style controls edit: the first one showing the slide's words. */
 export const mainText = t => t?.layout?.elements?.find(e => e.type === 'text' && e.bind === 'slide.text') || null;
 
@@ -138,6 +146,8 @@ export const CREDITS_ELEMENT = { id: 'credits', type: 'text', name: 'Song credit
 const placesCredits = el => el.bind === 'pres.credits' || el.bind?.startsWith('pres.meta.');
 
 // ---------- resolving what a screen draws ----------
+// Words with formatting marks go out as runs to draw, with the plain words beside them.
+const markedWords = content => hasMarks(content) ? { content: plainWords(content), runs: parseWords(content) } : { content };
 const media = (ref, ctx) => refUrl(ref, ctx.bin);
 
 /** What a text element shows: its own words, or the field it is bound to. */
@@ -165,7 +175,7 @@ export function resolveSlide(slide, { template, pres = null, group = '', index =
   }
   const shown = el => !el.hidden && (!el.showOn || el.showOn === 'all' || (el.showOn === 'first' && index === 0)
     || (el.showOn === 'last' && index === count - 1));
-  const elements = (slide.layout || template?.layout)?.elements || [];
+  const elements = (slide.layout || templateLayout(template, slide.layoutId))?.elements || [];
   const extra = showCredits && !elements.some(placesCredits) ? [CREDITS_ELEMENT] : [];
   for (const el of [...elements, ...extra]) {
     if (!shown(el)) continue;
@@ -173,7 +183,9 @@ export function resolveSlide(slide, { template, pres = null, group = '', index =
     if (el.type === 'text') {
       const content = boundText(el, ctx);
       if (!content) continue;
-      out.push({ ...e, content, style: { ...TEXT_STYLE, ...el.style } });
+      const marked = markedWords(content);
+      if (!marked.content.trim()) continue;
+      out.push({ ...e, ...marked, style: { ...TEXT_STYLE, ...el.style } });
     } else if (el.type === 'image' || el.type === 'video') {
       const src = media(el.src, ctx);
       if (src) out.push({ ...e, src });
@@ -182,11 +194,43 @@ export function resolveSlide(slide, { template, pres = null, group = '', index =
   return out;
 }
 
+// ---------- the stage display ----------
+// The stage display can have a layout of its own, made in the layout editor: text boxes showing what the stage
+// display shows (the live slide's words, the next slide's, the clock...), with shapes and pictures around them.
+// The stage page fills the words in itself, since the clock and timer change every second.
+export const STAGE_BINDS = [['stage.current', 'Current slide'], ['stage.next', 'Next slide'], ['stage.group', 'Current group'],
+  ['stage.clock', 'Clock'], ['stage.timer', 'Timer'], ['stage.message', 'Stage message']];
+const stageText = (id, bind, frame, style) => ({ id, type: 'text', bind, frame, style: { ...TEXT_STYLE, shadow: false, ...style } });
+/** A stage layout like the standard stage display, to start from. */
+export const stageTemplate = () => ({ layout: { elements: [
+  stageText('clock', 'stage.clock', { x: 60, y: 30, w: 600, h: 110 }, { font: 'ui-monospace, Consolas, monospace', size: 72, weight: 600, align: 'left' }),
+  stageText('timer', 'stage.timer', { x: 1260, y: 30, w: 600, h: 110 }, { font: 'ui-monospace, Consolas, monospace', size: 72, weight: 600, align: 'right' }),
+  { id: 'curbox', type: 'shape', kind: 'rect', frame: { x: 60, y: 170, w: 1800, h: 560 }, stroke: { width: 3, color: '#2b3550' }, radius: 16 },
+  stageText('group', 'stage.group', { x: 90, y: 180, w: 1740, h: 50 }, { size: 26, color: '#ffcf7a', align: 'left', upper: true, letterSpacing: 3 }),
+  stageText('current', 'stage.current', { x: 90, y: 230, w: 1740, h: 480 }, { size: 76, weight: 600 }),
+  { id: 'nextbox', type: 'shape', kind: 'rect', frame: { x: 60, y: 760, w: 1800, h: 180 }, fill: '#12151c', radius: 16 },
+  stageText('next', 'stage.next', { x: 90, y: 770, w: 1740, h: 160 }, { size: 44, weight: 400, color: '#9ec1ff', align: 'left' }),
+  { ...stageText('message', 'stage.message', { x: 60, y: 960, w: 1800, h: 90 }, { size: 48 }), fill: '#ff3b4e' },
+] }, background: { type: 'color', src: '#000000' } });
+/** A stage layout as the stage page draws it: hidden elements left out, styles filled in, media as URLs. Text boxes
+ * keep their bind for the page to fill in. */
+export function resolveStage(layout, { bin } = {}) {
+  const out = [];
+  for (const el of layout?.elements || []) {
+    if (el.hidden) continue;
+    const { id: _i, name: _n, locked: _l, hidden: _h, showOn: _s, ...e } = el;
+    if (el.type === 'text') out.push({ ...e, ...markedWords(e.bind ? '' : e.content || ''), style: { ...TEXT_STYLE, ...el.style } });
+    else if (el.type === 'image' || el.type === 'video') { const src = refUrl(el.src, bin); if (src) out.push({ ...e, src }); }
+    else out.push(e);
+  }
+  return out;
+}
+
 /** The words of a slide for the stage display and the console: its text, or what its media is. */
 export function slideSummary(slide) {
   if (!slide) return '';
-  if (slide.text) return slide.text;
-  const words = (slide.layout?.elements || []).filter(e => e.type === 'text' && e.content).map(e => e.content).join('\n');
+  if (slide.text) return plainWords(slide.text);
+  const words = (slide.layout?.elements || []).filter(e => e.type === 'text' && e.content).map(e => plainWords(e.content)).join('\n');
   return words || (slide.media?.type === 'video' ? '[Video]' : slide.media ? '[Image]' : '');
 }
 

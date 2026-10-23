@@ -1,7 +1,8 @@
 // The layout editor's working parts that need no page: new elements, snapping, moving, resizing and rotating
 // frames, finding the element under the pointer, arranging, colours, and undo. Tested under Node
 // (tests/layout.test.js); console/layout-editor.js is the screen around them.
-import { H, TEXT_STYLE, W } from './format.js';
+import { H, STAGE_BINDS, TEXT_STYLE, W } from './format.js';
+import { plainWords } from './words.js';
 
 // ---------- what a text box can show ----------
 /** The fields a text box can show, as the inspector names them; '' is words typed into the box itself. */
@@ -14,9 +15,9 @@ const KIND = { text: 'Text', image: 'Picture', video: 'Video', shape: 'Shape' };
 /** The name the layers list shows for an element: its own, else what it shows or what it is. */
 export function elementName(el) {
   if (el.name) return el.name;
-  if (el.type === 'text') return el.bind ? BINDS.find(([b]) => b === el.bind)?.[1] || 'Text'
-    : (el.content || '').split('\n')[0].slice(0, 30) || 'Text';
-  if (el.type === 'shape') return el.kind === 'ellipse' ? 'Circle' : 'Box';
+  if (el.type === 'text') return el.bind ? [...BINDS, ...STAGE_BINDS].find(([b]) => b === el.bind)?.[1] || 'Text'
+    : plainWords(el.content).split('\n')[0].slice(0, 30) || 'Text';
+  if (el.type === 'shape') return el.kind === 'ellipse' ? 'Circle' : el.kind === 'line' ? 'Line' : 'Box';
   return KIND[el.type] || el.type;
 }
 
@@ -28,6 +29,8 @@ export function newElement(type, id, src) {
     style: { ...TEXT_STYLE, size: 72, shadow: false } };
   if (type === 'shape') return { id, type, kind: 'rect', frame: box(600, 300), fill: 'rgba(0, 0, 0, 0.5)', radius: 0 };
   if (type === 'ellipse') return { id, type: 'shape', kind: 'ellipse', frame: box(400, 400), fill: 'rgba(255, 255, 255, 0.2)' };
+  // A line runs across its frame's middle, `thickness` pixels thick, so it is turned with the frame's rotation.
+  if (type === 'line') return { id, type: 'shape', kind: 'line', frame: box(800, 40), fill: '#ffffff', thickness: 6 };
   if (type === 'image') return { id, type, src, fit: 'contain', frame: box(640, 360) };
   if (type === 'video') return { id, type, src, fit: 'cover', loop: true, muted: true, frame: box(640, 360) };
   throw new Error(`No element type ${type}`);

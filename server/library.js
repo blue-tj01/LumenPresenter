@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
 const { nowMs, readJson, isObject } = require('./util.js');
+const { plainWords } = require('../console/words.js'); // the words without their **bold** and {gold}colour{/} marks
 
 const FILE = 'lumen.db';
 const LEGACY = 'library.json'; // the library before it moved into the database
@@ -30,8 +31,8 @@ const MAX_RESULTS = 100;
 function searchFields(p) {
   if (!isObject(p)) return ['', '', '', '', ''];
   const meta = isObject(p.meta) ? p.meta : {};
-  const text = s => (typeof s === 'string' ? s : isObject(s) ? String(s.text ?? '') : '')
-    .split('\n').filter(l => !l.trimStart().startsWith('@')).join('\n');
+  const text = s => plainWords((typeof s === 'string' ? s : isObject(s) ? String(s.text ?? '') : '')
+    .split('\n').filter(l => !l.trimStart().startsWith('@')).join('\n'));
   const lyrics = (Array.isArray(p.groups) ? p.groups : [])
     .flatMap(g => (isObject(g) && Array.isArray(g.slides) ? g.slides : []).map(text)).join('\n');
   return [p.name, meta.author, meta.copyright, meta.ccli, lyrics].map(v => String(v ?? ''));

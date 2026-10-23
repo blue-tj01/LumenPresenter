@@ -165,6 +165,8 @@
         <div class="row"><input id="stageInput" type="text" placeholder="Message to the stage only…"><button id="stageSend" class="btn primary">Send</button></div>
         <button id="stageClear" class="btn wide">Clear stage message</button>
         <p class="muted small">Stage Display shows current &amp; next slide, clock, timer and this message.</p>
+        <button id="stageLayout" class="btn wide" title="Move and style what the stage display shows, and add text, shapes and pictures">Edit stage layout…</button>
+        <button id="stageStandard" class="btn wide ghost" hidden>Use the standard stage display</button>
       </div>
       <div data-pane="net" class="pane">
         <label class="chk"><input id="netOn" type="checkbox"> Network mode</label>
@@ -223,13 +225,14 @@
       <input id="edImageFile" type="file" accept="image/*,video/*" multiple hidden>
       <button id="edCancel" class="btn ghost">Cancel</button><button id="edSave" class="btn primary">Save</button></div>
     <div class="ed-body">
-      <textarea id="edText" spellcheck="false"></textarea>
+      <div class="ed-main"><textarea id="edText" spellcheck="false"></textarea></div>
       <div class="ed-help">
         <b>How to write slides</b>
         <p><code>[Verse 1]</code> on its own line starts a group.</p>
         <p>A blank line starts a new slide inside the group.</p>
         <p>Groups named Verse, Chorus, Bridge, Pre-Chorus, Tag, Intro or Ending get colour-coded automatically.</p>
         <p>Optional first line <code>@bg: #hex</code> or an image URL sets the presentation's default background.</p>
+        <p><b>Bold</b>, <i>italic</i>, underlined or coloured words: select them and use the buttons above the words, or Ctrl+B, Ctrl+I and Ctrl+U. They show as <code>**bold**</code>, <code>*italic*</code>, <code>__underlined__</code> and <code>{gold}coloured{/}</code>, which you can type too.</p>
         <p><code>@image: …</code> on a slide shows a picture on it, with any other lines on that slide as text over it.</p>
         <p><code>@video: …</code> on a slide plays a video on it, once, with sound on the audience output.</p>
         <p><code>@slide: …</code> stands for a slide with its own design, followed by its first words. Keep the line to keep the slide, or delete it to remove it. Right-click a slide in the slide grid to design it.</p>
@@ -288,16 +291,18 @@
     <div class="le-top">
       <b id="leTitle"></b><span id="leUsers" class="muted"></span><span class="le-sep"></span>
       <button id="leUndo" class="btn ghost" title="Undo (Ctrl+Z)">↶</button><button id="leRedo" class="btn ghost" title="Redo (Ctrl+Y)">↷</button><span class="le-sep"></span>
-      <button class="btn" data-add="text">＋ Text</button><button class="btn" data-add="shape">＋ Box</button><button class="btn" data-add="ellipse">＋ Circle</button>
+      <button class="btn" data-add="text">＋ Text</button><button class="btn" data-add="shape">＋ Box</button><button class="btn" data-add="ellipse">＋ Circle</button><button class="btn" data-add="line">＋ Line</button>
       <button class="btn" data-add="image">＋ Picture</button><button class="btn" data-add="video">＋ Video</button>
       <input id="leFile" type="file" hidden><span class="le-sep"></span>
       <select id="leAlign" title="Line the selected element up with the screen"><option value="">Align</option><option value="left">Left edge</option><option value="center">Centre</option><option value="right">Right edge</option><option value="top">Top edge</option><option value="middle">Middle</option><option value="bottom">Bottom edge</option></select>
       <select id="leOrder" title="Move the selected element in front of or behind the others"><option value="">Arrange</option><option value="front">Bring to front</option><option value="forward">Bring forward</option><option value="backward">Send backward</option><option value="back">Send to back</option></select>
       <span class="spacer"></span>
-      <button id="leCancel" class="btn ghost">Cancel</button><button id="leSaveAs" class="btn le-theme-only" title="Keep this theme as it was, and save the changes as a new one">Save as new…</button><button id="leSave" class="btn primary" title="Ctrl+S">Save theme</button>
+      <button id="leCancel" class="btn ghost">Cancel</button><button id="leSaveAs" class="btn le-theme-only" title="Keep this theme as it was, and save the changes as a new one">Save as…</button><button id="leSave" class="btn primary" title="Ctrl+S">Save theme</button>
     </div>
     <div class="le-main">
-      <div class="le-side"><div class="panel-h">Layers</div><ul id="leLayers" class="le-layers"></ul>
+      <div class="le-side"><div class="le-theme-only"><div class="panel-h">Layouts <button id="leAddLayout" class="btn small-btn" title="Add another layout to this theme, such as a title or scripture layout">＋ Add</button></div>
+        <ul id="leLayoutList" class="le-layers le-layouts"></ul></div>
+        <div class="panel-h">Layers</div><ul id="leLayers" class="le-layers"></ul>
         <p class="muted small le-hint">The top of the list is in front. Drag to reorder.</p></div>
       <div class="le-stage">
         <div id="leWrap" class="le-wrap"><div id="leCanvas" class="le-canvas"><div id="leScreen"></div><div id="leOverlay" class="le-overlay"></div></div></div>

@@ -1,7 +1,7 @@
 // The library in memory (presentations, services and the open one's playlist, templates, media list, messages), saving it, and looking things
 // up in it. With the server the library lives there; localStorage is the store when running without it.
 import { toast } from './dom.js';
-import { arrangement, FORMAT, mainText, migrateLibrary, refUrl, resolveSlide, textTemplate, TEXT_STYLE } from './format.js';
+import { arrangement, FORMAT, mainText, migrateLibrary, refUrl, resolveSlide, resolveStage, textTemplate, TEXT_STYLE } from './format.js';
 import { BUILTIN_TEMPLATES } from './seed.js';
 import { ensureServices, stashPlaylist } from './services.js';
 import { groupColor } from './slides.js';
@@ -17,7 +17,8 @@ export const valid = d => d && Array.isArray(d.presentations);
 export const normalize = d => {
   const lib = migrateLibrary(d);
   const fix = t => mainText(t) ? t : { ...textTemplate(), ...t, layout: textTemplate().layout };
-  return ensureServices({ ...lib, media: lib.media || [], playlist: lib.playlist || [], messages: lib.messages || [],
+  return ensureServices({ ...lib, media: lib.media || [], fonts: Array.isArray(lib.fonts) ? lib.fonts : [],
+    playlist: lib.playlist || [], messages: lib.messages || [],
     baseTemplate: fix(lib.baseTemplate || textTemplate()),
     templates: (Array.isArray(lib.templates) ? lib.templates : BUILTIN_TEMPLATES()).map(fix) });
 };
@@ -54,6 +55,13 @@ export const flat = p => {
       licence: state.db.ccliLicence, showCredits: state.db.showCredits !== false }) }));
 };
 export const isVideoPres = p => { const sl = flat(p); return sl.length > 0 && sl.every(s => s.video); };
+/** The stage display's own layout as the stage page draws it, or null for the standard stage display. */
+export const stageScreen = () => state.db.stageLayout?.layout
+  ? { elements: resolveStage(state.db.stageLayout.layout, { bin }), bg: bgUrl(state.db.stageLayout.background) } : null;
+// Fonts uploaded to the library, { id, name, src }: a text style names one by its name, and every window that
+// draws slides loads them (PP.useFonts).
+export const fontValue = f => `'${f.name}', sans-serif`;
+export const fontFaces = () => state.db.fonts.map(f => ({ family: f.name, src: mediaUrl(f.src) })).filter(f => f.src);
 /** A background as a screen draws it, with a picture or video's reference as a URL. */
 export const bgUrl = bg => {
   if (!bg) return null;

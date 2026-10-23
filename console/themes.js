@@ -2,8 +2,9 @@
 // calls them themes; its controls edit the template's main text box.
 import { $, $$, toast } from './dom.js';
 import { mainText, textTemplate } from './format.js';
-import { findTemplate, getPres, save, savedTemplate, state, templateFor, textStyle } from './library.js';
+import { findTemplate, fontValue, getPres, save, savedTemplate, state, templateFor, textStyle } from './library.js';
 import { broadcast } from './live.js';
+import { pickFont } from './media.js';
 import { uid } from './slides.js';
 import { cleanTransition, TRANSITIONS } from './transitions.js';
 import { renderGrid } from './views.js';
@@ -15,6 +16,14 @@ export const templateOptions = (sel, first, value) => {
   state.db.templates.forEach(x => sel.add(new Option(x.name, x.id)));
   sel.value = value || '';
 };
+let builtinFonts;
+/** The font picker's last choice, which asks for a font file. */
+export const ADD_FONT = '__add-font';
+/** The fonts a text style can use, [value, name]: the ones every computer has, then the library's own. */
+export function fontChoices() {
+  builtinFonts ||= [...$('#thFont').options].map(o => [o.value, o.textContent]).filter(([v]) => v !== ADD_FONT);
+  return [...builtinFonts, ...state.db.fonts.map(f => [fontValue(f), f.name])];
+}
 export function renderTheme() {
   const p = getPres(state.selectedId), t = templateFor(p), s = textStyle(t);
   templateOptions($('#thAll'), 'Default style', findTemplate(state.db.defaultTemplateId)?.id);
@@ -22,6 +31,9 @@ export function renderTheme() {
   $('#thSaved').disabled = !p;
   $('#thEditing').textContent = `Editing: ${t.name || 'Default style'}` + (t.id ? ' · changes apply to every song using it' : '');
   $('#thRename').disabled = $('#thDelete').disabled = !t.id;
+  const fontSel = $('#thFont'), choices = fontChoices();
+  if (!choices.some(([v]) => v === s.font)) choices.push([s.font, String(s.font).split(',')[0].replace(/'/g, '')]);
+  fontSel.innerHTML = ''; [...choices, [ADD_FONT, 'Add a font…']].forEach(([v, n]) => fontSel.add(new Option(n, v)));
   $('#thFont').value = s.font; $('#thSize').value = s.size; $('#thSizeV').textContent = s.size + 'px';
   $('#thColor').value = s.color; $('#thBold').checked = s.weight >= 600; $('#thShadow').checked = s.shadow; $('#thUpper').checked = s.upper;
   $$('#thAlign button').forEach(b => b.classList.toggle('on', b.dataset.v === s.align));
@@ -101,7 +113,11 @@ function deleteTemplate() {
 
 /** Wire up the Theme tab; called once the library has loaded. */
 export function setupThemes() {
-  $('#thFont').onchange = e => setStyle({ font: e.target.value });
+  $('#thFont').onchange = e => {
+    if (e.target.value !== ADD_FONT) return setStyle({ font: e.target.value });
+    renderTheme(); // back to the font in use until one is added
+    pickFont(f => setStyle({ font: fontValue(f) }));
+  };
   $('#thSize').oninput = e => setStyle({ size: +e.target.value });
   $('#thColor').oninput = e => setStyle({ color: e.target.value });
   $('#thBold').onchange = e => setStyle({ weight: e.target.checked ? 700 : 400 });

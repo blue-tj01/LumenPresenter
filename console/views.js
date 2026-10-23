@@ -1,7 +1,8 @@
 // The library list, services and their playlist, slide grid and messages, and their controls.
 import { $, $$, toast } from './dom.js';
+import { plainWords } from './words.js';
 import { openEditor } from './editor.js';
-import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackground, state, templateFor } from './library.js';
+import { arrangement, autoSecs, flat, fontFaces, getPres, isVideoPres, save, slideBackground, state, templateFor } from './library.js';
 import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
 import { addService, duplicateService, nextSunday, openService, removeService, serviceLabel, sortedServices, switchService, updateService } from './services.js';
 import { isXml, parseSongXml } from './openlyrics.js';
@@ -19,7 +20,7 @@ let searchSeq = 0;
 function localSearch(q) {
   const has = v => String(v ?? '').toLowerCase().includes(q);
   return state.db.presentations.filter(p => has(p.name) || has(p.meta?.author) || has(p.meta?.copyright) || has(p.meta?.ccli)
-    || p.groups.some(g => g.slides.some(s => has(s.text)))).map(p => ({ id: p.id }));
+    || p.groups.some(g => g.slides.some(s => has(plainWords(s.text))))).map(p => ({ id: p.id }));
 }
 async function renderLibrary() {
   const q = $('#libSearch').value.trim().toLowerCase(), seq = ++searchSeq;
@@ -146,6 +147,10 @@ export function renderGrid() {
     const lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.style.background = s.color;
     lbl.innerHTML = `<span class="n">${i + 1}</span><span></span>`; lbl.lastChild.textContent = s.group;
     if (s.slide.layout) lbl.insertAdjacentHTML('beforeend', '<span class="designed" title="This slide has its own design">✎</span>');
+    else {
+      const other = templateFor(p).layouts?.find(l => l.id === s.slide.layoutId);
+      if (other) { lbl.insertAdjacentHTML('beforeend', '<span class="designed"></span>'); lbl.lastChild.textContent = other.name; lbl.lastChild.title = `Shows with the theme’s “${other.name}” layout`; }
+    }
     card.appendChild(lbl);
     card.onclick = () => goLive(p.id, i);
     if (p !== state.preview) card.oncontextmenu = e => { e.preventDefault(); slideMenu(e, p, s.slide); };
@@ -167,6 +172,18 @@ function slideMenu(e, p, slide) {
   item(slide.layout ? 'Edit this slide’s design…' : 'Design this slide…', () => openSlideDesign(p.id, slide.id));
   item('Add a designed slide after it…', () => openSlideDesign(p.id, slide.id, { after: true }));
   if (slide.layout) item('Use the theme again', () => useThemeAgain(p.id, slide.id));
+  // A theme with more than one layout: which of them this slide shows with.
+  const layouts = slide.layout ? [] : templateFor(p).layouts || [];
+  if (layouts.length) {
+    menu.insertAdjacentHTML('beforeend', '<div class="ctx-sep"></div><div class="ctx-h">Show with the theme’s layout</div>');
+    const using = layouts.some(l => l.id === slide.layoutId) ? slide.layoutId : '';
+    for (const [id, name] of [['', 'Main'], ...layouts.map(l => [l.id, l.name])]) {
+      item((id === using ? '✓ ' : '\u2003') + name, () => {
+        if (id) slide.layoutId = id; else delete slide.layoutId;
+        save(); broadcast(); renderGrid();
+      });
+    }
+  }
   menu.hidden = false;
   const r = menu.getBoundingClientRect();
   menu.style.left = Math.min(e.clientX, innerWidth - r.width - 8) + 'px';
@@ -280,7 +297,7 @@ async function importSongs(files) {
     .filter(Boolean).join(' · ') || 'No songs found');
 }
 
-export function renderAll() { renderLibrary(); renderPlaylist(); renderGrid(); renderTheme(); }
+export function renderAll() { PP.useFonts(fontFaces()); renderLibrary(); renderPlaylist(); renderGrid(); renderTheme(); }
 
 /** Wire up the library, playlist, slide grid, live controls, tabs and messages; called once the library has loaded. */
 export function setupViews() {

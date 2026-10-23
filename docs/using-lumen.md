@@ -44,6 +44,10 @@ Chorus line
 | `@bg:` | Sets the presentation's default background: a colour, CSS gradient, or image or video URL. |
 | `@image:` | Shows a picture on that slide, letterboxed over the background. Other lines on the slide appear as text on top. |
 | `@video:` | Plays a video on that slide, once, with sound on the audience output. |
+| `**bold**`, `*italic*`, `__underlined__` | Formats those words only. |
+| `{gold}words{/}` | Colours those words: gold, red, blue, green, purple, white, any CSS colour name, or `{#ff9800}`. |
+
+To format words without typing the marks, select them and use the bar above the text: **B**, *I*, U, the colour dots, or the colour picker for any other colour. Ctrl+B, Ctrl+I and Ctrl+U work too, and clicking a style again takes it off. A mark without its partner, such as a lone `*`, shows as it is typed, and `\*` always does. Search, the stage display and imports see the plain words. On a theme that is already bold, bold words show in the heaviest weight the font has, so a colour stands out more.
 
 ### Services
 
@@ -187,13 +191,15 @@ The font, size, colour and alignment controls edit the theme the selected song i
 **Edit layout…**, on the **Theme** tab, opens the theme the selected song is shown with in a full-window editor. The canvas is drawn exactly as the screens draw it.
 
 - **Move and resize** anything by dragging it and its handles. Edges and middles snap to the screen's middle, a 5% safe margin and the other elements; hold Alt to place freely, and Shift to keep a corner's shape or turn in 15° steps. Arrow keys nudge by a pixel, or 10 with Shift.
-- **Add** a text box, a box, a circle, a picture or a video from the toolbar. A text box shows its own words, or the slide's words, the song title, the group name, the song credits, a Bible reference or one of the song's details, chosen under **Shows**. **Show on** puts it on every slide, or only the first or last.
+- **Add** a text box, a box, a circle, a line, a picture or a video from the toolbar. A text box shows its own words, or the slide's words, the song title, the group name, the song credits, a Bible reference or one of the song's details, chosen under **Shows**. **Show on** puts it on every slide, or only the first or last.
 - **Layers**, on the left, lists everything front to back. Drag a row to put it in front of or behind the others, and use its eye and lock to hide it or stop it moving. **Place** on the song credits row adds the credits to the theme, so you can move and style them; until then they sit at the bottom of the last slide.
-- **The inspector**, on the right, sets the exact position and size in screen pixels, and the font, colour, shadow, outline, spacing, a box behind the words, a shape's fill and border, or how a picture fits its box.
+- **The inspector**, on the right, sets the exact position and size in screen pixels, and the font, colour, shadow, outline, spacing, a box behind the words, a shape's fill and border, a line's thickness, or how a picture fits its box. Fills can be a colour or a two-colour gradient. A text box's own words have the same formatting bar as the text editor.
 - **Every slide** of a song, picked under **Preview with**, is shown along the bottom with the theme, and a slide whose words had to shrink to fit is marked. Click one to show it on the canvas.
 - **Background**, at the bottom of the layers list, gives the theme a colour, a two-colour gradient, a picture or a video. It shows behind every presentation using the theme that has no background of its own; videos in the playlist and imported slide decks don't take it.
 
-Nothing changes on the screens until you press **Save theme** (Ctrl+S), and every song using the theme follows. **Save as new…** keeps the theme as it was and saves your changes as a new one instead, and **Cancel** (Esc) throws them away. Ctrl+Z and Ctrl+Y undo and redo, Ctrl+D duplicates the selected element, and Delete removes it. Every theme keeps the box for the slide's words: hide it rather than delete it.
+- **Layouts**, above the layers, lists the theme's layouts. Most slides show with **Main**; **＋ Add** makes another, such as a title or a scripture layout, starting as a copy of the one on screen. Click a layout to edit it, and use ✎ and ✕ beside it to rename or delete it. To show a slide with another layout, right-click it in the slide grid and pick the layout; the grid names it on the slide. Slides of a deleted layout show with Main again.
+
+Nothing changes on the screens until you press **Save theme** (Ctrl+S), and every song using the theme follows. **Save as…** keeps the theme as it was and saves your changes as a new one instead, and **Cancel** (Esc) throws them away. Ctrl+Z and Ctrl+Y undo and redo, Ctrl+D duplicates the selected element, and Delete removes it. Every theme keeps the box for the slide's words: hide it rather than delete it.
 
 ### Designing one slide
 
@@ -204,6 +210,14 @@ Right-click a slide in the slide grid for its menu:
 - **Use the theme again** throws a slide's design away and shows its words with the theme once more.
 
 A designed slide's words still count for search and show on the stage display. In the text editor it appears as one line, `@slide:` followed by its id and first words: keep the line to keep the slide where it is, or delete it to remove the slide.
+
+### Fonts
+
+Every font list ends with **Add a font…**, which takes a `.ttf`, `.otf`, `.woff` or `.woff2` file. Lumen keeps it with the library and every screen loads it from Lumen: the audience output, NDI, and browsers in network mode, even on computers that don't have the font installed. It's named after its file, and listed with the other fonts from then on. Adding fonts needs Lumen running as the app or its server. Only use fonts your licence lets you install on the computers that show them.
+
+### The stage display's layout
+
+**Edit stage layout…**, on the **Stage** tab, opens the stage display in the same editor, starting from a layout like the standard one. Its text boxes show the current slide, the next slide, the current group, the clock, the timer or the stage message, chosen under **Shows**, and you can add your own words, shapes, lines and pictures. **Save stage display** shows it on every stage display at once. A box with nothing to show, such as the message when there is none, is left out, and the timer turns orange in its last minute and red once it runs out. **Use the standard stage display** puts the standard one back.
 
 ### Transitions
 

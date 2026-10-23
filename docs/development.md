@@ -26,7 +26,8 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |
 | `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
 | `console/format.js` | The slide format: presentations, templates and layouts of positioned elements, converting libraries saved by earlier versions, and resolving a slide into what a screen draws |
-| `console/layout-editor.js`, `console/layout-model.js` | The layout editor for themes and designed slides, and its snapping, resizing, picking, undo and starting a design from a theme, which need no page and are tested under Node |
+| `console/words.js`, `console/word-bar.js` | Bold, italic, underlined and coloured words, written as marks in a slide's text and resolved into runs the screens draw; the formatting bar over a box of words |
+| `console/layout-editor.js`, `console/layout-model.js` | The layout editor for themes, their other layouts, designed slides and the stage display, and its snapping, resizing, picking, undo and starting a design from a theme, which need no page and are tested under Node |
 | `console/transitions.js` | The slide transitions, and which one a presentation plays |
 | `server/control.js`, `server/osc.js`, `console/control.js`, `console/midi.js` | Outside control: the commands, the OSC listener, the Control tab, and MIDI |
 | `companion-module/` | The Bitfocus Companion module, with its own `package.json` |

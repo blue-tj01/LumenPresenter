@@ -140,3 +140,39 @@ it("shows a song's credits on its last slide, with the church's licence number",
   assert.deepEqual(draw(2, { template: own }), ['Words']);
   assert.deepEqual(draw(0, { template: own }), ['Words', 'Public Domain']);
 });
+
+it('sends formatted words to the screens as runs, with the plain words for everything else', () => {
+  const template = f.textTemplate();
+  const [words] = f.resolveSlide({ id: 's', text: 'Jesus is **{gold}Lord{/}**' }, { template, showCredits: false });
+  assert.equal(words.content, 'Jesus is Lord');
+  assert.deepEqual(words.runs, [{ text: 'Jesus is ' }, { text: 'Lord', bold: true, color: '#ffd54f' }]);
+  const [plain] = f.resolveSlide({ id: 's', text: '5 * 3' }, { template, showCredits: false });
+  assert.deepEqual([plain.content, 'runs' in plain], ['5 * 3', false]);
+  assert.deepEqual(f.resolveSlide({ id: 's', text: '****' }, { template, showCredits: false }), [], 'marks with no words draw nothing');
+  assert.equal(f.slideSummary({ text: 'Amazing **grace**' }), 'Amazing grace');
+});
+
+it("shows a slide with the theme layout it picked, or the theme's main one", () => {
+  const template = f.textTemplate();
+  template.layouts = [{ id: 'title', name: 'Title', layout: { elements: [{ id: 't', type: 'text', bind: 'pres.name',
+    frame: { x: 0, y: 0, w: 1920, h: 300 }, style: { size: 140 } }] } }];
+  const opts = { template, pres: { name: 'Easter Sunday' }, showCredits: false };
+  assert.deepEqual(f.resolveSlide({ id: 's', text: 'Words', layoutId: 'title' }, opts).map(e => [e.content, e.style.size]), [['Easter Sunday', 140]]);
+  assert.deepEqual(f.resolveSlide({ id: 's', text: 'Words' }, opts).map(e => e.content), ['Words']);
+  assert.deepEqual(f.resolveSlide({ id: 's', text: 'Words', layoutId: 'gone' }, opts).map(e => e.content), ['Words']);
+  assert.equal(f.templateLayout(template, 'title'), template.layouts[0].layout);
+});
+
+it('gives the stage display a layout like the standard one, ready for the stage page to fill in', () => {
+  const t = f.stageTemplate();
+  assert.deepEqual(t.layout.elements.filter(e => e.bind).map(e => e.bind),
+    ['stage.clock', 'stage.timer', 'stage.group', 'stage.current', 'stage.next', 'stage.message']);
+  t.layout.elements.push({ id: 'logo', type: 'image', src: 'bin:m1', frame: { x: 0, y: 0, w: 10, h: 10 } },
+    { id: 'off', type: 'text', content: 'Hidden', hidden: true }, { id: 'own', type: 'text', content: '**Band:**', name: 'Label' });
+  const els = f.resolveStage(t.layout, { bin: id => `data:${id}` });
+  const cur = els.find(e => e.bind === 'stage.current');
+  assert.deepEqual([cur.content, cur.style.size, cur.style.lineHeight, 'id' in cur], ['', 76, 1.2, false]);
+  assert.equal(els.find(e => e.type === 'image').src, 'data:m1');
+  assert.deepEqual(els.filter(e => e.type === 'text' && !e.bind).map(e => [e.content, e.runs, 'name' in e]),
+    [['Band:', [{ text: 'Band:', bold: true }], false]]);
+});

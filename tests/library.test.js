@@ -154,6 +154,7 @@ it('searches titles, words and song details, best match first', () => {
       { author: 'John Newton', copyright: 'Public Domain', ccli: '22025' }),
     hymn('b', 'How Great Thou Art', ['O Lord my God when I in awesome wonder'], { author: 'Stuart K. Hine', ccli: '14181' }),
     hymn('c', 'Notices', ['Coffee after the service', '@image: media:abc.jpg']),
+    hymn('d', 'Formatted', ['Jesus is {gold}**Lord**{/}']),
   ] });
   assert.deepEqual(lib.search('grace').map(r => r.id), ['a']);
   assert.deepEqual(lib.search('how').map(r => r.id), ['b', 'a']); // the title counts most
@@ -164,6 +165,8 @@ it('searches titles, words and song details, best match first', () => {
   assert.deepEqual(lib.search('am gr sw').map(r => r.id), ['a']);
   assert.deepEqual(lib.search('media abc'), [], 'media lines are not words');
   assert.deepEqual(lib.search('"NEAR( OR -'), []);
+  assert.deepEqual(lib.search('gold'), [], 'formatting marks are not words');
+  assert.equal(lib.search('is lord')[0].snippet, 'Jesus \u0002is\u0003 \u0002Lord\u0003');
   assert.deepEqual(lib.search('  '), []);
   const [hit] = lib.search('wretch');
   assert.deepEqual(hit, { id: 'a', name: 'Amazing Grace',

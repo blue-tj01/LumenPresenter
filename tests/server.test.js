@@ -261,6 +261,18 @@ describe('server', () => {
     assert.equal(r.status, 400);
   });
 
+  it('stores fonts, by their own extension', async () => {
+    const font = Buffer.from('wOF2 not really');
+    let r = await t.req('POST', '/api/media', font, { 'Content-Type': 'font/woff2', 'X-Filename': 'Brand%20Sans.woff2' });
+    assert.deepEqual([r.status, r.json.type, r.json.name], [201, 'font', 'Brand Sans.woff2']);
+    assert.match(r.json.src, /^media\/[a-z0-9]{16}\.woff2$/);
+    r = await t.req('GET', '/' + r.json.src);
+    assert.deepEqual([r.status, r.headers['content-type']], [200, 'font/woff2']);
+    r = await t.req('POST', '/api/media', font, { 'Content-Type': 'font/ttf', 'X-Filename': 'a.html' });
+    assert.ok(r.json.src.endsWith('.ttf'));
+    assert.equal((await t.req('POST', '/api/media', font, { 'Content-Type': 'font/x-made-up', 'X-Filename': 'a.js' })).status, 400);
+  });
+
   it('rejects other types and bad media names', async () => {
     assert.equal((await t.req('POST', '/api/media', Buffer.from('x'), { 'Content-Type': 'text/html' })).status, 400);
     assert.equal((await t.req('DELETE', '/api/media/..%2Flibrary.json')).status, 400);

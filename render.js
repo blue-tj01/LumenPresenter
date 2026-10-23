@@ -59,7 +59,12 @@
       inner = document.createElement('img'); inner.src = e.src; inner.alt = '';
       inner.style.objectFit = FIT[e.fit] || 'contain';
     } else if (e.type === 'video') inner = makeVideo(e, opts);
-    else if (e.type === 'shape') {
+    else if (e.type === 'shape' && e.kind === 'line') {
+      inner = document.createElement('div');
+      const th = Math.max(1, e.thickness || 4);
+      Object.assign(inner.style, { position: 'absolute', left: 0, right: 0, top: `calc(50% - ${th / 2}px)`, height: th + 'px',
+        background: e.fill || '#fff', borderRadius: e.round ? th / 2 + 'px' : 0 });
+    } else if (e.type === 'shape') {
       inner = document.createElement('div');
       Object.assign(inner.style, { width: '100%', height: '100%', boxSizing: 'border-box', background: e.fill || 'none',
         borderRadius: e.kind === 'ellipse' ? '50%' : (e.radius || 0) + 'px', border: e.stroke ? `${e.stroke.width || 2}px solid ${e.stroke.color || '#fff'}` : 'none' });
@@ -75,7 +80,18 @@
     Object.assign(d.style, { justifyContent: v, textAlign: t.align || 'center', padding: (t.padding || 0) + 'px' });
     const span = document.createElement('div');
     span.className = 'pp-words';
-    span.textContent = e.content;
+    // Words with some of them bold, italic, underlined or coloured come as runs ({ text, bold, italic, underline,
+    // color }), each drawn in its own span.
+    if (Array.isArray(e.runs)) for (const r of e.runs) {
+      const s = document.createElement('span');
+      s.textContent = r.text;
+      if (r.bold) s.style.fontWeight = 'bolder';
+      if (r.italic) s.style.fontStyle = 'italic';
+      if (r.underline) s.style.textDecoration = 'underline';
+      if (r.color) s.style.color = r.color;
+      span.appendChild(s);
+    }
+    else span.textContent = e.content;
     Object.assign(span.style, {
       fontFamily: t.font, fontSize: t.size + 'px', color: t.color, fontWeight: t.weight || 400,
       fontStyle: t.italic ? 'italic' : 'normal', textTransform: t.upper ? 'uppercase' : 'none',
@@ -195,6 +211,7 @@
     const fade = opts.fade ? FADE : null, tr = opts.fade ? live.transition || FADE : null, animate = opts.animate !== false;
     const [bgL, slideL, , msgL, logoL] = inner.children;
     const t = live.theme;
+    if (live.fonts) useFonts(live.fonts);
 
     const words = !!opts.wordsOnly;
     st.bg = swap(bgL, words ? '' : bgKey(live.bg), st.bg, () => makeBg(live.bg, animate), tr);
@@ -212,6 +229,7 @@
       const key = keyOf(e), i = old.findIndex(o => o && o.key === key);
       if (i >= 0) { next.push(old[i]); old[i] = null; continue; }
       const item = swap(slideL, key, null, () => makeElement(e, opts), tr);
+      item.e = e;
       if (e.type === 'text') shrinkToFit(item.el, e);
       next.push(item);
     }
@@ -242,8 +260,28 @@
     }, fade);
   }
 
+  // Fonts uploaded to the library, loaded once in each window that draws slides: [{ family, src }]. Words drawn
+  // before their font arrives are fitted to their boxes again once it has.
+  const fonts = new Map();
+  function useFonts(list) {
+    if (!Array.isArray(list) || !window.FontFace) return;
+    for (const f of list) {
+      if (!f || !f.family || !f.src || fonts.get(f.family) === f.src) continue;
+      fonts.set(f.family, f.src);
+      const face = new FontFace(f.family, cssUrl(f.src));
+      face.load().then(() => { document.fonts.add(face); document.querySelectorAll('.pp-screen').forEach(refit); }).catch(() => {});
+    }
+  }
+  function refit(screen) {
+    if (!screen._pp) return;
+    for (const n of screen._pp.slide) if (n.e && n.e.type === 'text') {
+      n.el.firstChild.style.fontSize = (n.e.style || {}).size + 'px';
+      shrinkToFit(n.el, n.e);
+    }
+  }
+
   /** The slide's video that plays once, as the screen shows it, for its time and length. */
   const slideVideo = screen => screen.querySelector('.pp-slideL video.pp-once');
 
-  window.PP = { W, H, createScreen, update, fit, cssUrl, slideVideo };
+  window.PP = { W, H, createScreen, update, fit, cssUrl, slideVideo, useFonts };
 })();

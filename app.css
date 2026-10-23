@@ -171,6 +171,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ed-theme { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; max-width: 220px; }
 .ed-name { font-size: 16px; font-weight: 600; background: transparent; border: 0; outline: 0; flex: 1; }
 .ed-body { flex: 1; display: grid; grid-template-columns: 1fr 260px; min-height: 0; }
+.ed-main { display: flex; flex-direction: column; min-height: 0; }
+.ed-main > #edText { flex: 1; }
 #edText { background: var(--bg); border: 0; resize: none; padding: 16px; font: 14px/1.6 ui-monospace, Consolas, monospace; outline: 0; }
 .ed-help { padding: 16px; color: var(--muted); border-left: 1px solid var(--line); overflow-y: auto; }
 .ed-help b { color: var(--text); }
@@ -260,13 +262,15 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 4px; color: #ffcf
 .le-colour input[type=number] { width: 64px; }
 .le-src { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.le-slide .le-theme-only { display: none; }
+.le-slide .le-theme-only, .le-stage .le-theme-only { display: none; }
 .le-thumb.other { opacity: .55; cursor: default; }
 .slide .lbl .designed { margin-left: auto; opacity: .85; }
 .ctx-menu { position: fixed; z-index: 15; min-width: 220px; background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 4px; box-shadow: 0 10px 30px rgba(0,0,0,.5); display: flex; flex-direction: column; }
 .ctx-menu[hidden] { display: none; }
 .ctx-menu button { background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: 5px; cursor: pointer; color: var(--text); }
 .ctx-menu button:hover { background: #2b3550; }
+.ctx-sep { height: 1px; background: var(--line); margin: 4px 6px; }
+.ctx-h { font-size: 11px; color: var(--muted); padding: 4px 10px 2px; }
 
 .srv { font-size: 12px; color: #8b92a3; display: flex; align-items: center; gap: 6px; cursor: default; }
 .srv::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
@@ -336,3 +340,25 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 4px; color: #ffcf
 .sc-results li.passage { cursor: default; }
 .sc-results li.passage:hover { background: none; }
 .pane .row label input[type=number] { width: 64px; }
+
+/* The formatting bar over a box of slide words */
+.word-bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.word-bar .wb { min-width: 28px; height: 26px; padding: 0 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel2, transparent);
+  color: var(--text); font: 13px/1 Georgia, serif; cursor: pointer; }
+.word-bar .wb:hover { border-color: var(--accent); }
+.word-bar .wb-c { min-width: 0; width: 20px; height: 20px; padding: 0; border-radius: 50%; }
+.word-bar input[type=color] { width: 26px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 5px; background: none; cursor: pointer; }
+.word-bar .wb-sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+.word-bar .wb-hint { color: var(--muted); font-size: 11px; margin-left: 6px; }
+.le-words { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.le-words .word-bar { padding: 4px; gap: 3px; }
+.le-words .word-bar .wb-hint { display: none; }
+.le-words textarea { border: 0; border-radius: 0; display: block; }
+.le-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.le-paint { display: flex; flex-direction: column; gap: 6px; }
+.le-side .panel-h { display: flex; align-items: center; justify-content: space-between; }
+.le-layouts { margin-bottom: 8px; }
+.slide .lbl .designed { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
+.le-top .btn[data-add] { padding: 5px 7px; }
+.le-top > select { max-width: 84px; }
+.le-insp .word-bar .wb-c { width: 18px; height: 18px; }

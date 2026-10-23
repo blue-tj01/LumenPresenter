@@ -7,6 +7,7 @@ import { renderMedia, storeSlideMedia } from './media.js';
 import { groupColor, parseText, uid } from './slides.js';
 import { templateOptions, transitionOptions } from './themes.js';
 import { cleanTransition } from './transitions.js';
+import { wordBar } from './word-bar.js';
 import { renderAll } from './views.js';
 
 // ---------- editor ----------
@@ -96,6 +97,7 @@ export function saveEditor() {
 /** Wire up the editor's buttons; called once the library has loaded. */
 export function setupEditor() {
   $('#edSave').onclick = saveEditor;
+  $('#edText').before(wordBar($('#edText')));
   $('#edImages').onclick = () => $('#edImageFile').click();
   $('#edImageFile').onchange = e => { addEditorImages(e.target.files); e.target.value = ''; };
   $('#edText').ondragover = e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); };
