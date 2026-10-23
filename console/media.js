@@ -2,7 +2,7 @@
 import { $, $$, toast } from './dom.js';
 import { readDataUrl } from './editor.js';
 import { slideRefs, toRef } from './format.js';
-import { save, state } from './library.js';
+import { fontFaces, save, state } from './library.js';
 import { broadcast, live } from './live.js';
 import { importSlides } from './powerpoint.js';
 import { uid } from './slides.js';
@@ -155,6 +155,36 @@ export async function storeSlideMedia(f) {
   state.db.media.push(m);
   return '#' + m.id;
 }
+// ---------- fonts ----------
+const FONT_FILE = /\.(woff2?|ttf|otf)$/i;
+/** A font file uploaded to the library, named after its file: { id, name, src }. It needs Lumen's server, which
+ * every screen loads it from. */
+export async function addFont(f) {
+  const ext = FONT_FILE.exec(f.name)?.[1].toLowerCase();
+  if (!ext) throw new Error('choose a .ttf, .otf, .woff or .woff2 font file');
+  if (!Lumen.online) throw new Error('fonts need Lumen running, as the app or its server, so every screen can load them');
+  const base = f.name.replace(FONT_FILE, '').replace(/[-_]+/g, ' ').replace(/[^\p{L}\p{N} ]/gu, '').replace(/\s+/g, ' ').trim() || 'Font';
+  const taken = new Set(state.db.fonts.map(x => x.name.toLowerCase()));
+  let name = base;
+  for (let i = 2; taken.has(name.toLowerCase()); i++) name = `${base} ${i}`;
+  const m = await Lumen.uploadMedia(new File([f], f.name, { type: 'font/' + ext }));
+  const font = { id: uid(), name, src: toRef(m.src) };
+  state.db.fonts.push(font); save();
+  PP.useFonts(fontFaces());
+  return font;
+}
+/** Ask for a font file, add it to the library, and hand it to `done`. */
+export function pickFont(done) {
+  const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.ttf,.otf,.woff,.woff2' });
+  input.onchange = async () => {
+    const f = input.files[0];
+    if (!f) return;
+    try { const font = await addFont(f); toast(`Added the font “${font.name}”`); done(font); }
+    catch (e) { toast(`Could not add ${f.name}: ${e.message || 'upload failed'}`, 5000); }
+  };
+  input.click();
+}
+
 // A video in the playlist is a one-slide presentation, so it plays in turn and Next moves past it.
 function addVideoToPlaylist(name, ref, at = state.db.playlist.length) {
   const p = { id: uid(), name, kind: 'media', groups: [{ id: uid(), name: 'Video', slides: [{ id: uid(), text: '', media: { type: 'video', src: toRef(ref) } }] }], arrangements: [] };

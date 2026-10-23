@@ -5,11 +5,11 @@ import { $, $$, toast } from './dom.js';
 import { CREDITS_ELEMENT, H, mainText, resolveSlide, toRef, W } from './format.js';
 import { alignFrame, BINDS, designFrom, designWords, elementAt, elementName, gradient, history, moveFrame, newElement,
   parseColor, parseGradient, reorder, resizeFrame, rotation, snapLines, toColor, SAFE } from './layout-model.js';
-import { bgUrl, findTemplate, flat, getPres, mediaUrl, save, slideBackground, state, templateFor } from './library.js';
+import { bgUrl, findTemplate, flat, fontValue, getPres, mediaUrl, save, slideBackground, state, templateFor } from './library.js';
 import { broadcast } from './live.js';
-import { storeSlideMedia } from './media.js';
+import { pickFont, storeSlideMedia } from './media.js';
 import { uid } from './slides.js';
-import { addTemplate, renderTheme } from './themes.js';
+import { ADD_FONT, addTemplate, fontChoices, renderTheme } from './themes.js';
 import { renderGrid } from './views.js';
 import { wordBar } from './word-bar.js';
 
@@ -335,7 +335,6 @@ function colour(value, apply, none) {
   toggle();
   return node('div', { className: 'le-colour' }, node('label', { className: 'le-chk' }, on, none), row);
 }
-const fonts = () => [...$('#thFont').options].map(o => [o.value, o.textContent]);
 
 function renderInspector() {
   const box = $('#leInspector'); box.innerHTML = '';
@@ -372,10 +371,15 @@ function renderInspector() {
       field('Opacity %', input('number', Math.round((el.opacity ?? 1) * 100), v => { if (v == null || v >= 100) delete el.opacity; else el.opacity = Math.max(0, v) / 100; }, { min: 0, max: 100, step: 5 })),
       field('Show on', choice([['', 'Every slide'], ['first', 'First slide'], ['last', 'Last slide']], el.showOn || '', v => { if (v) el.showOn = v; else delete el.showOn; }))));
   if (el.type === 'text') {
-    const fontList = fonts();
+    const fontList = fontChoices();
     if (!fontList.some(([v]) => v === st.font)) fontList.push([st.font, String(st.font).split(',')[0].replace(/'/g, '')]);
+    fontList.push([ADD_FONT, 'Add a font…']);
+    const setFont = v => {
+      if (v !== ADD_FONT) return setS('font')(v);
+      pickFont(f => { el.style = { ...el.style, font: fontValue(f) }; commit(); renderAll(); });
+    };
     box.append(node('div', { className: 'sub-h', textContent: 'Text' }),
-      node('div', { className: 'le-grid2' }, field('Font', choice(fontList, st.font, setS('font'))), field('Size', input('number', st.size, v => v && setS('size')(v), { min: 10, max: 400 })),
+      node('div', { className: 'le-grid2' }, field('Font', choice(fontList, st.font, setFont)), field('Size', input('number', st.size, v => v && setS('size')(v), { min: 10, max: 400 })),
         field('Colour', input('color', parseColor(st.color).hex, setS('color'))), field('Line height', input('number', st.lineHeight ?? 1.2, v => v && setS('lineHeight')(v), { min: 0.6, max: 3, step: 0.05 })),
         field('Letter spacing', input('number', st.letterSpacing || 0, v => setS('letterSpacing')(v || 0), { min: -20, max: 60 })),
         field('Padding', input('number', st.padding || 0, v => setS('padding')(v || 0), { min: 0, max: 300 }))),

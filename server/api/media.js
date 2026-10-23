@@ -10,12 +10,12 @@ const { MEDIA_NAME, MEDIA_EXT, EXT_FOR_TYPE } = require('../media.js');
 module.exports = {
   async 'POST media'() {
     const ctype = this.header('content-type').split(';')[0].trim().toLowerCase();
-    if (!ctype.startsWith('image/') && !ctype.startsWith('video/')) throw bad('only image and video uploads are accepted');
+    const kind = ['image', 'video', 'font'].find(k => ctype.startsWith(k + '/'));
+    if (!kind) throw bad('only image, video and font uploads are accepted');
     const n = Number(this.header('content-length') || 0);
     if (!Number.isInteger(n) || n <= 0) throw bad('empty upload');
     if (n > this.srv.maxUpload) return this.error(413, 'file too large');
     const name = Array.from(unquote(this.header('x-filename') || 'upload')).slice(0, 200).join('');
-    const kind = ctype.startsWith('video/') ? 'video' : 'image';
     let ext = path.extname(name).slice(1).toLowerCase();
     if (!MEDIA_EXT[kind].has(ext)) ext = EXT_FOR_TYPE[ctype] || '';
     if (!MEDIA_EXT[kind].has(ext)) throw bad(`unsupported ${kind} type`);

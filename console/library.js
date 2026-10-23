@@ -17,7 +17,8 @@ export const valid = d => d && Array.isArray(d.presentations);
 export const normalize = d => {
   const lib = migrateLibrary(d);
   const fix = t => mainText(t) ? t : { ...textTemplate(), ...t, layout: textTemplate().layout };
-  return ensureServices({ ...lib, media: lib.media || [], playlist: lib.playlist || [], messages: lib.messages || [],
+  return ensureServices({ ...lib, media: lib.media || [], fonts: Array.isArray(lib.fonts) ? lib.fonts : [],
+    playlist: lib.playlist || [], messages: lib.messages || [],
     baseTemplate: fix(lib.baseTemplate || textTemplate()),
     templates: (Array.isArray(lib.templates) ? lib.templates : BUILTIN_TEMPLATES()).map(fix) });
 };
@@ -54,6 +55,10 @@ export const flat = p => {
       licence: state.db.ccliLicence, showCredits: state.db.showCredits !== false }) }));
 };
 export const isVideoPres = p => { const sl = flat(p); return sl.length > 0 && sl.every(s => s.video); };
+// Fonts uploaded to the library, { id, name, src }: a text style names one by its name, and every window that
+// draws slides loads them (PP.useFonts).
+export const fontValue = f => `'${f.name}', sans-serif`;
+export const fontFaces = () => state.db.fonts.map(f => ({ family: f.name, src: mediaUrl(f.src) })).filter(f => f.src);
 /** A background as a screen draws it, with a picture or video's reference as a URL. */
 export const bgUrl = bg => {
   if (!bg) return null;

@@ -2,7 +2,7 @@
 import { $, $$, toast } from './dom.js';
 import { plainWords } from './words.js';
 import { openEditor } from './editor.js';
-import { arrangement, autoSecs, flat, getPres, isVideoPres, save, slideBackground, state, templateFor } from './library.js';
+import { arrangement, autoSecs, flat, fontFaces, getPres, isVideoPres, save, slideBackground, state, templateFor } from './library.js';
 import { broadcast, clear, goLive, live, quickSlide, step, toggleAuto, videoControl } from './live.js';
 import { addService, duplicateService, nextSunday, openService, removeService, serviceLabel, sortedServices, switchService, updateService } from './services.js';
 import { isXml, parseSongXml } from './openlyrics.js';
@@ -281,7 +281,7 @@ async function importSongs(files) {
     .filter(Boolean).join(' · ') || 'No songs found');
 }
 
-export function renderAll() { renderLibrary(); renderPlaylist(); renderGrid(); renderTheme(); }
+export function renderAll() { PP.useFonts(fontFaces()); renderLibrary(); renderPlaylist(); renderGrid(); renderTheme(); }
 
 /** Wire up the library, playlist, slide grid, live controls, tabs and messages; called once the library has loaded. */
 export function setupViews() {

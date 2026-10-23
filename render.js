@@ -206,6 +206,7 @@
     const fade = opts.fade ? FADE : null, tr = opts.fade ? live.transition || FADE : null, animate = opts.animate !== false;
     const [bgL, slideL, , msgL, logoL] = inner.children;
     const t = live.theme;
+    if (live.fonts) useFonts(live.fonts);
 
     const words = !!opts.wordsOnly;
     st.bg = swap(bgL, words ? '' : bgKey(live.bg), st.bg, () => makeBg(live.bg, animate), tr);
@@ -223,6 +224,7 @@
       const key = keyOf(e), i = old.findIndex(o => o && o.key === key);
       if (i >= 0) { next.push(old[i]); old[i] = null; continue; }
       const item = swap(slideL, key, null, () => makeElement(e, opts), tr);
+      item.e = e;
       if (e.type === 'text') shrinkToFit(item.el, e);
       next.push(item);
     }
@@ -253,8 +255,28 @@
     }, fade);
   }
 
+  // Fonts uploaded to the library, loaded once in each window that draws slides: [{ family, src }]. Words drawn
+  // before their font arrives are fitted to their boxes again once it has.
+  const fonts = new Map();
+  function useFonts(list) {
+    if (!Array.isArray(list) || !window.FontFace) return;
+    for (const f of list) {
+      if (!f || !f.family || !f.src || fonts.get(f.family) === f.src) continue;
+      fonts.set(f.family, f.src);
+      const face = new FontFace(f.family, cssUrl(f.src));
+      face.load().then(() => { document.fonts.add(face); document.querySelectorAll('.pp-screen').forEach(refit); }).catch(() => {});
+    }
+  }
+  function refit(screen) {
+    if (!screen._pp) return;
+    for (const n of screen._pp.slide) if (n.e && n.e.type === 'text') {
+      n.el.firstChild.style.fontSize = (n.e.style || {}).size + 'px';
+      shrinkToFit(n.el, n.e);
+    }
+  }
+
   /** The slide's video that plays once, as the screen shows it, for its time and length. */
   const slideVideo = screen => screen.querySelector('.pp-slideL video.pp-once');
 
-  window.PP = { W, H, createScreen, update, fit, cssUrl, slideVideo };
+  window.PP = { W, H, createScreen, update, fit, cssUrl, slideVideo, useFonts };
 })();
