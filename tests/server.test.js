@@ -96,7 +96,7 @@ describe('server', () => {
     assert.equal(mod.status, 200);
     assert.match(mod.headers['content-type'], /^application\/javascript/); // browsers load modules only as JavaScript
     for (const p of ['/server.js', '/server.py', '/.git/config', '/data/library.json', '/data/lumen.db', '/../etc/passwd',
-      '/tests/server.test.js', '/package.json', '/electron/main.js', '/server/util.js', '/console/package.json', '/app.js']) {
+      '/tests/server.test.js', '/package.json', '/electron/main.js', '/server/util.js', '/console/package.json', '/app.js', '/console/nope.js', '/console/..%2Fserver.js', '/console/Main.js']) {
       assert.equal((await t.req('GET', p)).status, 404, p);
     }
   });
@@ -195,6 +195,34 @@ describe('server', () => {
     assert.deepEqual((await t.req('GET', '/api/library')).json,
       { rev: 7, library: { presentations: [{ id: 'a', name: 'Café' }], playlist: [] } });
     assert.deepEqual((await t.req('GET', '/api/live')).json.live, { idx: 2 });
+  });
+
+  it('saves only what changed, and tells the other windows what it was', async () => {
+    assert.equal((await t.req('PATCH', '/api/library', { base: 0, changes: {} })).status, 400); // nothing to change yet
+    await t.req('PUT', '/api/library', { client: 'op1', library: LIB });
+    const s = await t.events();
+    await s.next(); // hello
+    const song = { id: 'b', name: 'Another', groups: [] };
+    let r = await t.req('PATCH', '/api/library', { client: 'op2', base: 1, changes: { presentations: { put: [song] }, set: { playlist: ['a', 'b'] } } });
+    assert.deepEqual(r.json, { rev: 2, prev: 1, conflicts: [] });
+    const [ev, d] = await s.next();
+    assert.deepEqual([ev, d.rev, d.prev, d.origin, d.changes.presentations, d.changes.set],
+      ['library', 2, 1, 'op2', { put: [song], remove: [], order: ['a', 'b'] }, { playlist: ['a', 'b'] }]);
+    s.close();
+    // op1, still at revision 1, renames a song op2 has not touched, and edits one op2 just added: no conflict.
+    r = await t.req('PATCH', '/api/library', { client: 'op1', base: 1, changes: { presentations: { put: [{ ...LIB.presentations[0], name: 'Renamed' }] } } });
+    assert.deepEqual(r.json.conflicts, []);
+    r = await t.req('PATCH', '/api/library', { client: 'op1', base: 1, changes: { presentations: { put: [{ ...song, name: 'Mine' }] } } });
+    assert.deepEqual(r.json.conflicts, [{ list: 'presentations', id: 'b', name: 'Another' }]);
+    assert.deepEqual((await t.req('GET', '/api/library')).json.library.presentations.map(p => p.name), ['Renamed', 'Another']);
+    assert.equal((await t.req('PATCH', '/api/library', { base: 'x', changes: {} })).status, 400);
+    assert.equal((await t.req('PATCH', '/api/library', { base: 1 })).status, 400);
+  });
+
+  it('keeps the first library when two consoles bring one to an empty server', async () => {
+    assert.equal((await t.req('PUT', '/api/library', { library: LIB, ifEmpty: true })).status, 200);
+    assert.equal((await t.req('PUT', '/api/library', { library: { presentations: [] }, ifEmpty: true })).status, 409);
+    assert.deepEqual((await t.req('GET', '/api/library')).json.library, LIB);
   });
 
   it('validates the library', async () => {
@@ -370,6 +398,37 @@ describe('server', () => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(t.data, 'backups', backups[0]))).rev, 1);
   });
 
+  it('lists backups, and puts one back, keeping the library it replaces', async () => {
+    await t.req('PUT', '/api/library', { library: LIB });
+    await t.req('PUT', '/api/library', { library: { ...LIB, presentations: [] }, replace: true }); // starting over
+    const { backups } = (await t.req('GET', '/api/backups')).json;
+    assert.equal(backups.length, 1);
+    assert.match(backups[0].name, /^library-\d{8}-\d{6}\.json$/);
+    assert.ok(backups[0].size > 0 && Math.abs(backups[0].time - Date.now()) < 60000);
+    const s = await t.events();
+    await s.next();
+    const r = await t.req('POST', '/api/backups', { restore: backups[0].name });
+    assert.equal(r.json.rev, 3);
+    assert.deepEqual((await s.next())[0], 'library');
+    s.close();
+    assert.deepEqual((await t.req('GET', '/api/library')).json.library, LIB);
+    assert.equal((await t.req('GET', '/api/backups')).json.backups.length, 2); // the emptied one, kept too
+    assert.equal((await t.req('POST', '/api/backups', { restore: '../lumen.db' })).status, 400);
+    assert.equal((await t.req('POST', '/api/backups', { restore: 'library-20200101-000000.json' })).status, 400);
+  });
+
+  it('keeps the latest backups, and one a day before them', async () => {
+    const dir = path.join(t.data, 'backups');
+    const name = (day, h) => `library-202609${String(day).padStart(2, '0')}-${String(h).padStart(2, '0')}0000.json`;
+    for (let day = 1; day <= 30; day++) for (let h = 10; h < 13; h++) fs.writeFileSync(path.join(dir, name(day, h)), '{}');
+    await t.req('PUT', '/api/library', { library: LIB });
+    await t.req('PUT', '/api/library', { library: LIB, replace: true });
+    const kept = fs.readdirSync(dir).filter(f => f.startsWith('library-')).sort();
+    // The 50 newest (today's, then September 30 back to 14 at noon), then the last of each day before: 14 to 1.
+    assert.equal(kept.length, 50 + 14);
+    assert.ok(kept.includes(name(1, 12)) && !kept.includes(name(1, 11)));
+  });
+
   it('backs the library up before it is saved in a new format, and refuses the old format after', async () => {
     await t.req('PUT', '/api/library', { library: LIB });
     await t.req('PUT', '/api/library', { library: LIB });
@@ -537,8 +596,7 @@ describe('network mode', () => {
     assert.deepEqual(r.json.devices.map(d => d.device), ['Chrome on Windows']);
     assert.equal((await t.req('GET', '/api/library', undefined, phone)).status, 401);
     assert.equal((await t.req('GET', '/api/library', undefined, laptop)).status, 200);
-    let ev;
-    while ((ev = await stream.next())); // the phone's open stream is closed too
+    while (await stream.next()); // the phone's open stream is closed too
     stream.close();
 
     await t.req('POST', '/api/network', { disconnect: 'all' }, { 'X-Lumen-Token': token });

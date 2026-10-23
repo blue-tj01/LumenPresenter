@@ -1,3 +1,4 @@
+// @ts-check
 // Songs from CCLI SongSelect: its .usr files and its plain text (.txt) downloads, read into presentations with their
 // writers, copyright and CCLI song number. No DOM, so it is tested under Node (tests/songselect.test.js).
 import { uid } from './slides.js';
@@ -68,7 +69,7 @@ function splitSlides(lines) {
 // labels) and Words= (each section's words), with /t between sections and /n between lines.
 export function parseUsr(text) {
   const v = {}; let ccli = '';
-  for (const raw of text.replace(/^﻿/, '').split(/\r?\n/)) {
+  for (const raw of text.replace(/^\uFEFF/, '').split(/\r?\n/)) {
     const line = raw.trim();
     const head = /^\[S\s+A?([^\]]*)\]/i.exec(line);
     if (head) { ccli = head[1].trim(); continue; }
@@ -91,7 +92,7 @@ const TERMS = /^(for use solely|ccli licen[cs]e|note:|www\.ccli\.com|all rights 
 const RIGHTS = /^(©|\(c\)|copyright\b|public domain|words:|music:)/i;
 
 export function parseTxt(text) {
-  const lines = text.replace(/^﻿/, '').replace(/\r/g, '').split('\n').map(l => l.replace(/\s+$/, ''));
+  const lines = text.replace(/^\uFEFF/, '').replace(/\r/g, '').split('\n').map(l => l.replace(/\s+$/, ''));
   const first = lines.findIndex(l => l.trim());
   if (first < 0) throw new Error('the file is empty');
   const name = lines[first];

@@ -1,3 +1,4 @@
+// @ts-check
 // Songs from OpenLyrics files (what OpenLP exports, and other apps read) and OpenSong song files, read into
 // presentations with their writers, copyright, CCLI song number and play order. Each verse keeps the slides it had
 // in the app it came from. No DOM, so it is tested under Node (tests/openlyrics.test.js).

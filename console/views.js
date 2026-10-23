@@ -13,6 +13,7 @@ import { decode, findSame, parseSongSelect } from './songselect.js';
 import { slideFiles } from './powerpoint.js';
 import { renderTheme } from './themes.js';
 import { openSlideDesign, useThemeAgain } from './layout-editor.js';
+import { ask } from './dialog.js';
 
 // With the server, search is the library database's song search, which ranks matches and shows the words that
 // matched; without it, titles, words and song details are matched as typed.
@@ -22,19 +23,36 @@ function localSearch(q) {
   return state.db.presentations.filter(p => has(p.name) || has(p.meta?.author) || has(p.meta?.copyright) || has(p.meta?.ccli)
     || p.groups.some(g => g.slides.some(s => has(plainWords(s.text))))).map(p => ({ id: p.id }));
 }
+// A large library is drawn a page at a time: the first PAGE songs, and more as the list is scrolled near its end,
+// so a library of thousands draws as fast as one of dozens.
+const PAGE = 150;
+const byName = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+let libResults = [], libShown = 0, libObserver = null;
 async function renderLibrary() {
   const q = $('#libSearch').value.trim().toLowerCase(), seq = ++searchSeq;
   let results;
-  if (!q) results = [...state.db.presentations].sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ id: p.id }));
+  if (!q) results = [...state.db.presentations].sort((a, b) => byName.compare(a.name, b.name)).map(p => ({ id: p.id }));
   else if (Lumen.online && !Lumen.outdated) {
     try { results = await Lumen.search(q); } catch { results = localSearch(q); }
     if (seq !== searchSeq) return; // a newer search has started
   } else results = localSearch(q);
   const ul = $('#libList'); ul.innerHTML = '';
-  results.forEach(({ id, snippet }) => {
+  libResults = results.filter(r => getPres(r.id));
+  // Enough to include the selected song, so it is always there to be seen.
+  const sel = libResults.findIndex(r => r.id === state.selectedId);
+  libShown = 0;
+  moreLibrary(Math.max(PAGE, sel + 1));
+  if (q && !ul.children.length) ul.innerHTML = '<li class="none muted small">No songs match</li>';
+  markLists();
+}
+/** Draw the next `n` songs of the library list, and watch for the end of the list to draw more. */
+function moreLibrary(n = PAGE) {
+  const ul = $('#libList');
+  ul.querySelector('.more')?.remove();
+  libResults.slice(libShown, libShown + n).forEach(({ id, snippet }) => {
     const p = getPres(id); if (!p) return;
     const li = document.createElement('li');
-    li.dataset.id = p.id;
+    li.dataset.id = p.id; li.tabIndex = 0; li.setAttribute('role', 'option');
     li.innerHTML = '<span class="ico">♪</span><span class="nm"></span>';
     if (isVideoPres(p)) li.firstChild.textContent = '▶';
     else if (p.kind === 'slides') li.firstChild.textContent = '▤';
@@ -46,8 +64,14 @@ async function renderLibrary() {
     li.ondragstart = e => { dragFrom = -1; e.dataTransfer.setData(PRES_DRAG, p.id); e.dataTransfer.effectAllowed = 'copy'; };
     ul.appendChild(li);
   });
-  if (q && !ul.children.length) ul.innerHTML = '<li class="none muted small">No songs match</li>';
-  markLists();
+  libShown = Math.min(libResults.length, libShown + n);
+  if (libShown < libResults.length) {
+    const more = document.createElement('li'); more.className = 'more muted small';
+    more.textContent = `${libResults.length - libShown} more…`;
+    ul.appendChild(more);
+    libObserver ??= new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { moreLibrary(); markLists(); } }, { root: ul, rootMargin: '200px' });
+    libObserver.disconnect(); libObserver.observe(more);
+  }
 }
 /** A search result's matching words, with each match (between \u0002 and \u0003) marked. */
 function highlighted(snippet) {
@@ -110,8 +134,8 @@ function renderPlaylist() {
   state.db.playlist.forEach((id, i) => {
     const p = getPres(id);
     const li = document.createElement('li');
-    li.dataset.id = id; li.draggable = true;
-    li.innerHTML = `<span class="ico">${i + 1}</span>${isVideoPres(p) ? '<span class="kind">▶</span>' : ''}<span class="nm"></span><button class="x" title="Remove">✕</button>`;
+    li.dataset.id = id; li.draggable = true; li.tabIndex = 0; li.setAttribute('role', 'option');
+    li.innerHTML = `<span class="ico">${i + 1}</span>${isVideoPres(p) ? '<span class="kind">▶</span>' : ''}<span class="nm"></span><button class="x" title="Remove from the playlist" aria-label="Remove from the playlist">✕</button>`;
     li.querySelector('.nm').textContent = li.title = p.name;
     li.onclick = e => { if (e.target.classList.contains('x')) { state.db.playlist.splice(i, 1); save(); renderPlaylist(); return; } state.selectedId = id; renderAll(); };
     li.ondragstart = () => { dragFrom = i; };
@@ -126,6 +150,7 @@ function renderPlaylist() {
 function markLists() {
   $$('#libList li, #playList li').forEach(li => {
     li.classList.toggle('sel', li.dataset.id === state.selectedId);
+    if (li.dataset.id) li.setAttribute('aria-selected', String(li.dataset.id === state.selectedId));
     li.classList.toggle('is-live', li.dataset.id === live.presId && !!live.slide);
   });
 }
@@ -316,8 +341,8 @@ export function setupViews() {
   });
   $('#btnEdit').onclick = () => state.selectedId && openEditor(state.selectedId);
   $('#btnAddPlaylist').onclick = () => { if (state.selectedId && !state.db.playlist.includes(state.selectedId)) { state.db.playlist.push(state.selectedId); save(); renderPlaylist(); toast('Added to playlist'); } };
-  $('#btnDelete').onclick = () => {
-    const p = getPres(state.selectedId); if (!p || !confirm(`Delete “${p.name}”?`)) return;
+  $('#btnDelete').onclick = async () => {
+    const p = getPres(state.selectedId); if (!p || !await ask(`Delete “${p.name}” from the library? Ctrl+Z undoes it.`, { ok: 'Delete', danger: true })) return;
     if (state.preview === p) state.preview = null;
     state.db.presentations = state.db.presentations.filter(x => x !== p); state.db.playlist = state.db.playlist.filter(id => id !== p.id);
     if (live.presId === p.id) clear('slide');
@@ -342,9 +367,9 @@ export function setupViews() {
     if (!v) return;
     updateService(state.db, s.id, v); save(); renderAll();
   };
-  $('#svcDelete').onclick = () => {
+  $('#svcDelete').onclick = async () => {
     const s = openService(state.db);
-    if (!s || !confirm(`Delete the service “${serviceLabel(s)}”? Its songs stay in the library.`)) return;
+    if (!s || !await ask(`Delete the service “${serviceLabel(s)}”? Its songs stay in the library. Ctrl+Z undoes it.`, { ok: 'Delete service', danger: true })) return;
     if (removeService(state.db, s.id)) showService(state.db.serviceId);
   };
   $('#thumbSize').oninput = e => $('#slideGrid').style.setProperty('--tw', e.target.value + 'px');
@@ -356,10 +381,26 @@ export function setupViews() {
   $('#btnVidRestart').onclick = () => videoControl('restart');
   $('#btnAuto').onclick = toggleAuto;
 
-  $$('.tabs button').forEach(b => b.onclick = () => {
-    $$('.tabs button').forEach(x => x.classList.toggle('on', x === b));
-    $$('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === b.dataset.tab));
-  });
+  // The tabs, and Setup's own tabs (stage display, network, outside control) inside it.
+  const tabs = (buttons, panes) => buttons.forEach(b => b.addEventListener('click', () => {
+    buttons.forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', String(x === b)); x.tabIndex = x === b ? 0 : -1; });
+    panes.forEach(p => p.classList.toggle('on', p.dataset.pane === b.dataset.tab));
+  }));
+  tabs($$('.tabs > button'), $$('.pane'));
+  $('.tabs > button[data-tab="setup"]').addEventListener('click', () => $('.subtabs > button.on')?.click()); // loads what it shows
+  tabs($$('.subtabs > button'), $$('.subpane'));
+  // Arrow keys move along a row of tabs.
+  $$('.tabs, .subtabs').forEach(row => row.addEventListener('keydown', e => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    const bs = [...row.children], i = bs.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault(); e.stopPropagation();
+    const next = bs[(i + (e.key === 'ArrowRight' ? 1 : -1) + bs.length) % bs.length]; next.focus(); next.click();
+  }));
+  // Library and playlist items: Enter picks one, as a click does.
+  $$('#libList, #playList').forEach(ul => ul.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.matches('li[data-id]')) { e.preventDefault(); e.stopPropagation(); e.target.click(); }
+  }));
 
   $('#msgShow').onclick = () => {
     const v = $('#msgInput').value.trim(); if (!v) return;

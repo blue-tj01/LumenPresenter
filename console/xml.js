@@ -1,3 +1,4 @@
+// @ts-check
 // A small XML reader for song files, which runs in the console and under Node alike (the browser's DOMParser
 // doesn't exist under Node). Enough XML for OpenLyrics and OpenSong: elements, attributes, text, CDATA and the
 // standard entities; comments, processing instructions and doctypes are skipped.

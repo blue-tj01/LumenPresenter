@@ -123,7 +123,7 @@ class LumenServer {
         break;
       } catch (e) {
         console.error(`warning: could not listen on ${h}:${this.port}: ${e.message}`);
-        if (h === old) throw new Error(`could not listen on port ${this.port}`);
+        if (h === old) throw new Error(`could not listen on port ${this.port}`, { cause: e });
       }
     }
     if (this.host !== target) this.store.saveSettings({ network: this.network }); // fell back; keep the saved setting truthful

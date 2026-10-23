@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 // Lumen Presenter server.
 //
 // Serves the app, stores the library, media and live state on disk, and pushes live changes to every connected

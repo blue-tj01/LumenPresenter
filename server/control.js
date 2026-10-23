@@ -1,3 +1,4 @@
+// @ts-check
 // Commands that move the show, from the phone remote, Bitfocus Companion or OSC. Each is handed to one open
 // console, which carries it out just as if it were pressed there, so nothing else needs a copy of what going live
 // does.

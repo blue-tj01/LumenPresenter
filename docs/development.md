@@ -22,6 +22,8 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `electron/preload.js` | The desktop app's folder picker, offered to the console |
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
+| `console/undo.js` | Undo and redo of library changes, keeping only what each step changed |
+| `console/dialog.js`, `console/backups.js` | Questions in the console's own dialog instead of `confirm()`; the Library dialog (export, import, backups, starting over) |
 | `console/songselect.js`, `console/openlyrics.js`, `console/xml.js`, `console/propresenter.js`, `console/zip.js`, `console/easyworship.js`, `console/rtf.js`, `console/sqlite.js` | Importing songs from SongSelect, OpenLyrics, OpenSong, ProPresenter and EasyWorship files |
 | `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |
 | `console/passage.js` | Bible passages as slides: packing verses and splitting long ones |
@@ -45,12 +47,31 @@ npm test
 
 The NDI tests use a stand-in for NDI. To also send real frames, set `LUMEN_NDI_LIB` to the NDI library (for example `libndi.so.6`, or `Processing.NDI.Lib.x64.dll` in the NDI Runtime folder on Windows) before running them.
 
-GitHub Actions runs the tests on Windows and Linux for every pull request. Each push to `main` also builds the installers, which can be downloaded from the run's **Artifacts**. `npm run dist` builds them locally, into `dist/`.
+The console is also tested in a real browser (Chromium, through Playwright): writing a song and putting it on the audience output, two operators changing songs at once, starting over and restoring a backup, and the layout editor. Install Chromium once with `npx playwright install chromium`, then:
+
+```bash
+npm run test:e2e
+```
+
+To use a Chromium already on the computer instead, set `LUMEN_CHROMIUM` to its path.
+
+## Checks
+
+```bash
+npm run lint       # ESLint's recommended rules: undefined names, unused variables, unreachable code
+npm run typecheck  # TypeScript, over the files that start with // @ts-check
+npm run check      # both, then the tests
+```
+
+Type checking is turned on a file at a time: a file that starts with `// @ts-check` is checked, the rest are not yet. JSDoc comments (`/** @type {...} */`, `@param`, `@returns`) give the types where they can't be worked out. `types/globals.d.ts` describes the pages' shared globals (`Lumen` from `sync.js`, `PP` from `render.js`). To check another file, add the line, run `npm run typecheck`, and fix or annotate what it finds.
+
+GitHub Actions runs the tests, lint and type checks on Windows and Linux for every pull request, and the browser tests on Linux. Each push to `main` also builds the installers, which can be downloaded from the run's **Artifacts**. `npm run dist` builds them locally, into `dist/`.
 
 ## Releasing
 
-1. Set the new version: `npm version minor` (or `patch`), which updates `package.json` and makes a `v<version>` tag.
-2. Push it: `git push --follow-tags`.
+1. Move the notes under **Unreleased** in `CHANGELOG.md` under the new version's number, and commit.
+2. Set the new version: `npm version minor` (or `patch`), which updates `package.json` and makes a `v<version>` tag.
+3. Push it: `git push --follow-tags`.
 
 The tag's build publishes the Windows and Linux installers, and the Companion module package, as a GitHub release, and installed copies update from it. Updates need the repository to be public, since installed copies download releases without signing in.
 

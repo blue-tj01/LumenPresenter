@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#101216">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Lumen Remote</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ffb347'/%3E%3Cstop offset='.5' stop-color='%23ff3b4e'/%3E%3Cstop offset='1' stop-color='%234f8cff'/%3E%3C/linearGradient%3E%3Crect width='16' height='16' rx='4' fill='url(%23g)'/%3E%3C/svg%3E">
 <style>
   :root { --bg: #15171c; --panel: #1d2027; --panel2: #252933; --line: #323744; --text: #e6e8ee; --muted: #8b92a3;
     --accent: #4f8cff; --live: #ff3b4e; --ok: #2ecc71; }
@@ -192,7 +193,7 @@
     renderNow();
     await loadLibrary();
   } else {
-    $('list').innerHTML = '<p class="msg">The remote needs the Lumen server. Open it from the link in the Network tab of the console.</p>';
+    $('list').innerHTML = '<p class="msg">The remote needs the Lumen server. Open it from the link under Setup → Network in the console.</p>';
     for (const b of document.querySelectorAll('footer button')) b.disabled = true;
   }
 

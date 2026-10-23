@@ -1,3 +1,4 @@
+// @ts-check
 // Slide transitions: how the audience output, NDI and the console's live preview move from one slide to the next.
 // The library sets one for every presentation (library.transition), and a presentation can pick its own
 // (pres.transition); each is { type, secs }. The live state carries the one to play, and render.js plays it. No

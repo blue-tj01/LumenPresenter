@@ -1,3 +1,4 @@
+// @ts-check
 // Plain words out of RTF text, the way song apps store a slide's formatted words (ProPresenter 7, EasyWorship).
 // No DOM, so it runs under Node as well.
 

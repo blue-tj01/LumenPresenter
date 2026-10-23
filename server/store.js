@@ -1,3 +1,4 @@
+// @ts-check
 // Lumen's data folder: the library, what is on screen, settings, media and backups.
 'use strict';
 const crypto = require('crypto');
@@ -8,7 +9,9 @@ const { Library } = require('./library.js');
 const { Bibles } = require('./bible/bibles.js');
 
 const BACKUP_EVERY = 600; // seconds between library snapshots in data/backups
-const BACKUP_KEEP = 50;
+const BACKUP_KEEP = 50;     // the latest snapshots kept, whenever they were made
+const BACKUP_DAYS = 30;     // and the last one of each of this many days before them
+const BACKUP_NAME = /^library-(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)(\d\d)\.json$/;
 const MAX_SESSIONS = 100;
 
 /** library-20261019-211500.json, in local time. */
@@ -76,19 +79,52 @@ class Store {
   get library() { return this.lib.library; }
   get rev() { return this.lib.rev; }
 
-  setLibrary(library) {
-    // A library saved in a new format is backed up as it was first, whenever the last backup was.
-    this._backup((library.format || 1) !== (this.lib.library?.format || 1));
+  /** Replace the library. A library saved in a new format, or one replaced on purpose (an import, starting over,
+   * restoring a backup), is backed up as it was first, whenever the last backup was. */
+  setLibrary(library, replace = false) {
+    this._backup(replace || (library.format || 1) !== (this.lib.library?.format || 1));
     return this.lib.set(library);
+  }
+
+  /** The backups, newest first: [{name, time, size}], time in ms. */
+  backups() {
+    return fs.readdirSync(this.backupDir).filter(f => BACKUP_NAME.test(f)).sort().reverse().map(name => {
+      const [, y, mo, d, h, mi, s] = BACKUP_NAME.exec(name).map(Number);
+      return { name, time: new Date(y, mo - 1, d, h, mi, s).getTime(), size: fs.statSync(path.join(this.backupDir, name)).size };
+    });
+  }
+
+  /** Put a backup's library back, keeping the current one as a backup first. Returns the new revision. */
+  restoreBackup(name) {
+    if (typeof name !== 'string' || !BACKUP_NAME.test(name)) return null;
+    const saved = readJson(path.join(this.backupDir, name));
+    if (!isObject(saved) || !isObject(saved.library) || !Array.isArray(saved.library.presentations)) return null;
+    return this.setLibrary(saved.library, true);
+  }
+
+  /** Apply a console's changes since revision `base` (Library.patch). */
+  patchLibrary(changes, base) {
+    this._backup();
+    return this.lib.patch(changes, base);
   }
 
   /** Before a change, at most every BACKUP_EVERY seconds: the library as it was, as a JSON file that Import reads. */
   _backup(now = false) {
     if (this.lib.library === null || (!now && Date.now() / 1000 - this.lastBackup < BACKUP_EVERY)) return;
     this.lastBackup = Date.now() / 1000;
-    writeAtomic(path.join(this.backupDir, backupName()), this.lib.snapshot());
-    const old = fs.readdirSync(this.backupDir).filter(f => f.startsWith('library-')).sort();
-    for (const f of old.slice(0, Math.max(0, old.length - BACKUP_KEEP))) fs.rmSync(path.join(this.backupDir, f), { force: true });
+    let name = backupName();
+    // Two in the same second (a replace straight after a backup): keep both.
+    for (let i = 1; fs.existsSync(path.join(this.backupDir, name)); i++) name = backupName(new Date(Date.now() + i * 1000));
+    writeAtomic(path.join(this.backupDir, name), this.lib.snapshot());
+    // The latest BACKUP_KEEP, and before them the last of each day for BACKUP_DAYS days.
+    const all = fs.readdirSync(this.backupDir).filter(f => BACKUP_NAME.test(f)).sort().reverse();
+    const keep = new Set(all.slice(0, BACKUP_KEEP));
+    const days = new Set();
+    for (const f of all.slice(BACKUP_KEEP)) {
+      const day = f.slice(8, 16);
+      if (days.size < BACKUP_DAYS && !days.has(day)) { days.add(day); keep.add(f); }
+    }
+    for (const f of all) if (!keep.has(f)) fs.rmSync(path.join(this.backupDir, f), { force: true });
   }
 
   setLive(live, origin) {

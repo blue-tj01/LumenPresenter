@@ -1,3 +1,4 @@
+// @ts-check
 // Uploaded media, and media folders on this computer.
 'use strict';
 const crypto = require('crypto');

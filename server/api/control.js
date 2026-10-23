@@ -1,3 +1,4 @@
+// @ts-check
 // The Control tab: OSC, and what Bitfocus Companion needs to connect.
 'use strict';
 const { bad, lanAddresses } = require('../util.js');

@@ -1,3 +1,4 @@
+// @ts-check
 // Media folders: pictures and videos played from a folder on this computer, with no upload.
 'use strict';
 const crypto = require('crypto');

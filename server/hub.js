@@ -1,3 +1,4 @@
+// @ts-check
 // Live updates: Server-Sent Events to every open window.
 'use strict';
 

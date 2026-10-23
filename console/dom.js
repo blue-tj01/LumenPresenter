@@ -1,6 +1,10 @@
+// @ts-check
 // Small DOM helpers shared by the console's modules.
 
+/** The page's element for a selector. Typed loosely (any), as the console reads .value, .checked and the like from
+ * whichever kind of element it asked for. @returns {any} */
 export const $ = s => document.querySelector(s);
+/** @returns {any[]} */
 export const $$ = s => [...document.querySelectorAll(s)];
 
 let tt;

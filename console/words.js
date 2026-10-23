@@ -1,3 +1,4 @@
+// @ts-check
 // Formatting single words in a slide's text, written into the words themselves so they stay plain text
 // everywhere else (the text editor, search, imports): **bold**, *italic*, __underlined__, and {gold}a colour{/}
 // by its name or as {#ffcc00}. A mark with no partner is shown as it is typed, and a backslash shows the next mark

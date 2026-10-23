@@ -1,3 +1,4 @@
+// @ts-check
 // Slide text: parsing what the editor holds into groups of slides, and back. No DOM, so it is tested under
 // Node (tests/slides.test.js).
 

@@ -1,3 +1,4 @@
+// @ts-check
 // Link to the Lumen server (server.js): library storage, media uploads, and live state pushed to every window
 // on any device. When the pages are served without the server, windows in the same browser fall back to a
 // BroadcastChannel and the library stays in localStorage.
@@ -5,7 +6,7 @@
   const chan = new BroadcastChannel('lumen-live');
   const client = Math.random().toString(36).slice(2, 10);
   const TOKEN_KEY = 'lumen.token';
-  const listeners = { state: [], library: [], hello: [], status: [], error: [], folders: [], bibles: [], remote: [] };
+  const listeners = { state: [], library: [], changes: [], conflict: [], hello: [], status: [], error: [], folders: [], bibles: [], remote: [] };
   const emit = (type, data) => listeners[type].forEach(fn => fn(data));
 
   let online = false;    // the page was served by a reachable Lumen server
@@ -13,7 +14,7 @@
   let offset = 0;        // server clock minus local clock, so timers agree across devices
   let authDeclined = false;
   let outdated = false;  // server.js was updated on disk but the running server wasn't restarted
-  const SERVER_VERSION = 5;
+  const SERVER_VERSION = 6;
 
   const syncClock = t => { if (t) offset = t - Date.now(); };
   const status = () => emit('status', { online, streaming });
@@ -27,7 +28,8 @@
       let data = body;
       if (body instanceof Blob) {
         headers['Content-Type'] = body.type || 'application/octet-stream';
-        if (body.name) headers['X-Filename'] = encodeURIComponent(body.name);
+        const name = /** @type {Blob & {name?: string}} */ (body).name;
+        if (name) headers['X-Filename'] = encodeURIComponent(name);
       } else if (body !== undefined) {
         headers['Content-Type'] = 'application/json'; data = JSON.stringify(body);
       }
@@ -39,7 +41,7 @@
         authDeclined = true;
       }
       if (!r.ok) {
-        const e = new Error((await r.json().catch(() => ({}))).error || r.statusText);
+        const e = /** @type {Error & {status?: number}} */ (new Error((await r.json().catch(() => ({}))).error || r.statusText));
         e.status = r.status; throw e;
       }
       return r.json();
@@ -91,11 +93,70 @@
   }
 
   // ---------- library ----------
+  // Saves send only what changed since the library was last loaded or saved (PATCH), so a change costs the same
+  // in a library of any size; the server keeps changes made elsewhere at the same time and names any presentation
+  // or service both changed. A library the server doesn't have yet, or one with items lacking ids, goes whole (PUT).
+  const LISTS = ['presentations', 'services']; // the lists the server keeps an item at a time (server/library.js)
   let libRev = 0, pendingLib = null, sendingLib = false, libTimer = null;
+  let synced = null; // the library as the server has it at libRev: {lists: {name: {items: Map id → JSON, order}}, fields: Map}
+  let stale = false; // the server changed elsewhere while a save was waiting; load it again once saved
+  let emptyAtLoad = false; // the server had no library yet: the first save goes only if no other console's did
   const libBusy = () => sendingLib || !!pendingLib;
+
+  /** A library as its saved parts, or null if a list has an item without an id of its own. */
+  function snapshot(lib) {
+    if (!lib) return null;
+    const lists = {}, fields = new Map();
+    for (const [k, v] of Object.entries(lib)) {
+      if (!LISTS.includes(k) || !Array.isArray(v)) { fields.set(k, JSON.stringify(v ?? null)); continue; }
+      const items = new Map();
+      for (const x of v) {
+        if (!x || typeof x.id !== 'string' || !x.id || x.id.startsWith('#') || items.has(x.id)) return null;
+        items.set(x.id, JSON.stringify(x));
+      }
+      lists[k] = { items, order: v.map(x => x.id) };
+    }
+    return { lists, fields };
+  }
+  /** What changed from `from` to `to` as the server's PATCH takes it, or {} if nothing did. A list that appeared
+   * or went is every item added or removed. */
+  function diff(to, from) {
+    const changes = {};
+    const none = { items: new Map(), order: [] };
+    const names = new Set([...Object.keys(to.lists), ...Object.keys(from.lists)]);
+    for (const name of names) {
+      const a = from.lists[name] || none, b = to.lists[name] || none;
+      const put = [...b.items].filter(([id, json]) => a.items.get(id) !== json).map(([, json]) => JSON.parse(json));
+      const remove = a.order.filter(id => !b.items.has(id));
+      const moved = a.order.length !== b.order.length || b.order.some((id, i) => id !== a.order[i]);
+      if (put.length || remove.length || moved) changes[name] = { put, remove, ...(moved ? { order: b.order } : {}) };
+    }
+    const set = Object.fromEntries([...to.fields].filter(([k, json]) => from.fields.get(k) !== json).map(([k, json]) => [k, JSON.parse(json)]));
+    const unset = [...from.fields.keys()].filter(k => !to.fields.has(k));
+    if (Object.keys(set).length) changes.set = set;
+    if (unset.length) changes.unset = unset;
+    return changes;
+  }
+  /** Apply changes the server sent (as PATCH answers them) to a library, in place. */
+  function applyChanges(lib, changes) {
+    for (const name of LISTS) {
+      const c = changes[name];
+      if (!c) continue;
+      const byId = new Map((lib[name] || []).map(x => [x.id, x]));
+      c.put.forEach(x => byId.set(x.id, x));
+      c.remove.forEach(id => byId.delete(id));
+      const order = c.order || (lib[name] || []).map(x => x.id).filter(id => byId.has(id));
+      lib[name] = order.map(id => byId.get(id)).filter(Boolean);
+    }
+    Object.assign(lib, changes.set || {});
+    (changes.unset || []).forEach(k => delete lib[k]);
+    return lib;
+  }
+
   async function loadLibrary() {
     const r = await request('GET', 'api/library');
-    libRev = r.rev; return r.library;
+    libRev = r.rev; synced = snapshot(r.library); stale = false; emptyAtLoad = r.library === null;
+    return r.library;
   }
   function saveLibrary(lib) {
     if (!online) return;
@@ -105,15 +166,45 @@
     if (sendingLib || !pendingLib) return;
     sendingLib = true;
     const lib = pendingLib; pendingLib = null;
+    const next = snapshot(lib);
+    const changes = synced && next && !outdated ? diff(next, synced) : null;
     let retry = false;
-    try { libRev = (await request('PUT', 'api/library', { client, library: lib })).rev; }
-    catch (e) {
+    try {
+      if (changes && !Object.keys(changes).length) { /* nothing changed */ }
+      else if (changes) {
+        const base = libRev;
+        const r = await request('PATCH', 'api/library', { client, base, format: lib.format, changes });
+        libRev = r.rev; synced = next;
+        if (r.prev !== base) stale = true; // changed elsewhere too
+        if (r.conflicts.length) { stale = true; emit('conflict', r.conflicts); }
+      } else {
+        const ifEmpty = emptyAtLoad; // the server had no library when this page loaded
+        libRev = (await request('PUT', 'api/library', { client, library: lib, ...(ifEmpty ? { ifEmpty } : {}) })).rev; synced = next;
+        emptyAtLoad = false;
+      }
+    } catch (e) {
       if (!pendingLib) pendingLib = lib;
-      if (e.status === 401 || e.status === 400 || e.status === 413) { pendingLib = null; emit('error', `Library not saved: ${e.message}`); }
+      if (e.status === 409) { pendingLib = null; stale = true; } // another console saved the first library: load it
+      else if (e.status === 401 || e.status === 400 || e.status === 413) { pendingLib = null; emit('error', `Library not saved: ${e.message}`); }
       else { retry = true; emit('error', 'Server unreachable — library will be saved when it reconnects'); }
     } finally { sendingLib = false; }
-    if (retry) setTimeout(flushLib, 3000); else if (pendingLib) flushLib();
+    if (retry) setTimeout(flushLib, 3000);
+    else if (pendingLib) flushLib();
+    else if (stale) { stale = false; emit('library', { rev: libRev }); }
   }
+  /** Replace the whole library on purpose (an import, or starting over): sent at once, with a backup kept first. */
+  async function replaceLibrary(lib) {
+    clearTimeout(libTimer); pendingLib = null;
+    while (sendingLib) await new Promise(r => setTimeout(r, 50));
+    libRev = (await request('PUT', 'api/library', { client, library: lib, replace: true })).rev;
+    synced = snapshot(lib); stale = false;
+  }
+  /** Put a backup back; every console, this one too, then loads it. Changes waiting to be saved go first. */
+  async function restoreBackup(name) {
+    if (pendingLib && !sendingLib) { clearTimeout(libTimer); await flushLib(); }
+    return request('POST', 'api/backups', { restore: name });
+  }
+
   /** Song search on the server; a change still waiting to be saved is sent first, so results include it. */
   async function search(q) {
     if (pendingLib && !sendingLib) { clearTimeout(libTimer); await flushLib(); }
@@ -138,7 +229,24 @@
     es.addEventListener('state', e => receiveState(JSON.parse(e.data)));
     es.addEventListener('library', e => {
       const d = JSON.parse(e.data); syncClock(d.time);
-      if (d.origin !== client && d.rev !== libRev && !libBusy()) emit('library', d);
+      if (d.origin === client || d.rev === libRev) return;
+      if (libBusy()) { stale = true; return; } // loaded again once our own change is saved
+      if (d.changes && d.prev === libRev && synced) {
+        // Just this change: apply it to what we have, without loading the whole library again.
+        const ch = d.changes;
+        for (const name of LISTS) {
+          const c = ch[name], l = synced.lists[name];
+          if (!c) continue;
+          if (!l) { emit('library', d); return; }
+          c.put.forEach(x => l.items.set(x.id, JSON.stringify(x)));
+          c.remove.forEach(id => l.items.delete(id));
+          l.order = c.order || l.order.filter(id => l.items.has(id));
+        }
+        Object.entries(ch.set || {}).forEach(([k, v]) => synced.fields.set(k, JSON.stringify(v)));
+        (ch.unset || []).forEach(k => synced.fields.delete(k));
+        libRev = d.rev;
+        emit('changes', ch);
+      } else emit('library', d);
     });
     es.addEventListener('ping', e => syncClock(JSON.parse(e.data).time));
     es.addEventListener('folders', () => emit('folders'));
@@ -169,6 +277,9 @@
 
   window.Lumen = {
     client, init, publish, loadLibrary, saveLibrary, search, // search(q): [{id, name, snippet}], best first
+    applyChanges, // applyChanges(lib, changes): a change made elsewhere ('changes' event), applied to a library
+    replaceLibrary, restoreBackup, // restoreBackup(name), a name from backups()
+    backups: async () => (await request('GET', 'api/backups')).backups, // [{name, time, size}], newest first
     on: (type, fn) => listeners[type].push(fn),
     hello: () => chan.postMessage({ type: 'hello' }), // ask same-browser operator windows for the current state
     getLive: () => request('GET', 'api/live'),

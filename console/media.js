@@ -7,6 +7,7 @@ import { broadcast, live } from './live.js';
 import { importSlides } from './powerpoint.js';
 import { uid } from './slides.js';
 import { renderAll, renderLiveMarks } from './views.js';
+import { ask } from './dialog.js';
 
 export function renderMedia() {
   const bin = $('#mediaBin'); bin.innerHTML = '';
@@ -221,7 +222,7 @@ export function setupMedia() {
   $('#btnAddFolder').onclick = addFolder;
   $('#btnRemoveFolder').onclick = async () => {
     const f = folders.find(x => x.id === mediaSource);
-    if (!f || !confirm(`Stop showing “${f.name}” in Lumen? The files stay where they are, but slides using them will go blank.`)) return;
+    if (!f || !await ask(`Stop showing “${f.name}” in Lumen? The files stay where they are, but slides using them will go blank.`, { ok: 'Remove folder', danger: true })) return;
     try { await Lumen.setFolders({ remove: f.id }); mediaSource = ''; rememberSource(); loadFolders(); }
     catch (e) { toast(`Folder not removed: ${e.message}`); }
   };

@@ -1,3 +1,4 @@
+// @ts-check
 // The Theme tab: the all-songs template, a presentation's own template, and saved templates. The console still
 // calls them themes; its controls edit the template's main text box.
 import { $, $$, toast } from './dom.js';
@@ -8,6 +9,7 @@ import { pickFont } from './media.js';
 import { uid } from './slides.js';
 import { cleanTransition, TRANSITIONS } from './transitions.js';
 import { renderGrid } from './views.js';
+import { ask } from './dialog.js';
 
 // The pane picks the all-songs template and the selected presentation's own one, and its controls edit whichever
 // of those the selected presentation shows with.
@@ -100,12 +102,13 @@ function renameTemplate() {
   const name = (prompt('Rename theme:', t.name) || '').trim(); if (!name) return;
   t.name = name; themeChanged();
 }
-function deleteTemplate() {
+async function deleteTemplate() {
   const t = templateFor(getPres(state.selectedId)); if (!t.id) return;
   const users = state.db.presentations.filter(p => p.templateId === t.id);
   const all = state.db.defaultTemplateId === t.id;
-  if (!confirm(`Delete theme “${t.name}”? ` + (all ? 'Songs will go back to the default style.'
-    : `${users.length} presentation${users.length === 1 ? '' : 's'} using it will go back to the all-songs theme.`))) return;
+  if (!await ask(`Delete theme “${t.name}”? ` + (all ? 'Songs will go back to the default style.'
+    : `${users.length} presentation${users.length === 1 ? '' : 's'} using it will go back to the all-songs theme.`) + ' Ctrl+Z undoes it.',
+  { ok: 'Delete theme', danger: true })) return;
   users.forEach(p => delete p.templateId);
   if (all) delete state.db.defaultTemplateId;
   state.db.templates = state.db.templates.filter(x => x !== t); themeChanged();

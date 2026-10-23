@@ -40,7 +40,7 @@ it('writes only the presentations that changed, and drops removed ones and field
   // Mark each stored row, so a row that is written again loses its mark.
   raw.exec("UPDATE presentations SET name = name || '*'");
   lib.set({ presentations: [song('a', 'One'), song('b', 'Two changed')], playlist: [] });
-  const rows = raw.prepare('SELECT pos, id, name FROM presentations ORDER BY pos').all().map(r => ({ ...r }));
+  const rows = raw.prepare('SELECT pos, key AS id, name FROM presentations ORDER BY pos').all().map(r => ({ ...r }));
   assert.deepEqual(rows, [{ pos: 0, id: 'a', name: 'One*' }, { pos: 1, id: 'b', name: 'Two changed' }]);
   assert.deepEqual(raw.prepare("SELECT key FROM meta WHERE key LIKE 'library.%'").all().map(r => r.key), ['library.playlist']);
   raw.close();
@@ -61,7 +61,7 @@ it('keeps services a row each, writing only the ones that changed', () => {
   const saved = { presentations: [song('a', 'One')], playlist: [], serviceId: 's2',
     services: [svc('s1', 'Morning', '2026-10-18', ['a']), svc('s2', 'Evening', '2026-10-25', [])] };
   lib.set(saved);
-  assert.deepEqual(raw.prepare('SELECT pos, id, name, date FROM services ORDER BY pos').all().map(r => ({ ...r })),
+  assert.deepEqual(raw.prepare('SELECT pos, key AS id, name, date FROM services ORDER BY pos').all().map(r => ({ ...r })),
     [{ pos: 0, id: 's1', name: 'Morning*', date: '2026-10-18' }, { pos: 1, id: 's2', name: 'Evening', date: '2026-10-25' }]);
   assert.equal(raw.prepare("SELECT count(*) AS n FROM meta WHERE key = 'library.services'").get().n, 0);
   lib.close();
@@ -190,4 +190,76 @@ it('keeps the search index up to date, and builds it for a database from before 
   lib = open(dir);
   assert.deepEqual(lib.search('two').map(r => r.id), ['b']);
   lib.close();
+});
+
+it('applies one console’s changes, merging the order with songs added elsewhere', () => {
+  const dir = folder();
+  const lib = open(dir);
+  lib.set({ presentations: [song('a', 'One'), song('b', 'Two'), song('c', 'Three')], playlist: ['a'] });
+  const raw = new DatabaseSync(path.join(dir, 'lumen.db'));
+  raw.exec("UPDATE presentations SET name = name || '*'");
+  // Another console adds a song at revision 2; this one, still at 1, renames b, deletes c and adds d.
+  assert.equal(lib.patch({ presentations: { put: [song('x', 'Elsewhere')] } }, 1).rev, 2);
+  const r = lib.patch({ presentations: { put: [song('b', 'Two renamed'), song('d', 'New')], remove: ['c'],
+    order: ['d', 'a', 'b'] }, set: { playlist: ['a', 'b'] } }, 1);
+  assert.deepEqual([r.rev, r.prev, r.conflicts], [3, 2, []]);
+  assert.deepEqual(lib.library.presentations.map(p => p.id), ['d', 'a', 'b', 'x']);
+  assert.deepEqual(lib.library.playlist, ['a', 'b']);
+  assert.deepEqual(r.applied.presentations.remove, ['c']);
+  assert.deepEqual(r.applied.presentations.order, ['d', 'a', 'b', 'x']);
+  assert.deepEqual(r.applied.set, { playlist: ['a', 'b'] });
+  // Only the rows that changed were written; a.
+  assert.equal(raw.prepare("SELECT name FROM presentations WHERE key = 'a'").get().name, 'One*');
+  assert.deepEqual(lib.search('renamed').map(x => x.id), ['b']);
+  assert.deepEqual(lib.search('three'), []);
+  // Nothing new: no revision.
+  assert.equal(lib.patch({ presentations: { put: [song('a', 'One')] } }, 3).applied, null);
+  assert.equal(lib.rev, 3);
+  raw.close();
+  lib.close();
+  assert.deepEqual(open(dir).library.presentations.map(p => p.name), ['New', 'One', 'Two renamed', 'Elsewhere']);
+});
+
+it('keeps a change made elsewhere since the console last loaded, and says so', () => {
+  const dir = folder();
+  const lib = open(dir);
+  lib.set({ presentations: [song('a', 'One'), song('b', 'Two'), song('c', 'Three')] });
+  lib.patch({ presentations: { put: [song('a', 'One (theirs)')], remove: ['c'] } }, 1);
+  // Edits to a (changed since) and c (deleted since) are refused; b goes through.
+  const r = lib.patch({ presentations: { put: [song('a', 'One (mine)'), song('b', 'Two (mine)'), song('c', 'Three (mine)')] } }, 1);
+  assert.deepEqual(r.conflicts.map(c => [c.id, c.name]), [['a', 'One (theirs)'], ['c', 'Three (mine)']]);
+  assert.deepEqual(lib.library.presentations.map(p => p.name), ['One (theirs)', 'Two (mine)']);
+  // Deleting a song someone changed since is refused too; the same change made twice is not a conflict.
+  const d = lib.patch({ presentations: { remove: ['a'], put: [song('b', 'Two (mine)')] } }, 1);
+  assert.deepEqual(d.conflicts.map(c => c.id), ['a']);
+  // Once loaded again, changes go through.
+  assert.deepEqual(lib.patch({ presentations: { put: [song('a', 'One (mine)')] } }, lib.rev).conflicts, []);
+  assert.throws(() => lib.patch({ presentations: { put: [{ name: 'No id' }] } }, lib.rev), /needs an id/);
+  lib.close();
+});
+
+it('moves a database from rows by place to rows by id, keeping its search', () => {
+  const dir = folder();
+  const old = new DatabaseSync(path.join(dir, 'lumen.db'));
+  old.exec(`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL) STRICT;
+    CREATE TABLE presentations (pos INTEGER PRIMARY KEY, id TEXT, name TEXT, data TEXT NOT NULL) STRICT;
+    CREATE VIRTUAL TABLE search USING fts5 (name, author, copyright, ccli, lyrics, tokenize = 'unicode61 remove_diacritics 2', prefix = '2 3');
+    CREATE TABLE services (pos INTEGER PRIMARY KEY, id TEXT, name TEXT, date TEXT, data TEXT NOT NULL) STRICT;
+    PRAGMA user_version = 3;`);
+  old.prepare('INSERT INTO meta VALUES (?, ?)').run('saved', '1');
+  old.prepare('INSERT INTO meta VALUES (?, ?)').run('rev', '4');
+  const rows = [song('a', 'One'), song('a', 'Same id'), { name: 'No id' }, song('b', 'Two')];
+  rows.forEach((p, i) => {
+    old.prepare('INSERT INTO presentations VALUES (?, ?, ?, ?)').run(i, p.id ?? '', p.name, JSON.stringify(p));
+    old.prepare('INSERT INTO search (rowid, name) VALUES (?, ?)').run(i, p.name);
+  });
+  old.prepare('INSERT INTO services VALUES (0, ?, ?, ?, ?)').run('s1', 'Morning', '2026-10-25', JSON.stringify({ id: 's1', name: 'Morning' }));
+  old.close();
+  const lib = open(dir);
+  assert.deepEqual(lib.library, { presentations: rows, services: [{ id: 's1', name: 'Morning' }] });
+  assert.equal(lib.rev, 4);
+  assert.deepEqual(lib.search('two').map(r => r.id), ['b']);
+  assert.deepEqual(lib.patch({ presentations: { put: [song('b', 'Two again')] } }, 4).conflicts, []);
+  lib.close();
+  assert.deepEqual(open(dir).library.presentations, [...rows.slice(0, 3), song('b', 'Two again')]);
 });

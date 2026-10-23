@@ -1,3 +1,4 @@
+// @ts-check
 // The books of the Bible: their OSIS and USFM ids, English names, and the abbreviations a typed reference may use.
 // A book's number is its place in this list (Genesis is 1), which is also how Zefania files number the first 66.
 'use strict';

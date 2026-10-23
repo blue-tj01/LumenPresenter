@@ -1,3 +1,4 @@
+// @ts-check
 // One HTTP request: who it is from, what it may do, and the files it asks for.
 'use strict';
 const fs = require('fs');
@@ -10,8 +11,10 @@ const API = require('./api/index.js');
 const APP_DIR = path.join(__dirname, '..');
 // The pages and what they load; every module in console/ is served, so a new one needs no change here.
 const STATIC = new Set(['index.html', 'output.html', 'stage.html', 'remote.html', 'app.css', 'render.js', 'render.css', 'sync.js',
-  'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs',
-  ...fs.readdirSync(path.join(APP_DIR, 'console')).filter(f => f.endsWith('.js')).map(f => `console/${f}`)]);
+  'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs']);
+// The console's modules, looked for when asked so that a module added by an update is served by a server started
+// before it (the pages say when the server needs a restart, but only once they have loaded).
+const CONSOLE_MODULE = /^console\/[a-z][a-z0-9-]*\.js$/;
 const MAX_JSON = 64 * 1024 * 1024;
 const FORWARDED = ['x-forwarded-for', 'forwarded', 'x-real-ip'];
 // Shown to another device that opens a page without the token (or with an old one).
@@ -113,7 +116,7 @@ class Request {
     const token = this.query.getAll('token').find(v => v !== '');
     if (this.method !== 'GET' || this.path.startsWith('/api/') || token === undefined) return false;
     if (!safeEqual(token.trim(), this.srv.token || '')) {
-      this.sendTokenPage('That token is not right. Check it in the Network tab of the console.');
+      this.sendTokenPage('That token is not right. Check it under Setup → Network in the console.');
       return true;
     }
     const sid = this.store.addSession({ device: deviceName(this.header('user-agent')), address: this.address });
@@ -161,7 +164,7 @@ class Request {
       if (p.startsWith('/api/') || p.startsWith('/media/') || p.startsWith('/folders/') || !(p === '/' || p.endsWith('.html'))) {
         return this.error(401, 'token required');
       }
-      return this.sendTokenPage('Enter the access token shown in the Network tab of the console.');
+      return this.sendTokenPage('Enter the access token shown under Setup → Network in the console.');
     }
     if (p.startsWith('/api/')) {
       const name = p.slice(5);
@@ -185,7 +188,7 @@ class Request {
   // ---------- files ----------
   serveStatic(p) {
     const name = p.replace(/^\/+/, '') || 'index.html';
-    if (!STATIC.has(name)) return this.error(404, 'not found');
+    if (!STATIC.has(name) && !CONSOLE_MODULE.test(name)) return this.error(404, 'not found');
     let data;
     try { data = fs.readFileSync(path.join(APP_DIR, name)); } catch { return this.error(404, 'not found'); }
     this.sendFile(name, data.length, (start, end) => this.res.end(data.subarray(start, end + 1)), 'no-cache');

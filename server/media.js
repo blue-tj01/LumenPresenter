@@ -1,3 +1,4 @@
+// @ts-check
 // Which pictures, videos and fonts Lumen stores and serves, and how.
 'use strict';
 const path = require('path');

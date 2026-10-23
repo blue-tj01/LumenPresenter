@@ -1,3 +1,4 @@
+// @ts-check
 // Bible translations, and finding passages and verses in them.
 'use strict';
 const { HttpError, bad, nowMs, unquote } = require('../util.js');

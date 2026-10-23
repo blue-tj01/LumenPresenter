@@ -1,3 +1,4 @@
+// @ts-check
 // The CCLI usage report dialog: the songs shown between two dates, to copy into CCLI's site or save as a CSV file.
 import { $, toast } from './dom.js';
 import { state } from './library.js';

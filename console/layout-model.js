@@ -1,3 +1,4 @@
+// @ts-check
 // The layout editor's working parts that need no page: new elements, snapping, moving, resizing and rotating
 // frames, finding the element under the pointer, arranging, colours, and undo. Tested under Node
 // (tests/layout.test.js); console/layout-editor.js is the screen around them.

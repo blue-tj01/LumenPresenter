@@ -1,3 +1,4 @@
+// @ts-check
 // The command line and LUMEN_* environment variables.
 'use strict';
 const path = require('path');

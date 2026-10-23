@@ -1,3 +1,4 @@
+// @ts-check
 // Services: saved, dated running orders, one of them open at a time. The open service's items are the playlist
 // (library.playlist), so everything that works on the playlist works on it; the others wait in library.services.
 // No DOM, so it is tested under Node (tests/services.test.js).

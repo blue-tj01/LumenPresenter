@@ -1,3 +1,4 @@
+// @ts-check
 // The presentation editor.
 import { $, toast } from './dom.js';
 import { fromText, orderIds, toText } from './format.js';

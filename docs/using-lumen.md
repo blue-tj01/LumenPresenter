@@ -21,6 +21,12 @@ How to build services, write slides and put words, scripture, pictures and video
 
 With the server running, any of these pages can be opened on any device that can reach it.
 
+## Library, backups and starting over
+
+**Library…** in the top bar exports the whole library to a file, imports one (replacing this library on every screen), and lists the backups Lumen keeps: one every 10 minutes while the library changes, the latest 50 and the last of each day for a month before them, plus one before every import, restore or start over. **Restore…** puts one back, keeping the library it replaces as a backup, so a restore can be undone the same way. **Start over with the demo library…** asks you to type START OVER first.
+
+When two consoles change the same song at the same moment, the change saved first is kept and the other console says which song it was, so nothing is overwritten without anyone knowing.
+
 ## Writing slides
 
 Slides are written as plain text in the editor:
@@ -217,7 +223,7 @@ Every font list ends with **Add a font…**, which takes a `.ttf`, `.otf`, `.wof
 
 ### The stage display's layout
 
-**Edit stage layout…**, on the **Stage** tab, opens the stage display in the same editor, starting from a layout like the standard one. Its text boxes show the current slide, the next slide, the current group, the clock, the timer or the stage message, chosen under **Shows**, and you can add your own words, shapes, lines and pictures. **Save stage display** shows it on every stage display at once. A box with nothing to show, such as the message when there is none, is left out, and the timer turns orange in its last minute and red once it runs out. **Use the standard stage display** puts the standard one back.
+**Edit stage layout…**, under **Setup → Stage display**, opens the stage display in the same editor, starting from a layout like the standard one. Its text boxes show the current slide, the next slide, the current group, the clock, the timer or the stage message, chosen under **Shows**, and you can add your own words, shapes, lines and pictures. **Save stage display** shows it on every stage display at once. A box with nothing to show, such as the message when there is none, is left out, and the timer turns orange in its last minute and red once it runs out. **Use the standard stage display** puts the standard one back.
 
 ### Transitions
 
@@ -244,5 +250,7 @@ Every font list ends with **Add a font…**, which takes a `.ttf`, `.otf`, `.wof
 | <kbd>F3</kbd> | Clear background media |
 | <kbd>F4</kbd> | Clear message |
 | <kbd>F6</kbd> | Toggle logo screen |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Z</kbd> | Undo the last change to the library (a song edited or deleted, a theme, the playlist, a service); also ↶ in the top bar |
+| <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd>, <kbd>Ctrl</kbd> + <kbd>Y</kbd> | Redo; also ↷ in the top bar |
 | <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>S</kbd> | Save, in the editor |
 | <kbd>Esc</kbd> | Close the editor |
