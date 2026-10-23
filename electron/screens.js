@@ -1,3 +1,4 @@
+// @ts-check
 // Which display the audience output and stage display go full screen on, remembered between runs. The
 // functions at the top don't need Electron, so the tests can run them under plain Node.
 'use strict';
@@ -29,7 +30,8 @@ function displayName(d, i, primaryId) {
 /** Opens each screen full screen on its chosen display, and follows displays being connected and unplugged. */
 class Screens {
   constructor({ electron, origin, webPreferences, settings, save, icon }) {
-    Object.assign(this, { electron, origin, webPreferences, settings, save, icon });
+    this.electron = electron; this.origin = origin; this.webPreferences = webPreferences;
+    this.settings = settings; this.save = save; this.icon = icon;
     this.windows = {}; // screen -> its full-screen window, while open
     const { screen } = electron;
     for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) screen.on(ev, () => this.place());

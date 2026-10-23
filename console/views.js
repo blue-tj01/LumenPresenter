@@ -1,3 +1,4 @@
+// @ts-check
 // The library list, services and their playlist, slide grid and messages, and their controls.
 import { $, $$, toast } from './dom.js';
 import { plainWords } from './words.js';
@@ -137,7 +138,7 @@ function renderPlaylist() {
     li.dataset.id = id; li.draggable = true; li.tabIndex = 0; li.setAttribute('role', 'option');
     li.innerHTML = `<span class="ico">${i + 1}</span>${isVideoPres(p) ? '<span class="kind">▶</span>' : ''}<span class="nm"></span><button class="x" title="Remove from the playlist" aria-label="Remove from the playlist">✕</button>`;
     li.querySelector('.nm').textContent = li.title = p.name;
-    li.onclick = e => { if (e.target.classList.contains('x')) { state.db.playlist.splice(i, 1); save(); renderPlaylist(); return; } state.selectedId = id; renderAll(); };
+    li.onclick = e => { if (/** @type {HTMLElement} */ (e.target).classList.contains('x')) { state.db.playlist.splice(i, 1); save(); renderPlaylist(); return; } state.selectedId = id; renderAll(); };
     li.ondragstart = () => { dragFrom = i; };
     li.ondragover = e => { e.preventDefault(); li.classList.add('drag-over'); };
     li.ondragleave = () => li.classList.remove('drag-over');
@@ -174,7 +175,7 @@ export function renderGrid() {
     if (s.slide.layout) lbl.insertAdjacentHTML('beforeend', '<span class="designed" title="This slide has its own design">✎</span>');
     else {
       const other = templateFor(p).layouts?.find(l => l.id === s.slide.layoutId);
-      if (other) { lbl.insertAdjacentHTML('beforeend', '<span class="designed"></span>'); lbl.lastChild.textContent = other.name; lbl.lastChild.title = `Shows with the theme’s “${other.name}” layout`; }
+      if (other) { lbl.insertAdjacentHTML('beforeend', '<span class="designed"></span>'); lbl.lastChild.textContent = other.name; /** @type {HTMLElement} */ (lbl.lastChild).title = `Shows with the theme’s “${other.name}” layout`; }
     }
     card.appendChild(lbl);
     card.onclick = () => goLive(p.id, i);
@@ -244,7 +245,7 @@ export function renderMessages() {
     li.querySelector('.nm').textContent = m;
     li.classList.toggle('sel', live.msg === m);
     li.onclick = e => {
-      if (e.target.classList.contains('x')) { state.db.messages.splice(i, 1); save(); renderMessages(); return; }
+      if (/** @type {HTMLElement} */ (e.target).classList.contains('x')) { state.db.messages.splice(i, 1); save(); renderMessages(); return; }
       live.msg = live.msg === m ? null : m; broadcast(); renderMessages();
     };
     ul.appendChild(li);

@@ -1,3 +1,4 @@
+// @ts-check
 // Lumen Presenter: operator console. Loads the library and live state, then wires the page up.
 import { $, toast } from './dom.js';
 import { setupBackups } from './backups.js';
@@ -55,7 +56,7 @@ $('#btnRedo').onclick = () => undoRedo(true);
 document.addEventListener('keydown', e => {
   if (!$('#layoutEditor').hidden) return; // the layout editor has its own keys
   if (!$('#editor').hidden) { if (e.key === 'Escape') $('#editor').hidden = true; if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveEditor(); } return; }
-  if (e.target.matches('input, textarea, select')) return;
+  if (/** @type {HTMLElement} */ (e.target).matches('input, textarea, select')) return;
   if ((e.ctrlKey || e.metaKey) && ['z', 'y'].includes(e.key.toLowerCase())) {
     e.preventDefault(); undoRedo(e.key.toLowerCase() === 'y' || e.shiftKey); return;
   }

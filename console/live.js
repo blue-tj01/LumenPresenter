@@ -1,3 +1,4 @@
+// @ts-check
 // What is on screen: the live state every output window shows, going live, moving through slides, clearing.
 import { $ } from './dom.js';
 import { resolveSlide, slideSummary } from './format.js';

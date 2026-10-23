@@ -1,3 +1,4 @@
+// @ts-check
 // The layout editor: a theme's, or one slide's, text boxes, shapes, pictures and videos placed on a canvas drawn by
 // the screens' own renderer, with a layers list, an inspector, its background, and every slide of a song shown along
 // the bottom. It works on a copy, and the theme or slide changes (and the projector with it) only on Save.
@@ -306,7 +307,7 @@ function renderLayers() {
     li.querySelector('.n span').textContent = elementName(el);
     li.querySelector('small').textContent = [what, when].filter(Boolean).join(' · ');
     li.onclick = e => {
-      const k = e.target.dataset.k;
+      const k = /** @type {HTMLElement} */ (e.target).dataset.k;
       if (k) { if (el[k]) delete el[k]; else el[k] = true; commit(); renderAll(); return; }
       select(el.id);
     };
@@ -346,7 +347,7 @@ function renderStrip() {
       const card = document.createElement('div');
       card.className = 'le-thumb' + (i === slideIdx ? ' sel' : '') + (s.other ? ' other' : '');
       card.innerHTML = '<div></div><div class="cap"><span class="dot"></span><span></span></div>';
-      card.querySelector('.dot').style.background = s.color || '#4f8cff';
+      /** @type {HTMLElement} */ (card.querySelector('.dot')).style.background = s.color || '#4f8cff';
       const which = mode !== 'theme' ? '' : s.slide.layout ? ' ✎' : doc.layouts.length && !s.sample
         ? ' · ' + (doc.layouts.find(l => l.id === layoutOf(s.slide))?.name || 'Main') : '';
       card.querySelector('.cap span:last-child').textContent = s.group + which;
@@ -679,7 +680,7 @@ export function setupLayoutEditor() {
   renderStageButtons();
   $('#leUndo').onclick = () => restore(hist.undo());
   $('#leRedo').onclick = () => restore(hist.redo());
-  document.querySelectorAll('#layoutEditor [data-add]').forEach(b => b.onclick = () => {
+  $$('#layoutEditor [data-add]').forEach(b => b.onclick = () => {
     const type = b.dataset.add;
     if (type === 'image' || type === 'video') pickFile(type, ref => add(newElement(type, uid(), ref)));
     else add(newElement(type, uid()));

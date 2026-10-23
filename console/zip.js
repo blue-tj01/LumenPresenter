@@ -1,3 +1,4 @@
+// @ts-check
 // A small zip reader for the song bundles other apps save (ProPresenter's .probundle and .proplaylist files). It
 // walks the files' own headers rather than the directory at the end, because ProPresenter writes that directory
 // with the wrong length, and so do other tools now and then. No DOM, so it runs under Node as well.
@@ -16,7 +17,8 @@ async function inflate(data) {
 
 /** The files in a zip as [{ name, data }], in the order they are stored, keeping only those whose name `want`
  * accepts (so a bundle's pictures and videos aren't unpacked). Stored and deflated files are read; others are
- * skipped. Throws for something that isn't a zip. */
+ * skipped. Throws for something that isn't a zip.
+ * @param {Uint8Array} bytes @param {(name: string) => boolean} [want] */
 export async function unzip(bytes, want = () => true) {
   const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (!isZip(b)) throw new Error('not a zip file');

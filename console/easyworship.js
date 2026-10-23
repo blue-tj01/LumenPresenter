@@ -1,3 +1,4 @@
+// @ts-check
 // Songs from EasyWorship. EasyWorship 2009 and earlier keep their library in a Paradox database: Songs.DB holds
 // each song's title, writers and copyright, with the start of its words, and Songs.MB (its memo file) holds the
 // words in full. The words are RTF, a blank line between slides, with a slide that starts a section headed by its

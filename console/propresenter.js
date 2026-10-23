@@ -1,3 +1,4 @@
+// @ts-check
 // Songs from ProPresenter 7: its .pro song files, and the .probundle and .proplaylist files it exports, which are
 // zips holding .pro files (and pictures and videos, left out). A .pro file is a Protocol Buffers message, read here
 // by field number, with each slide's words as RTF (read by rtf.js). Only the words come in: groups as Lumen's colour-coded groups,
@@ -104,7 +105,7 @@ export function parsePro(bytes, fileName = '') {
     name: tidy(str(one(a, 2))) || 'Arrangement',
     order: all(a, 3).map(id => byUuid.get(uuid(id))).filter(Boolean),
   })).filter(a => a.order.length);
-  arrangements.sort((x, y) => (y.uuid === selected) - (x.uuid === selected));
+  arrangements.sort((x, y) => Number(y.uuid === selected) - Number(x.uuid === selected));
   if (arrangements.length) p.arrangements = arrangements.map(({ name, order }) => ({ id: uid(), name, order }));
   return p;
 }

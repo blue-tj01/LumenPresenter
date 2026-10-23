@@ -1,3 +1,4 @@
+// @ts-check
 // Lumen Presenter desktop app: runs the server in this process and opens the operator console in a window.
 // The pages are the same ones a browser gets, so another device can still open them over the network.
 'use strict';
@@ -201,13 +202,13 @@ function screensMenu() {
 
 function buildMenus() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    ...process.platform === 'darwin' ? [{ role: 'appMenu' }] : [],
+    .../** @type {Electron.MenuItemConstructorOptions[]} */ (process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
     { label: 'File', submenu: [
       { label: 'Add Media Folder…', click: addFolder },
       { type: 'separator' },
       { label: 'Import Library From Folder…', click: importData },
       { label: 'Open Data Folder', click: () => shell.openPath(srv.store.dir) },
-      ...process.platform === 'darwin' ? [] : [{ type: 'separator' }, { role: 'quit', label: 'Quit Lumen' }],
+      .../** @type {Electron.MenuItemConstructorOptions[]} */ (process.platform === 'darwin' ? [] : [{ type: 'separator' }, { role: 'quit', label: 'Quit Lumen' }]),
     ] },
     { role: 'editMenu' },
     { role: 'viewMenu' },
@@ -266,7 +267,7 @@ async function start() {
   updates = new Updates({ app, onChange: () => buildMenus(), notify });
   screens = new Screens({ electron, origin, webPreferences, settings, save: saveSettings, icon: ICON });
   ndi = new NdiOutput({ electron, origin, webPreferences, settings, save: saveSettings, onChange: () => buildMenus() });
-  for (const ev of ['display-added', 'display-removed', 'display-metrics-changed']) electron.screen.on(ev, buildMenus);
+  electron.screen.on('display-added', buildMenus).on('display-removed', buildMenus).on('display-metrics-changed', buildMenus);
   tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'tray.png')));
   tray.setToolTip('Lumen Presenter');
   tray.on('click', showConsole);

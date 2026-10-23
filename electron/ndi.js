@@ -1,3 +1,4 @@
+// @ts-check
 // Sends the audience output over the network as an NDI source, for vision mixers, streaming software and other
 // computers to pick up without OBS in between. The output page is drawn in a hidden window and each frame goes
 // to NDI as it is. Picture only: video sound still plays from this computer. With a transparent background (the
@@ -35,7 +36,9 @@ class NdiOutput {
   /** onChange is called when what the menu shows changes (on, off, receivers connected). */
   constructor({ electron, origin, webPreferences, settings, save, onChange, load = loadNdi, name = 'Lumen Presenter',
     platform = process.platform }) {
-    Object.assign(this, { electron, origin, webPreferences, settings, save, onChange, load, name, platform });
+    this.electron = electron; this.origin = origin; this.webPreferences = webPreferences;
+    this.settings = settings; this.save = save; this.onChange = onChange;
+    this.load = load; this.name = name; this.platform = platform;
     this.settings.ndi = { ...DEFAULTS, ...this.settings.ndi };
     this.sender = null;
     this.win = null;

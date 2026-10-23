@@ -1,3 +1,4 @@
+// @ts-check
 // The media bin, media folders on the computer running Lumen, and videos in the playlist.
 import { $, $$, toast } from './dom.js';
 import { readDataUrl } from './editor.js';
@@ -32,12 +33,12 @@ export function renderMedia() {
       (m.type === 'video' ? '<button class="pl" title="Add to playlist">＋ Playlist</button>' : ''));
     d.querySelector('span').textContent = m.name;
     d.onclick = e => {
-      if (e.target.classList.contains('pl')) {
+      if (/** @type {HTMLElement} */ (e.target).classList.contains('pl')) {
         addVideoToPlaylist(m.name.replace(/\.[^.]+$/, ''), Lumen.online ? m.src : '#' + m.id);
         save(); renderAll(); toast(`Added ${m.name} to the playlist`);
         return;
       }
-      if (e.target.classList.contains('x')) {
+      if (/** @type {HTMLElement} */ (e.target).classList.contains('x')) {
         // Themes hold pictures and videos too, in the same layouts as slides.
         const refs = p => [p.background?.src, ...p.groups.flatMap(g => g.slides.flatMap(slideRefs))];
         const all = [...state.db.presentations.flatMap(refs), ...[state.db.baseTemplate, ...state.db.templates].flatMap(slideRefs)];
@@ -97,7 +98,7 @@ function renderFolder(f, bin) {
     d.insertAdjacentHTML('beforeend', '<span></span>' + (file.type === 'video' ? '<button class="pl" title="Add to playlist">＋ Playlist</button>' : ''));
     d.querySelector('span').textContent = file.name;
     d.onclick = e => {
-      if (e.target.classList.contains('pl')) {
+      if (/** @type {HTMLElement} */ (e.target).classList.contains('pl')) {
         addVideoToPlaylist(file.name.replace(/\.[^.]+$/, ''), src);
         save(); renderAll(); toast(`Added ${file.name} to the playlist`);
         return;

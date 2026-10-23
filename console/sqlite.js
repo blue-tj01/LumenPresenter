@@ -1,3 +1,4 @@
+// @ts-check
 // A small read-only SQLite reader for the song libraries other apps keep as SQLite files (EasyWorship 6's Songs.db
 // and SongWords.db). It walks a table's pages and decodes its rows: no SQL, no indexes, no journal. No DOM, so it
 // runs under Node as well.
@@ -7,7 +8,8 @@ export const isSqlite = b => b.length >= 100 && String.fromCharCode(...b.subarra
 
 /** A SQLite file's tables: { name: { columns, rows } }, each row an object by column name (its rowid as `rowid`,
  * and in a column declared INTEGER PRIMARY KEY). Only the tables `want` names are read. Throws for something that
- * isn't a SQLite file. */
+ * isn't a SQLite file.
+ * @param {Uint8Array} bytes @param {(name: string) => boolean} [want] */
 export function readSqlite(bytes, want = () => true) {
   const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (!isSqlite(b)) throw new Error('not a SQLite file');

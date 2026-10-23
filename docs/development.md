@@ -60,11 +60,11 @@ To use a Chromium already on the computer instead, set `LUMEN_CHROMIUM` to its p
 
 ```bash
 npm run lint       # ESLint's recommended rules: undefined names, unused variables, unreachable code
-npm run typecheck  # TypeScript, over the files that start with // @ts-check
+npm run typecheck  # TypeScript, over the server, desktop app and console
 npm run check      # both, then the tests
 ```
 
-Type checking is turned on a file at a time: a file that starts with `// @ts-check` is checked, the rest are not yet. JSDoc comments (`/** @type {...} */`, `@param`, `@returns`) give the types where they can't be worked out. `types/globals.d.ts` describes the pages' shared globals (`Lumen` from `sync.js`, `PP` from `render.js`). To check another file, add the line, run `npm run typecheck`, and fix or annotate what it finds.
+Every file of the server, the desktop app and the console is type checked (`checkJs` in `tsconfig.json`; each also starts with `// @ts-check`, so editors check it too). JSDoc comments (`/** @type {...} */`, `@param`, `@returns`) give the types where they can't be worked out. `types/globals.d.ts` describes the pages' shared globals (`Lumen` from `sync.js`, `PP` from `render.js`, and the desktop app's `lumenDesktop`). A new file is checked as soon as it is added; run `npm run typecheck` and fix or annotate what it finds.
 
 GitHub Actions runs the tests, lint and type checks on Windows and Linux for every pull request, and the browser tests on Linux. Each push to `main` also builds the installers, which can be downloaded from the run's **Artifacts**. `npm run dist` builds them locally, into `dist/`.
 

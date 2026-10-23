@@ -1,3 +1,4 @@
+// @ts-check
 // OSC control: lighting desks, QLab, TouchOSC, Companion's generic OSC and the like send /lumen/... messages over
 // UDP, and each one becomes a command for the console (control.js). Node's standard library only.
 //
@@ -101,6 +102,7 @@ function oscCommand(address, args = []) {
 // ---------- listening ----------
 /** The UDP socket, opened and moved as the settings say. onCommand(cmd, from) is called for each command. */
 class OscListener {
+  /** @param {(cmd: object, from: string, address: string) => void} onCommand @param {(msg: string) => void} [log] */
   constructor(onCommand, log = () => {}) {
     this.onCommand = onCommand;
     this.log = log;
@@ -132,10 +134,10 @@ class OscListener {
     if (!on) return;
     const socket = dgram.createSocket({ type: 'udp4', reuseAddr: false });
     try {
-      await new Promise((resolve, reject) => {
+      await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
         socket.once('error', reject);
         socket.bind(port, host, () => { socket.off('error', reject); resolve(); });
-      });
+      }));
     } catch (e) {
       socket.close();
       this.error = e.code === 'EADDRINUSE' ? `port ${port} is in use by another program` : e.message;
@@ -163,7 +165,7 @@ class OscListener {
   _close() {
     const s = this.socket;
     this.socket = null;
-    return s ? new Promise(resolve => s.close(() => resolve())) : Promise.resolve();
+    return s ? /** @type {Promise<void>} */ (new Promise(resolve => s.close(() => resolve()))) : Promise.resolve();
   }
 
   close() {

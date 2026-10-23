@@ -1,3 +1,4 @@
+// @ts-check
 // The Control tab, and carrying out commands from outside the console: the phone remote, Bitfocus Companion and
 // OSC (all handed over by the server), and MIDI (heard here, through Web MIDI).
 import { $, toast } from './dom.js';

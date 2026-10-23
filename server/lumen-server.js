@@ -1,3 +1,4 @@
+// @ts-check
 // The server: listening, network mode, and handing each request to Request.
 'use strict';
 const http = require('http');
@@ -84,17 +85,17 @@ class LumenServer {
     const server = http.createServer((req, res) => this._handle(req, res));
     server.requestTimeout = 0; // a large video upload over Wi-Fi can take a while
     server.on('clientError', (err, socket) => this._clientError(err, socket));
-    return new Promise((resolve, reject) => {
+    return /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
       const attempt = n => {
         server.once('error', e => {
           // The previous socket on this port may take a moment to be released after a switch.
-          if (e.code === 'EADDRINUSE' && n > 1) setTimeout(() => attempt(n - 1), 100);
+          if (/** @type {NodeJS.ErrnoException} */ (e).code === 'EADDRINUSE' && n > 1) setTimeout(() => attempt(n - 1), 100);
           else reject(e);
         });
         server.listen(port, host, () => {
           server.removeAllListeners('error');
           server.on('error', e => console.error(`error: ${e.message}`));
-          const a = server.address();
+          const a = /** @type {import('net').AddressInfo} */ (server.address());
           this.host = a.address;
           this.port = a.port;
           this.current = server;
@@ -103,7 +104,7 @@ class LumenServer {
         });
       };
       attempt(tries);
-    });
+    }));
   }
 
   /** Save the setting and move the listening socket. Open connections (output windows) carry on. */
@@ -175,10 +176,10 @@ class LumenServer {
     await this.osc.close();
     for (const c of this.hub.clients) c.res.destroy();
     this.hub.clients.clear();
-    await Promise.all([...this.servers].map(s => new Promise(resolve => {
+    await Promise.all([...this.servers].map(s => /** @type {Promise<void>} */ (new Promise(resolve => {
       s.close(() => resolve());
       s.closeAllConnections?.();
-    })));
+    }))));
     this.servers.clear();
     this.store.close();
   }

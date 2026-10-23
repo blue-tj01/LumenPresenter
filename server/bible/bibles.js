@@ -1,3 +1,4 @@
+// @ts-check
 // Bible translations in their own SQLite database (data/bibles.db), apart from the library so it stays small and
 // its backups stay quick. Verses are indexed for full-text search. The translations that come with Lumen are
 // added the first time they are used; others are imported from Zefania, OSIS or USFX files.
@@ -56,7 +57,7 @@ class Bibles {
     this.bundledDir = bundledDir;
     this.db = new DatabaseSync(path.join(dir, FILE));
     this.db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
-    const version = this.db.prepare('PRAGMA user_version').get().user_version;
+    const version = Number(this.db.prepare('PRAGMA user_version').get().user_version);
     if (version < MIGRATIONS.length) {
       this.transaction(() => {
         MIGRATIONS.slice(version).forEach(sql => this.db.exec(sql));
@@ -72,7 +73,7 @@ class Bibles {
     const bundled = BUNDLED.filter(b => fs.existsSync(path.join(this.bundledDir, b.file)))
       .map(({ id, name, abbrev, language, rights }) => ({ id, name, abbrev, language, rights, bundled: true }));
     const imported = rows.filter(r => !r.bundled && !BUNDLED.some(b => b.id === r.id))
-      .map(r => ({ ...r, bundled: false })).sort((a, b) => a.name.localeCompare(b.name));
+      .map(r => /** @type {any} */ ({ ...r, bundled: false })).sort((a, b) => a.name.localeCompare(b.name));
     return [...bundled, ...imported].map(b => ({ ...b, ...(have.has(b.id) ? {} : { installed: false }) }));
   }
 
@@ -80,7 +81,7 @@ class Bibles {
   get(id) {
     const row = this.db.prepare('SELECT * FROM bibles WHERE id = ?').get(String(id));
     const b = BUNDLED.find(x => x.id === id);
-    if (b && (!row || row.version < b.version)) {
+    if (b && (!row || Number(row.version) < b.version)) {
       const file = path.join(this.bundledDir, b.file);
       if (!fs.existsSync(file)) return row || null;
       const data = JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString('utf8'));
@@ -157,7 +158,7 @@ class Bibles {
     const n = fromName(name);
     if (n && books.some(b => b.number === n)) return n;
     if (k.length < 2) return 0;
-    const starts = books.filter(b => key(b.name).startsWith(k) || (b.number <= KNOWN && key(book(b.number).name).startsWith(k)));
+    const starts = books.filter(b => key(b.name).startsWith(k) || (Number(b.number) <= KNOWN && key(book(b.number).name).startsWith(k)));
     return starts.length === 1 ? starts[0].number : 0;
   }
 
@@ -183,7 +184,7 @@ class Bibles {
       if (!found.length) continue;
       const ends = new Map();
       const chapterEnd = c => { if (!ends.has(c)) ends.set(c, end.get(id, n, c).v); return ends.get(c); };
-      names.push(formatReference(books.get(n), found, chapterEnd, all.find(b => b.number === n).chapters === 1));
+      names.push(formatReference(String(books.get(n)), found, chapterEnd, all.find(b => b.number === n).chapters === 1));
       for (const v of found) verses.push({ ...v, ref: `${books.get(n)} ${v.chapter}:${v.verse}` });
     }
     if (!verses.length) return { reference: '', verses: [] };

@@ -1,3 +1,4 @@
+// @ts-check
 // Bible references as people type them ("John 3:16-18", "1 Cor 13:4-7, 13", "Ps 23; 24:1", "Jude 3"), and as
 // Lumen writes them back ("John 3:16–18").
 'use strict';
@@ -47,7 +48,8 @@ function parseReference(text, findBook) {
 }
 
 /** "John 3:16–18", "Romans 8:28, 31–39", "Psalm 23", "Jude 3" for the verses found, in order. chapterEnd(chapter)
- * is the last verse of that chapter, so a whole chapter is written as just its number. */
+ * is the last verse of that chapter, so a whole chapter is written as just its number.
+ * @param {string} name @param {any[]} verses @param {(chapter: number) => number} [chapterEnd] @param {boolean} [oneChapter] */
 function formatReference(name, verses, chapterEnd = () => 0, oneChapter = false) {
   const runs = [];
   for (const v of verses) {

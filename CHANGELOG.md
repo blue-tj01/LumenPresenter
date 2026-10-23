@@ -43,4 +43,5 @@ What changed in each release of Lumen Presenter, newest first. Changes waiting f
 - An icon for the pages in browser tabs.
 
 ### Development
-- Browser tests of the console (Playwright), ESLint, and type checking of files marked `// @ts-check`, all run in CI.
+- Browser tests of the console (Playwright), ESLint, and type checking of every file of the server, desktop app
+  and console, all run in CI.

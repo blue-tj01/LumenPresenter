@@ -1,3 +1,4 @@
+// @ts-check
 // PowerPoint, Impress and PDF files as presentations: the server turns each slide into a picture, so the slides
 // look exactly as they were made, and each picture becomes a slide.
 import { $, errorBox, hideToast, toast } from './dom.js';

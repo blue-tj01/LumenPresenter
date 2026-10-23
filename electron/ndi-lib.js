@@ -1,3 +1,4 @@
+// @ts-check
 // The NDI library, called directly. Lumen doesn't ship it: it uses the NDI Runtime that NDI Tools (or the NDI
 // redistributable) installs, found as the NDI SDK says to, through the NDI_RUNTIME_DIR_V6 folder.
 'use strict';
@@ -24,7 +25,7 @@ function candidates(env = process.env, platform = process.platform, list = dir =
     for (const root of new Set([env.ProgramW6432, env.ProgramFiles].filter(Boolean))) {
       let folders = [];
       try { folders = list(p.join(root, 'NDI')); } catch {}
-      folders.sort((a, b) => /runtime/i.test(b) - /runtime/i.test(a) || b.localeCompare(a));
+      folders.sort((a, b) => Number(/runtime/i.test(b)) - Number(/runtime/i.test(a)) || b.localeCompare(a));
       for (const f of folders) for (const sub of ['v6', '', 'Runtime']) found.push(p.join(root, 'NDI', f, sub, name));
     }
     return [...dir ? [p.join(dir, name)] : [], ...found, name];
@@ -45,9 +46,7 @@ function open({ env = process.env, koffi = require('koffi'), platform = process.
     }
   }
   if (!lib) {
-    const e = new Error(failed || `Install ${download(platform).name} to send over NDI`);
-    if (!failed) e.code = 'NDI_MISSING';
-    throw e;
+    throw Object.assign(new Error(failed || `Install ${download(platform).name} to send over NDI`), failed ? {} : { code: 'NDI_MISSING' });
   }
 
   // From the NDI 6 SDK headers (Processing.NDI.Lib.h, Processing.NDI.structs.h, Processing.NDI.Send.h). The types
@@ -89,7 +88,7 @@ function open({ env = process.env, koffi = require('koffi'), platform = process.
           const frame = { xres: width, yres: height, FourCC: BGRA, frame_rate_N: fps * 1000, frame_rate_D: 1000,
             picture_aspect_ratio: width / height, frame_format_type: PROGRESSIVE, timecode: SYNTHESIZE, p_data: data,
             line_stride_in_bytes: width * 4, p_metadata: null, timestamp: 0 };
-          return new Promise((resolve, reject) => sendVideo.async(inst, frame, err => err ? reject(err) : resolve()));
+          return /** @type {Promise<void>} */ (new Promise((resolve, reject) => sendVideo.async(inst, frame, err => err ? reject(err) : resolve())));
         },
         connections() { return closed ? 0 : connections(inst, 0); },
         sourcename() { return closed ? '' : koffi.decode(sourceName(inst), Source).p_ndi_name || ''; },

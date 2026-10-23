@@ -1,3 +1,4 @@
+// @ts-check
 // The library's slide format: presentations of groups of slides, templates, and layouts of positioned elements
 // on a 1920×1080 canvas. Converts libraries saved before it (format 1), and resolves a slide into what a screen
 // draws. No DOM, so it is tested under Node (tests/format.test.js).
@@ -18,7 +19,8 @@ export function toRef(src) {
   if (src.startsWith('#')) return `bin:${src.slice(1)}`;
   return src;
 }
-/** A reference as a URL a page can load; `bin` finds a media bin entry's URL by id. */
+/** A reference as a URL a page can load; `bin` finds a media bin entry's URL by id.
+ * @param {unknown} ref @param {(id: string) => string | null} [bin] */
 export function refUrl(ref, bin = () => null) {
   if (typeof ref !== 'string') return null;
   if (ref.startsWith('media:')) return `media/${ref.slice(6)}`;
@@ -55,7 +57,8 @@ export const TEXT_STYLE = { font: "'Segoe UI', system-ui, sans-serif", size: 92,
   italic: false, upper: false, shadow: true, align: 'center', valign: 'middle', lineHeight: 1.2, padding: 0, fit: 'shrink' };
 const MARGIN = 110;
 
-/** A template with one text box showing the slide's words. */
+/** A template with one text box showing the slide's words.
+ * @param {{ id?: string, name?: string, margin?: number, [style: string]: any }} [opts] */
 export function textTemplate({ id, name, margin = MARGIN, ...style } = {}) {
   const t = { layout: { elements: [{ id: 'text', type: 'text', name: 'Slide text', bind: 'slide.text',
     frame: { x: margin, y: margin, w: W - 2 * margin, h: H - 2 * margin }, style: { ...TEXT_STYLE, ...style } }] } };
@@ -80,8 +83,9 @@ export const BUILTIN_THEMES_V1 = [
 ];
 export const DEFAULT_THEME_V1 = THEME_V1;
 
+/** @param {Record<string, any>} [theme] */
 function themeToTemplate(theme = {}) {
-  const { id, name, bold, margin, font, size, color, shadow, upper, align, valign, lineHeight } = { ...THEME_V1, ...theme };
+  const { id, name, bold, margin, font, size, color, shadow, upper, align, valign, lineHeight } = /** @type {Record<string, any>} */ ({ ...THEME_V1, ...theme });
   return textTemplate({ id, name, margin, font, size, color, shadow, upper, align, valign, lineHeight, weight: bold ? 700 : 400 });
 }
 
@@ -163,6 +167,8 @@ function boundText(el, ctx) {
 /** A slide as the list of elements a screen draws, back to front: its picture or video, then the template's
  * elements (or the slide's own layout) with words filled in and media as URLs. A song's last slide also shows its
  * credits, with the church's CCLI `licence` number, unless the layout places them or `showCredits` is false. */
+/** @param {any} slide @param {{ template?: any, pres?: any, group?: string, index?: number, count?: number,
+ *   bin?: (id: string) => string | null, licence?: string, showCredits?: boolean }} [opts] */
 export function resolveSlide(slide, { template, pres = null, group = '', index = 0, count = 1, bin, licence = '',
   showCredits = true } = {}) {
   const ctx = { slide, pres, group, bin, licence };
@@ -214,6 +220,7 @@ export const stageTemplate = () => ({ layout: { elements: [
 ] }, background: { type: 'color', src: '#000000' } });
 /** A stage layout as the stage page draws it: hidden elements left out, styles filled in, media as URLs. Text boxes
  * keep their bind for the page to fill in. */
+/** @param {any} layout @param {{ bin?: (id: string) => string | null }} [opts] */
 export function resolveStage(layout, { bin } = {}) {
   const out = [];
   for (const el of layout?.elements || []) {

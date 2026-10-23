@@ -1,3 +1,4 @@
+// @ts-check
 // Turning a PowerPoint (or Impress, or PDF) file into one picture per slide, with what this computer has:
 // PowerPoint itself on Windows, then LibreOffice, then pdftoppm for a PDF. Pictures look exactly like the slides,
 // fonts and all, which is what sermon slides need; animations and slide transitions are not kept.
@@ -18,9 +19,8 @@ const UNO_SCRIPT = path.join(__dirname, 'slides-uno.py');
 const run = (cmd, args, opts = {}) => new Promise((resolve, reject) => {
   execFile(cmd, args, { timeout: TIMEOUT, windowsHide: true, maxBuffer: 16 * 1024 * 1024, ...opts }, (err, stdout, stderr) => {
     if (!err) return resolve(String(stdout));
-    err.output = String(stderr || '').trim();
-    err.detail = err.output.split('\n').pop() || err.message;
-    reject(err);
+    const output = String(stderr || '').trim();
+    reject(Object.assign(err, { output, detail: output.split('\n').pop() || err.message }));
   });
 });
 const isFile = f => { try { return fs.statSync(f).isFile(); } catch { return false; } };
@@ -143,7 +143,7 @@ async function convert(src, work) {
 }
 
 // One at a time: each conversion starts its own PowerPoint or LibreOffice, and they are heavy.
-let queue = Promise.resolve();
+let queue = /** @type {Promise<unknown>} */ (Promise.resolve());
 function convertQueued(src, work) {
   const job = queue.then(() => convert(src, work));
   queue = job.catch(() => {});

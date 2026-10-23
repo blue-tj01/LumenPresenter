@@ -1,3 +1,4 @@
+// @ts-check
 // Bible passages as slides: verses packed onto slides, a verse too long for one slide split where it reads
 // naturally, and the Scripture template with a box for the reference. No DOM, so it is tested under Node
 // (tests/passage.test.js).

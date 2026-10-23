@@ -1,3 +1,4 @@
+// @ts-check
 // The library in memory (presentations, services and the open one's playlist, templates, media list, messages), saving it, and looking things
 // up in it. With the server the library lives there; this browser's copy (IndexedDB) is the store when running without it.
 import { toast } from './dom.js';

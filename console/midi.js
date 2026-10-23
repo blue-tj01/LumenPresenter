@@ -1,7 +1,9 @@
+// @ts-check
 // MIDI control: which button, key, pedal or fader a MIDI message comes from, and what each one is set to do.
 // The console listens through the browser's Web MIDI, so it needs nothing installed (control.js wires it up).
 
-/** What a MIDI button can be set to do, with the command the console carries out (as the phone remote sends). */
+/** What a MIDI button can be set to do, with the command the console carries out (as the phone remote sends).
+ * @type {[string, string, { action: string, what?: string }][]} */
 export const MIDI_ACTIONS = [
   ['next', 'Next slide', { action: 'next' }],
   ['prev', 'Previous slide', { action: 'prev' }],
