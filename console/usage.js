@@ -17,8 +17,15 @@ export function recordUse(lib, pres, { day = isoDate(new Date()), service = lib.
   if (!Array.isArray(lib.usage)) lib.usage = [];
   if (lib.usage.some(u => u.day === day && u.service === service && u.id === pres.id)) return false;
   const m = pres.meta;
-  lib.usage.push({ day, service, id: pres.id, name: String(pres.name ?? ''), ccli,
-    author: String(m.author ?? '').trim(), copyright: String(m.copyright ?? '').trim() });
+  lib.usage.push({
+    day,
+    service,
+    id: pres.id,
+    name: String(pres.name ?? ''),
+    ccli,
+    author: String(m.author ?? '').trim(),
+    copyright: String(m.copyright ?? '').trim(),
+  });
   if (lib.usage.length > MAX_ENTRIES) lib.usage.splice(0, lib.usage.length - MAX_ENTRIES);
   return true;
 }
@@ -36,7 +43,8 @@ export function usageReport(usage, from, to) {
     if (u.day >= s.last) Object.assign(s, { last: u.day, name: u.name, author: u.author, copyright: u.copyright });
     songs.set(u.ccli, s);
   }
-  return [...songs.values()].map(({ last: _last, ...s }) => ({ ...s, days: s.days.sort() }))
+  return [...songs.values()]
+    .map(({ last: _last, ...s }) => ({ ...s, days: s.days.sort() }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
@@ -54,4 +62,5 @@ export function reportCsv(rows) {
 }
 
 /** The report as tab-separated lines, which paste into a spreadsheet or a table as columns. */
-export const reportText = rows => [COLUMNS, ...rows.map(row)].map(r => r.map(v => v.replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+export const reportText = rows =>
+  [COLUMNS, ...rows.map(row)].map(r => r.map(v => v.replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');

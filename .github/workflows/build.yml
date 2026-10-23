@@ -22,14 +22,15 @@ jobs:
     permissions:
       contents: write # only used to publish a release from a tag
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: lts/*  # the current long-term support release, so Lumen keeps up with it
+          node-version: 24 # the version package.json asks for (engines), so CI tests what Lumen runs on
           cache: npm
       - run: npm ci
       - run: npm test
       - run: npm run lint
+      - run: npm run format:check
       - run: npm run typecheck
 
       # The console in a real browser: writing a song, going live, two operators at once, backups.
@@ -58,7 +59,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: github.event_name == 'push'
         with:
           name: lumen-${{ runner.os }}
@@ -79,8 +80,8 @@ jobs:
       run:
         working-directory: companion-module
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -94,7 +95,7 @@ jobs:
         run: gh release upload "$GITHUB_REF_NAME" lumen-presenter-companion-*.tgz --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: lumen-presenter-companion
           path: companion-module/lumen-presenter-companion-*.tgz

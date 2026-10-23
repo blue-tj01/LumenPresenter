@@ -12,13 +12,34 @@ const MEDIA_EXT = {
   font: new Set(['woff2', 'woff', 'ttf', 'otf']),
 };
 const TYPES = {
-  html: 'text/html', css: 'text/css', js: 'application/javascript', mjs: 'application/javascript', json: 'application/json',
-  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif',
-  bmp: 'image/bmp', svg: 'image/svg+xml',
-  mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', m4v: 'video/x-m4v', ogv: 'video/ogg',
-  woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf',
+  html: 'text/html',
+  css: 'text/css',
+  js: 'application/javascript',
+  mjs: 'application/javascript',
+  json: 'application/json',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  avif: 'image/avif',
+  bmp: 'image/bmp',
+  svg: 'image/svg+xml',
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  mov: 'video/quicktime',
+  m4v: 'video/x-m4v',
+  ogv: 'video/ogg',
+  woff2: 'font/woff2',
+  woff: 'font/woff',
+  ttf: 'font/ttf',
+  otf: 'font/otf',
 };
-const EXT_FOR_TYPE = Object.fromEntries(Object.entries(TYPES).filter(([e]) => !['jpeg', 'mjs'].includes(e)).map(([e, t]) => [t, e]));
+const EXT_FOR_TYPE = Object.fromEntries(
+  Object.entries(TYPES)
+    .filter(([e]) => !['jpeg', 'mjs'].includes(e))
+    .map(([e, t]) => [t, e]),
+);
 // Media is only ever displayed, never run: neutralises scripts in an SVG opened directly.
 const MEDIA_CSP = "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox";
 

@@ -23,6 +23,7 @@ There is no build step: edit the HTML, CSS and JavaScript files and reload. The 
 | `.github/workflows/build.yml` | Tests, installers and releases on GitHub Actions |
 | `index.html`, `app.css`, `console/` | The operator console; `console/main.js` loads the library and wires up the page, and each other file is one part of it (views, editor, media, themes, timer, network) |
 | `console/undo.js` | Undo and redo of library changes, keeping only what each step changed |
+| `console/setup.js` | The first-run setup on a new library: demo songs, screens, importing, the look of the words |
 | `console/dialog.js`, `console/backups.js` | Questions in the console's own dialog instead of `confirm()`; the Library dialog (export, import, backups, starting over) |
 | `console/songselect.js`, `console/openlyrics.js`, `console/xml.js`, `console/propresenter.js`, `console/zip.js`, `console/easyworship.js`, `console/rtf.js`, `console/sqlite.js` | Importing songs from SongSelect, OpenLyrics, OpenSong, ProPresenter and EasyWorship files |
 | `console/usage.js`, `console/report.js` | Noting which songs went live, and the CCLI usage report dialog |
@@ -59,13 +60,16 @@ To use a Chromium already on the computer instead, set `LUMEN_CHROMIUM` to its p
 
 ```bash
 npm run lint       # ESLint's recommended rules: undefined names, unused variables, unreachable code
-npm run typecheck  # TypeScript, over the files that start with // @ts-check
-npm run check      # both, then the tests
+npm run format     # Prettier: lays out the code and styles (format:check only reports)
+npm run typecheck  # TypeScript, over the server, desktop app and console
+npm run check      # lint, format:check and typecheck, then the tests
 ```
 
-Type checking is turned on a file at a time: a file that starts with `// @ts-check` is checked, the rest are not yet. JSDoc comments (`/** @type {...} */`, `@param`, `@returns`) give the types where they can't be worked out. `types/globals.d.ts` describes the pages' shared globals (`Lumen` from `sync.js`, `PP` from `render.js`). To check another file, add the line, run `npm run typecheck`, and fix or annotate what it finds.
+The code and styles are laid out by Prettier (`.prettierrc.json`: 120 columns, single quotes), so layout never needs discussing in a review; run `npm run format` before committing, or let the editor format on save. The pages' HTML, the docs and third-party files are left alone (`.prettierignore`). The commit that first formatted everything is listed in `.git-blame-ignore-revs`, so `git blame` looks past it.
 
-GitHub Actions runs the tests, lint and type checks on Windows and Linux for every pull request, and the browser tests on Linux. Each push to `main` also builds the installers, which can be downloaded from the run's **Artifacts**. `npm run dist` builds them locally, into `dist/`.
+Every file of the server, the desktop app and the console is type checked (`checkJs` in `tsconfig.json`; each also starts with `// @ts-check`, so editors check it too). JSDoc comments (`/** @type {...} */`, `@param`, `@returns`) give the types where they can't be worked out. `types/globals.d.ts` describes the pages' shared globals (`Lumen` from `sync.js`, `PP` from `render.js`, and the desktop app's `lumenDesktop`). A new file is checked as soon as it is added; run `npm run typecheck` and fix or annotate what it finds.
+
+GitHub Actions runs the tests, lint, format and type checks on Windows and Linux for every pull request, and the browser tests on Linux. Each push to `main` also builds the installers, which can be downloaded from the run's **Artifacts**. `npm run dist` builds them locally, into `dist/`.
 
 ## Releasing
 

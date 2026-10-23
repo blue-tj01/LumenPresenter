@@ -1,3 +1,4 @@
+// @ts-check
 // The server: listening, network mode, and handing each request to Request.
 'use strict';
 const http = require('http');
@@ -16,14 +17,27 @@ const LOCAL_HOSTS = ['127.0.0.1', 'localhost', '::1'];
 
 /** The first line of the stack that is ours, as ' at server.js:123'. */
 function where(e) {
-  const m = /\(?([^\s()]+):(\d+):\d+\)?$/m.exec(String(e?.stack || '').split('\n').slice(1).join('\n'));
+  const m = /\(?([^\s()]+):(\d+):\d+\)?$/m.exec(
+    String(e?.stack || '')
+      .split('\n')
+      .slice(1)
+      .join('\n'),
+  );
   return m ? ` at ${path.basename(m[1])}:${m[2]}` : '';
 }
 
 /** host null binds as the saved network mode says; any other host is fixed (--host) and can't be switched. */
 class LumenServer {
-  constructor({ host = null, port = 8642, data = path.join(APP_DIR, 'data'), token = '', maxUploadMb = 4096,
-    verbose = false, allowedHosts = [], mediaFolders = [] } = {}) {
+  constructor({
+    host = null,
+    port = 8642,
+    data = path.join(APP_DIR, 'data'),
+    token = '',
+    maxUploadMb = 4096,
+    verbose = false,
+    allowedHosts = [],
+    mediaFolders = [],
+  } = {}) {
     const name = os.hostname().toLowerCase();
     this.allowedHosts = new Set(allowedHosts.map(h => h.trim().toLowerCase().replace(/\.$/, '')).filter(Boolean));
     this.allowedHosts.add(name).add(`${name}.local`);
@@ -35,16 +49,19 @@ class LumenServer {
     this.explicitToken = token || '';
     this.maxUpload = maxUploadMb * 1024 * 1024;
     this.verbose = verbose;
-    this.seen = new Map();    // session id -> last request (ms), not saved
+    this.seen = new Map(); // session id -> last request (ms), not saved
     this.streams = new Map(); // session id -> pages it has open now (one per event stream)
     this.servers = new Set(); // the listening server, and earlier ones still finishing their connections
     this.switching = Promise.resolve();
     this.heartbeat = null;
     this.folders = new Folders(this.store, mediaFolders, () => this.hub.send('folders', { time: nowMs() }));
-    this.osc = new OscListener((cmd, from, address) => {
-      if (!dispatch(this.hub, cmd)) this.log(`OSC: ${address} from ${from}, but no console is open`);
-      else this.log(`OSC: ${address} from ${from}`);
-    }, msg => this.log(msg));
+    this.osc = new OscListener(
+      (cmd, from, address) => {
+        if (!dispatch(this.hub, cmd)) this.log(`OSC: ${address} from ${from}, but no console is open`);
+        else this.log(`OSC: ${address} from ${from}`);
+      },
+      msg => this.log(msg),
+    );
   }
 
   /** Warnings and errors always; the rest with --verbose. */
@@ -65,10 +82,14 @@ class LumenServer {
   }
 
   /** Reachable from other computers. */
-  get network() { return !LOCAL_HOSTS.includes(this.host); }
+  get network() {
+    return !LOCAL_HOSTS.includes(this.host);
+  }
 
   /** The token changes need: --token if given, otherwise the saved one while in network mode. */
-  get token() { return this.explicitToken || (this.network ? this.store.settings.token : ''); }
+  get token() {
+    return this.explicitToken || (this.network ? this.store.settings.token : '');
+  }
 
   /** Start listening; resolves once it is, with the port. */
   async listen() {
@@ -84,26 +105,29 @@ class LumenServer {
     const server = http.createServer((req, res) => this._handle(req, res));
     server.requestTimeout = 0; // a large video upload over Wi-Fi can take a while
     server.on('clientError', (err, socket) => this._clientError(err, socket));
-    return new Promise((resolve, reject) => {
-      const attempt = n => {
-        server.once('error', e => {
-          // The previous socket on this port may take a moment to be released after a switch.
-          if (e.code === 'EADDRINUSE' && n > 1) setTimeout(() => attempt(n - 1), 100);
-          else reject(e);
-        });
-        server.listen(port, host, () => {
-          server.removeAllListeners('error');
-          server.on('error', e => console.error(`error: ${e.message}`));
-          const a = server.address();
-          this.host = a.address;
-          this.port = a.port;
-          this.current = server;
-          this.servers.add(server);
-          resolve();
-        });
-      };
-      attempt(tries);
-    });
+    return /** @type {Promise<void>} */ (
+      new Promise((resolve, reject) => {
+        const attempt = n => {
+          server.once('error', e => {
+            // The previous socket on this port may take a moment to be released after a switch.
+            if (/** @type {NodeJS.ErrnoException} */ (e).code === 'EADDRINUSE' && n > 1)
+              setTimeout(() => attempt(n - 1), 100);
+            else reject(e);
+          });
+          server.listen(port, host, () => {
+            server.removeAllListeners('error');
+            server.on('error', e => console.error(`error: ${e.message}`));
+            const a = /** @type {import('net').AddressInfo} */ (server.address());
+            this.host = a.address;
+            this.port = a.port;
+            this.current = server;
+            this.servers.add(server);
+            resolve();
+          });
+        };
+        attempt(tries);
+      })
+    );
   }
 
   /** Save the setting and move the listening socket. Open connections (output windows) carry on. */
@@ -115,7 +139,9 @@ class LumenServer {
 
   async _switch(on) {
     this.store.saveSettings({ network: on });
-    const old = this.host, target = on ? '0.0.0.0' : '127.0.0.1', previous = this.current;
+    const old = this.host,
+      target = on ? '0.0.0.0' : '127.0.0.1',
+      previous = this.current;
     previous.close(() => this.servers.delete(previous));
     for (const h of [target, old]) {
       try {
@@ -137,8 +163,11 @@ class LumenServer {
     res.on('error', () => {});
     res.setHeader('Server', `Lumen/${VERSION}`);
     if (this.verbose) {
-      res.on('finish', () => console.error(
-        `${req.socket.remoteAddress} - - [${new Date().toISOString()}] "${req.method} ${req.url} HTTP/${req.httpVersion}" ${res.statusCode} -`));
+      res.on('finish', () =>
+        console.error(
+          `${req.socket.remoteAddress} - - [${new Date().toISOString()}] "${req.method} ${req.url} HTTP/${req.httpVersion}" ${res.statusCode} -`,
+        ),
+      );
     }
     try {
       await new Request(this, req, res).route();
@@ -175,10 +204,17 @@ class LumenServer {
     await this.osc.close();
     for (const c of this.hub.clients) c.res.destroy();
     this.hub.clients.clear();
-    await Promise.all([...this.servers].map(s => new Promise(resolve => {
-      s.close(() => resolve());
-      s.closeAllConnections?.();
-    })));
+    await Promise.all(
+      [...this.servers].map(
+        s =>
+          /** @type {Promise<void>} */ (
+            new Promise(resolve => {
+              s.close(() => resolve());
+              s.closeAllConnections?.();
+            })
+          ),
+      ),
+    );
     this.servers.clear();
     this.store.close();
   }

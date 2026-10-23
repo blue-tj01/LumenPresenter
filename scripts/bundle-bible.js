@@ -6,7 +6,10 @@ const zlib = require('zlib');
 const { parseBible } = require('../server/bible/formats.js');
 
 const [src, out] = process.argv.slice(2);
-if (!src || !out) { console.error('usage: node scripts/bundle-bible.js <source.xml> <out.json.gz>'); process.exit(1); }
+if (!src || !out) {
+  console.error('usage: node scripts/bundle-bible.js <source.xml> <out.json.gz>');
+  process.exit(1);
+}
 const bible = parseBible(fs.readFileSync(src, 'utf8'));
 const books = bible.books.filter(b => b.number <= 66).map(({ number, verses }) => ({ number, verses }));
 fs.writeFileSync(out, zlib.gzipSync(JSON.stringify({ books }), { level: 9 }));

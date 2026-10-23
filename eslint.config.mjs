@@ -8,7 +8,10 @@ export default [
   js.configs.recommended,
   {
     rules: {
-      'no-unused-vars': ['error', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
+      'no-unused-vars': [
+        'error',
+        { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' },
+      ],
       'no-empty': ['error', { allowEmptyCatch: true }],
     },
   },
@@ -27,5 +30,8 @@ export default [
     languageOptions: { sourceType: 'script', globals: { ...globals.browser } },
   },
   // Browser code run in tests by Playwright.
-  { files: ['tests/e2e/**/*.js'], languageOptions: { globals: { ...globals.browser, ...globals.node, Lumen: 'readonly', PP: 'readonly' } } },
+  {
+    files: ['tests/e2e/**/*.js'],
+    languageOptions: { globals: { ...globals.browser, ...globals.node, Lumen: 'readonly', PP: 'readonly' } },
+  },
 ];

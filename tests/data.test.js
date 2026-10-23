@@ -18,9 +18,17 @@ function folder(files) {
 const read = (dir, name) => fs.readFileSync(path.join(dir, name), 'utf8');
 
 it('copies the library, settings and media over, keeping what was there', () => {
-  const old = folder({ 'library.json': 'old library', 'settings.json': 'old token', 'media/aaaaaaaaaaaaaaaa.png': 'pic',
-    'backups/library-20261001-120000.json': 'snapshot' });
-  const app = folder({ 'library.json': 'fresh library', 'settings.json': 'fresh token', 'media/bbbbbbbbbbbbbbbb.mp4': 'clip' });
+  const old = folder({
+    'library.json': 'old library',
+    'settings.json': 'old token',
+    'media/aaaaaaaaaaaaaaaa.png': 'pic',
+    'backups/library-20261001-120000.json': 'snapshot',
+  });
+  const app = folder({
+    'library.json': 'fresh library',
+    'settings.json': 'fresh token',
+    'media/bbbbbbbbbbbbbbbb.mp4': 'clip',
+  });
   const keep = importDataFolder(old, app, 42);
   assert.equal(read(app, 'library.json'), 'old library');
   assert.equal(read(app, 'settings.json'), 'old token');
@@ -37,7 +45,10 @@ it('moves the database here aside, so an older library.json coming in is not mix
   const old = folder({ 'library.json': 'old library' });
   const app = folder({ 'lumen.db': 'db', 'lumen.db-wal': 'wal', 'settings.json': 'token' });
   const keep = importDataFolder(old, app, 7);
-  assert.deepEqual(fs.readdirSync(app).filter(f => f.startsWith('lumen.db')), []);
+  assert.deepEqual(
+    fs.readdirSync(app).filter(f => f.startsWith('lumen.db')),
+    [],
+  );
   assert.equal(read(app, 'library.json'), 'old library');
   assert.equal(read(keep, 'lumen.db'), 'db');
   assert.equal(read(keep, 'lumen.db-wal'), 'wal');

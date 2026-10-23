@@ -101,18 +101,28 @@ const ONE_CHAPTER = new Set(['Obad', 'Phlm', '2John', '3John', 'Jude']);
 
 /** A name or abbreviation as references are matched: lower case, no spaces or full stops, and 1/I/First alike. */
 function key(s) {
-  return String(s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '')
-    .replace(/^\s*(?:iii|3rd|third)\b\.?\s*/, '3').replace(/^\s*(?:ii|2nd|second)\b\.?\s*/, '2')
-    .replace(/^\s*(?:i|1st|first)\b\.?\s*(?=\S)/, '1').replace(/[\s.]+/g, '');
+  return String(s)
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/^\s*(?:iii|3rd|third)\b\.?\s*/, '3')
+    .replace(/^\s*(?:ii|2nd|second)\b\.?\s*/, '2')
+    .replace(/^\s*(?:i|1st|first)\b\.?\s*(?=\S)/, '1')
+    .replace(/[\s.]+/g, '');
 }
 
 const byOsis = new Map(BOOKS.map((b, i) => [b[0].toLowerCase(), i + 1]));
 byOsis.set('esthgr', byOsis.get('addesth'));
 const byUsfm = new Map(BOOKS.map((b, i) => [b[1], i + 1]));
 const byName = new Map();
-BOOKS.forEach((b, i) => [b[0], ...b.slice(2)].forEach(n => { if (!byName.has(key(n))) byName.set(key(n), i + 1); }));
+BOOKS.forEach((b, i) =>
+  [b[0], ...b.slice(2)].forEach(n => {
+    if (!byName.has(key(n))) byName.set(key(n), i + 1);
+  }),
+);
 
-const book = n => BOOKS[n - 1] ? { number: n, osis: BOOKS[n - 1][0], usfm: BOOKS[n - 1][1], name: BOOKS[n - 1][2] } : null;
+const book = n =>
+  BOOKS[n - 1] ? { number: n, osis: BOOKS[n - 1][0], usfm: BOOKS[n - 1][1], name: BOOKS[n - 1][2] } : null;
 const fromOsis = id => byOsis.get(String(id).toLowerCase()) || 0;
 const fromUsfm = id => byUsfm.get(String(id).toUpperCase()) || 0;
 const fromName = name => byName.get(key(name)) || 0;

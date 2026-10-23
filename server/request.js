@@ -10,8 +10,18 @@ const API = require('./api/index.js');
 
 const APP_DIR = path.join(__dirname, '..');
 // The pages and what they load; every module in console/ is served, so a new one needs no change here.
-const STATIC = new Set(['index.html', 'output.html', 'stage.html', 'remote.html', 'app.css', 'render.js', 'render.css', 'sync.js',
-  'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs']);
+const STATIC = new Set([
+  'index.html',
+  'output.html',
+  'stage.html',
+  'remote.html',
+  'app.css',
+  'render.js',
+  'render.css',
+  'sync.js',
+  'vendor/pdfjs/pdf.min.mjs',
+  'vendor/pdfjs/pdf.worker.min.mjs',
+]);
 // The console's modules, looked for when asked so that a module added by an update is served by a server started
 // before it (the pages say when the server needs a restart, but only once they have loaded).
 const CONSOLE_MODULE = /^console\/[a-z][a-z0-9-]*\.js$/;
@@ -32,7 +42,10 @@ button{background:#4f7cff;border-color:#4f7cff;cursor:pointer}p{margin:0;color:#
 /** One parsed request, with the checks that decide what it may do. */
 class Request {
   constructor(srv, req, res) {
-    this.srv = srv; this.store = srv.store; this.req = req; this.res = res;
+    this.srv = srv;
+    this.store = srv.store;
+    this.req = req;
+    this.res = res;
     this.method = req.method;
     const q = req.url.indexOf('?');
     this.path = q < 0 ? req.url : req.url.slice(0, q);
@@ -40,13 +53,20 @@ class Request {
     this.address = (req.socket.remoteAddress || '').replace(/^::ffff:(?=\d+\.)/, '');
   }
 
-  header(name) { const v = this.req.headers[name]; return Array.isArray(v) ? v[0] : v || ''; }
+  header(name) {
+    const v = this.req.headers[name];
+    return Array.isArray(v) ? v[0] : v || '';
+  }
 
   // ---------- helpers ----------
   sendJson(obj, status = 200, headers = {}) {
     const body = Buffer.from(JSON.stringify(obj));
-    this.res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': body.length,
-      'Cache-Control': 'no-store', ...headers });
+    this.res.writeHead(status, {
+      'Content-Type': 'application/json',
+      'Content-Length': body.length,
+      'Cache-Control': 'no-store',
+      ...headers,
+    });
     this.res.end(body);
   }
 
@@ -78,7 +98,10 @@ class Request {
 
   /** CSRF: browsers say which site a request comes from; changes are only taken from Lumen's own pages. */
   sameOrigin() {
-    return ['GET', 'HEAD'].includes(this.method) || ['same-origin', 'none'].includes(this.header('sec-fetch-site') || 'same-origin');
+    return (
+      ['GET', 'HEAD'].includes(this.method) ||
+      ['same-origin', 'none'].includes(this.header('sec-fetch-site') || 'same-origin')
+    );
   }
 
   /** The signed-in device this request comes from (its cookie), if any. */
@@ -86,7 +109,10 @@ class Request {
     for (const part of this.header('cookie').split(';')) {
       const eq = part.indexOf('=');
       if (eq < 0 || part.slice(0, eq).trim() !== COOKIE) continue;
-      const sid = part.slice(eq + 1).trim().replace(/^"(.*)"$/, '$1');
+      const sid = part
+        .slice(eq + 1)
+        .trim()
+        .replace(/^"(.*)"$/, '$1');
       return sid && Object.hasOwn(this.store.settings.sessions, sid) ? sid : null;
     }
     return null;
@@ -120,16 +146,24 @@ class Request {
       return true;
     }
     const sid = this.store.addSession({ device: deviceName(this.header('user-agent')), address: this.address });
-    this.res.writeHead(303, { Location: quote(this.path), 'Content-Length': 0, 'Cache-Control': 'no-store',
-      'Set-Cookie': `${COOKIE}=${sid}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict` });
+    this.res.writeHead(303, {
+      Location: quote(this.path),
+      'Content-Length': 0,
+      'Cache-Control': 'no-store',
+      'Set-Cookie': `${COOKIE}=${sid}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Strict`,
+    });
     this.res.end();
     return true;
   }
 
   sendTokenPage(msg) {
     const body = Buffer.from(TOKEN_PAGE(msg));
-    this.res.writeHead(401, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': body.length,
-      'Cache-Control': 'no-store', Connection: 'close' });
+    this.res.writeHead(401, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Content-Length': body.length,
+      'Cache-Control': 'no-store',
+      Connection: 'close',
+    });
     this.res.end(this.method === 'HEAD' ? undefined : body);
   }
 
@@ -161,7 +195,12 @@ class Request {
     if (!this.sameOrigin()) return this.error(403, 'request from another site');
     if (srv.network && this.tokenLink()) return;
     if (p !== '/api/health' && !this.mayRead()) {
-      if (p.startsWith('/api/') || p.startsWith('/media/') || p.startsWith('/folders/') || !(p === '/' || p.endsWith('.html'))) {
+      if (
+        p.startsWith('/api/') ||
+        p.startsWith('/media/') ||
+        p.startsWith('/folders/') ||
+        !(p === '/' || p.endsWith('.html'))
+      ) {
         return this.error(401, 'token required');
       }
       return this.sendTokenPage('Enter the access token shown under Setup → Network in the console.');
@@ -190,7 +229,11 @@ class Request {
     const name = p.replace(/^\/+/, '') || 'index.html';
     if (!STATIC.has(name) && !CONSOLE_MODULE.test(name)) return this.error(404, 'not found');
     let data;
-    try { data = fs.readFileSync(path.join(APP_DIR, name)); } catch { return this.error(404, 'not found'); }
+    try {
+      data = fs.readFileSync(path.join(APP_DIR, name));
+    } catch {
+      return this.error(404, 'not found');
+    }
     this.sendFile(name, data.length, (start, end) => this.res.end(data.subarray(start, end + 1)), 'no-cache');
   }
 
@@ -210,25 +253,43 @@ class Request {
 
   serveDiskFile(file, cache) {
     let fd;
-    try { fd = fs.openSync(file, 'r'); } catch { return this.error(404, 'not found'); }
+    try {
+      fd = fs.openSync(file, 'r');
+    } catch {
+      return this.error(404, 'not found');
+    }
     const stat = fs.fstatSync(fd);
-    if (!stat.isFile()) { fs.closeSync(fd); return this.error(404, 'not found'); }
+    if (!stat.isFile()) {
+      fs.closeSync(fd);
+      return this.error(404, 'not found');
+    }
     const tag = `"${stat.size.toString(36)}-${Math.floor(stat.mtimeMs).toString(36)}"`;
     if (cache === 'no-cache' && this.header('if-none-match') === tag) {
       fs.closeSync(fd);
       this.res.writeHead(304, { ETag: tag, 'Cache-Control': cache });
       return this.res.end();
     }
-    const sent = this.sendFile(file, stat.size, (start, end) => {
-      fs.createReadStream(null, { fd, start, end }).on('error', () => this.res.destroy()).pipe(this.res);
-    }, cache, MEDIA_CSP, { ETag: tag });
+    const sent = this.sendFile(
+      file,
+      stat.size,
+      (start, end) => {
+        fs.createReadStream(null, { fd, start, end })
+          .on('error', () => this.res.destroy())
+          .pipe(this.res);
+      },
+      cache,
+      MEDIA_CSP,
+      { ETag: tag },
+    );
     if (!sent) fs.closeSync(fd);
   }
 
   /** Headers for a whole file or the byte range asked for, then body(start, end) unless this is HEAD. Returns
    * whether body was called. */
   sendFile(name, size, body, cache, csp, extra = {}) {
-    let start = 0, end = size - 1, status = 200;
+    let start = 0,
+      end = size - 1,
+      status = 200;
     const headers = { ...extra };
     const m = /^bytes=(\d*)-(\d*)$/.exec(this.header('range').trim());
     if (m && (m[1] || m[2])) {
@@ -248,11 +309,19 @@ class Request {
     }
     let ctype = TYPES[path.extname(name).slice(1).toLowerCase()] || 'application/octet-stream';
     if (ctype.startsWith('text/') || ctype === 'application/javascript') ctype += '; charset=utf-8';
-    Object.assign(headers, { 'Content-Type': ctype, 'Content-Length': end - start + 1, 'Accept-Ranges': 'bytes',
-      'Cache-Control': cache, 'X-Content-Type-Options': 'nosniff' });
+    Object.assign(headers, {
+      'Content-Type': ctype,
+      'Content-Length': end - start + 1,
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': cache,
+      'X-Content-Type-Options': 'nosniff',
+    });
     if (csp) headers['Content-Security-Policy'] = csp;
     this.res.writeHead(status, headers);
-    if (this.method === 'HEAD') { this.res.end(); return false; }
+    if (this.method === 'HEAD') {
+      this.res.end();
+      return false;
+    }
     body(start, end);
     return true;
   }

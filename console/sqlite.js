@@ -1,3 +1,4 @@
+// @ts-check
 // A small read-only SQLite reader for the song libraries other apps keep as SQLite files (EasyWorship 6's Songs.db
 // and SongWords.db). It walks a table's pages and decodes its rows: no SQL, no indexes, no journal. No DOM, so it
 // runs under Node as well.
@@ -7,12 +8,14 @@ export const isSqlite = b => b.length >= 100 && String.fromCharCode(...b.subarra
 
 /** A SQLite file's tables: { name: { columns, rows } }, each row an object by column name (its rowid as `rowid`,
  * and in a column declared INTEGER PRIMARY KEY). Only the tables `want` names are read. Throws for something that
- * isn't a SQLite file. */
+ * isn't a SQLite file.
+ * @param {Uint8Array} bytes @param {(name: string) => boolean} [want] */
 export function readSqlite(bytes, want = () => true) {
   const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (!isSqlite(b)) throw new Error('not a SQLite file');
   const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
-  const pageSize = view.getUint16(16) === 1 ? 65536 : view.getUint16(16), usable = pageSize - b[20];
+  const pageSize = view.getUint16(16) === 1 ? 65536 : view.getUint16(16),
+    usable = pageSize - b[20];
   const text = new TextDecoder(['utf-8', 'utf-8', 'utf-16le', 'utf-16be'][view.getUint32(56)] || 'utf-8');
   const page = n => {
     if (n < 1 || n * pageSize > b.length) throw new Error('a page past the end of the file');
@@ -23,16 +26,20 @@ export function readSqlite(bytes, want = () => true) {
   const payload = (at, size) => {
     const max = usable - 35;
     if (size <= max) return b.subarray(at, at + size);
-    const min = Math.floor((usable - 12) * 32 / 255) - 23;
-    let local = min + (size - min) % (usable - 4);
+    const min = Math.floor(((usable - 12) * 32) / 255) - 23;
+    let local = min + ((size - min) % (usable - 4));
     if (local > max) local = min;
     const out = new Uint8Array(size);
     out.set(b.subarray(at, at + local));
-    let got = local, next = view.getUint32(at + local), hops = 0;
+    let got = local,
+      next = view.getUint32(at + local),
+      hops = 0;
     while (got < size && next && hops++ < b.length / pageSize) {
-      const p = page(next), n = Math.min(usable - 4, size - got);
+      const p = page(next),
+        n = Math.min(usable - 4, size - got);
       out.set(b.subarray(p + 4, p + 4 + n), got);
-      got += n; next = view.getUint32(p);
+      got += n;
+      next = view.getUint32(p);
     }
     if (got < size) throw new Error('a row runs past its overflow pages');
     return out;
@@ -40,14 +47,21 @@ export function readSqlite(bytes, want = () => true) {
   const record = data => {
     const [headerSize, first] = varintIn(data, 0);
     const types = [];
-    for (let at = first; at < headerSize;) { const [t, next] = varintIn(data, at); types.push(t); at = next; }
+    for (let at = first; at < headerSize;) {
+      const [t, next] = varintIn(data, at);
+      types.push(t);
+      at = next;
+    }
     const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
     let at = headerSize;
     return types.map(t => {
       if (t === 0) return null;
       if (t === 8) return 0;
       if (t === 9) return 1;
-      if (t === 7) { at += 8; return dv.getFloat64(at - 8); }
+      if (t === 7) {
+        at += 8;
+        return dv.getFloat64(at - 8);
+      }
       if (t <= 6) {
         const n = [0, 1, 2, 3, 4, 6, 8][t];
         let v = 0;
@@ -56,19 +70,25 @@ export function readSqlite(bytes, want = () => true) {
         at += n;
         return v;
       }
-      const n = Math.floor((t - 12) / 2), v = data.subarray(at, at + n);
+      const n = Math.floor((t - 12) / 2),
+        v = data.subarray(at, at + n);
       at += n;
       return t % 2 ? text.decode(v) : v.slice();
     });
   };
   // Every row of a table, by walking its b-tree from the root page.
   const rows = root => {
-    const out = [], stack = [root], seen = new Set();
+    const out = [],
+      stack = [root],
+      seen = new Set();
     while (stack.length) {
       const n = stack.pop();
       if (seen.has(n)) continue;
       seen.add(n);
-      const start = page(n), head = start + (n === 1 ? 100 : 0), type = b[head], count = view.getUint16(head + 3);
+      const start = page(n),
+        head = start + (n === 1 ? 100 : 0),
+        type = b[head],
+        count = view.getUint16(head + 3);
       const cells = head + (type === 5 ? 12 : 8);
       if (type === 5) {
         const children = [];
@@ -78,7 +98,8 @@ export function readSqlite(bytes, want = () => true) {
       } else if (type === 13) {
         for (let i = 0; i < count; i++) {
           let at = start + view.getUint16(cells + i * 2);
-          const [size, a] = varint(at), [rowid, c] = varint(a);
+          const [size, a] = varint(at),
+            [rowid, c] = varint(a);
           at = c;
           out.push([rowid, record(payload(at, size))]);
         }
@@ -96,7 +117,9 @@ export function readSqlite(bytes, want = () => true) {
       columns: columns.map(c => c.name),
       rows: rows(root).map(([rowid, values]) => {
         const row = { rowid };
-        columns.forEach((c, i) => { row[c.name] = i === alias ? rowid : values[i] ?? null; });
+        columns.forEach((c, i) => {
+          row[c.name] = i === alias ? rowid : (values[i] ?? null);
+        });
         return row;
       }),
     };
@@ -120,23 +143,34 @@ function varintIn(b, at) {
 function columnDefs(sql) {
   const body = sql.slice(sql.indexOf('(') + 1, sql.lastIndexOf(')'));
   const defs = [];
-  let depth = 0, cur = '', quote = '';
+  let depth = 0,
+    cur = '',
+    quote = '';
   for (const ch of body) {
-    if (quote) { if (ch === quote) quote = ''; }
-    else if ('"\'`['.includes(ch)) quote = ch === '[' ? ']' : ch;
+    if (quote) {
+      if (ch === quote) quote = '';
+    } else if ('"\'`['.includes(ch)) quote = ch === '[' ? ']' : ch;
     else if (ch === '(') depth++;
     else if (ch === ')') depth--;
-    else if (ch === ',' && !depth) { defs.push(cur.trim()); cur = ''; continue; }
+    else if (ch === ',' && !depth) {
+      defs.push(cur.trim());
+      cur = '';
+      continue;
+    }
     cur += ch;
   }
   if (cur.trim()) defs.push(cur.trim());
   return defs.filter(d => !/^(constraint|primary\s+key|unique|check|foreign\s+key)\b/i.test(d));
 }
-const columnsOf = sql => columnDefs(sql).map(d => ({ name: (/^("[^"]*"|`[^`]*`|\[[^\]]*\]|\S+)/.exec(d)[1]).replace(/^["`[]|["`\]]$/g, '') }));
+const columnsOf = sql =>
+  columnDefs(sql).map(d => ({ name: /^("[^"]*"|`[^`]*`|\[[^\]]*\]|\S+)/.exec(d)[1].replace(/^["`[]|["`\]]$/g, '') }));
 
 /** The names of a SQLite file's tables, without reading their rows. */
 export function tableNames(bytes) {
   const names = [];
-  readSqlite(bytes, name => { names.push(name); return false; });
+  readSqlite(bytes, name => {
+    names.push(name);
+    return false;
+  });
   return names;
 }

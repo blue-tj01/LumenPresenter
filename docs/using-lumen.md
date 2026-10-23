@@ -2,6 +2,7 @@
 
 How to build services, write slides and put words, scripture, pictures and videos on screen.
 
+- [First-time setup](#first-time-setup)
 - [Pages](#pages)
 - [Writing slides](#writing-slides)
 - [Scripture](#scripture)
@@ -9,6 +10,10 @@ How to build services, write slides and put words, scripture, pictures and video
 - [Song search and CCLI](#song-search-and-ccli)
 - [Themes](#themes)
 - [Keyboard shortcuts](#keyboard-shortcuts)
+
+## First-time setup
+
+The first time the console opens on a new library, a few short steps get it ready for a first service: keep the demo hymns or start empty, choose the display for the audience output and the stage display (in the desktop app; in a browser it says how to place the windows), import songs and enter the church's CCLI licence number, and pick the look of the words. Each step can be skipped, and **Library… → Run the first-time setup again…** brings it back.
 
 ## Pages
 

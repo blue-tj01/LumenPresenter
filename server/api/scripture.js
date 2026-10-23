@@ -4,7 +4,13 @@
 const { HttpError, bad, nowMs, unquote } = require('../util.js');
 
 const MAX_BIBLE = 128 * 1024 * 1024;
-const BIBLE_TYPES = ['application/xml', 'text/xml', 'application/gzip', 'application/x-gzip', 'application/octet-stream'];
+const BIBLE_TYPES = [
+  'application/xml',
+  'text/xml',
+  'application/gzip',
+  'application/x-gzip',
+  'application/octet-stream',
+];
 
 module.exports = {
   'GET bibles'() {
@@ -21,8 +27,11 @@ module.exports = {
     const chunks = [];
     for await (const chunk of this.req) chunks.push(chunk);
     let bible;
-    try { bible = this.store.bibles.import(Buffer.concat(chunks), unquote(this.header('x-filename'))); }
-    catch (e) { throw bad(`could not read that Bible: ${e.message}`); }
+    try {
+      bible = this.store.bibles.import(Buffer.concat(chunks), unquote(this.header('x-filename')));
+    } catch (e) {
+      throw bad(`could not read that Bible: ${e.message}`);
+    }
     this.sendJson({ bible }, 201);
     this.srv.hub.send('bibles', { time: nowMs() });
   },
@@ -30,7 +39,11 @@ module.exports = {
   'DELETE bibles'(name) {
     const id = name.split('/')[1] || '';
     let removed;
-    try { removed = this.store.bibles.remove(id); } catch (e) { throw bad(e.message); }
+    try {
+      removed = this.store.bibles.remove(id);
+    } catch (e) {
+      throw bad(e.message);
+    }
     if (!removed) throw new HttpError(404, 'no such translation');
     this.sendJson({ ok: true });
     this.srv.hub.send('bibles', { time: nowMs() });
@@ -38,7 +51,8 @@ module.exports = {
 
   /** ?bible=<id>&q=<reference or words>: the passage a reference names, or else verses with those words. */
   'GET scripture'() {
-    const id = this.query.get('bible') || '', q = (this.query.get('q') || '').slice(0, 500);
+    const id = this.query.get('bible') || '',
+      q = (this.query.get('q') || '').slice(0, 500);
     const bibles = this.store.bibles;
     try {
       const passage = q.trim() ? bibles.passage(id, q) : null;

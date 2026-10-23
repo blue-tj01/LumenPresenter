@@ -9,8 +9,8 @@ const { Library } = require('./library.js');
 const { Bibles } = require('./bible/bibles.js');
 
 const BACKUP_EVERY = 600; // seconds between library snapshots in data/backups
-const BACKUP_KEEP = 50;     // the latest snapshots kept, whenever they were made
-const BACKUP_DAYS = 30;     // and the last one of each of this many days before them
+const BACKUP_KEEP = 50; // the latest snapshots kept, whenever they were made
+const BACKUP_DAYS = 30; // and the last one of each of this many days before them
 const BACKUP_NAME = /^library-(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)(\d\d)\.json$/;
 const MAX_SESSIONS = 100;
 
@@ -33,7 +33,7 @@ class Store {
     this.lib = new Library(this.dir, this.backupDir);
     this.bibles = new Bibles(this.dir);
     const live = readJson(this.livePath);
-    this.live = isObject(live) ? live.live ?? null : null;
+    this.live = isObject(live) ? (live.live ?? null) : null;
     this.liveOrigin = null;
     this.lastBackup = 0;
 
@@ -76,8 +76,12 @@ class Store {
     writeAtomic(this.settingsPath, JSON.stringify(this.settings, null, 2), 0o600); // the token is a secret
   }
 
-  get library() { return this.lib.library; }
-  get rev() { return this.lib.rev; }
+  get library() {
+    return this.lib.library;
+  }
+  get rev() {
+    return this.lib.rev;
+  }
 
   /** Replace the library. A library saved in a new format, or one replaced on purpose (an import, starting over,
    * restoring a backup), is backed up as it was first, whenever the last backup was. */
@@ -88,10 +92,19 @@ class Store {
 
   /** The backups, newest first: [{name, time, size}], time in ms. */
   backups() {
-    return fs.readdirSync(this.backupDir).filter(f => BACKUP_NAME.test(f)).sort().reverse().map(name => {
-      const [, y, mo, d, h, mi, s] = BACKUP_NAME.exec(name).map(Number);
-      return { name, time: new Date(y, mo - 1, d, h, mi, s).getTime(), size: fs.statSync(path.join(this.backupDir, name)).size };
-    });
+    return fs
+      .readdirSync(this.backupDir)
+      .filter(f => BACKUP_NAME.test(f))
+      .sort()
+      .reverse()
+      .map(name => {
+        const [, y, mo, d, h, mi, s] = BACKUP_NAME.exec(name).map(Number);
+        return {
+          name,
+          time: new Date(y, mo - 1, d, h, mi, s).getTime(),
+          size: fs.statSync(path.join(this.backupDir, name)).size,
+        };
+      });
   }
 
   /** Put a backup's library back, keeping the current one as a backup first. Returns the new revision. */
@@ -114,15 +127,23 @@ class Store {
     this.lastBackup = Date.now() / 1000;
     let name = backupName();
     // Two in the same second (a replace straight after a backup): keep both.
-    for (let i = 1; fs.existsSync(path.join(this.backupDir, name)); i++) name = backupName(new Date(Date.now() + i * 1000));
+    for (let i = 1; fs.existsSync(path.join(this.backupDir, name)); i++)
+      name = backupName(new Date(Date.now() + i * 1000));
     writeAtomic(path.join(this.backupDir, name), this.lib.snapshot());
     // The latest BACKUP_KEEP, and before them the last of each day for BACKUP_DAYS days.
-    const all = fs.readdirSync(this.backupDir).filter(f => BACKUP_NAME.test(f)).sort().reverse();
+    const all = fs
+      .readdirSync(this.backupDir)
+      .filter(f => BACKUP_NAME.test(f))
+      .sort()
+      .reverse();
     const keep = new Set(all.slice(0, BACKUP_KEEP));
     const days = new Set();
     for (const f of all.slice(BACKUP_KEEP)) {
       const day = f.slice(8, 16);
-      if (days.size < BACKUP_DAYS && !days.has(day)) { days.add(day); keep.add(f); }
+      if (days.size < BACKUP_DAYS && !days.has(day)) {
+        days.add(day);
+        keep.add(f);
+      }
     }
     for (const f of all) if (!keep.has(f)) fs.rmSync(path.join(this.backupDir, f), { force: true });
   }

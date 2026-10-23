@@ -13,6 +13,9 @@ What changed in each release of Lumen Presenter, newest first. Changes waiting f
 - Two consoles changing different songs at the same time no longer lose one of the changes. When both change the
   same song, the first saved is kept and the other console says which song it was.
 - Other consoles receive just the change, instead of loading the whole library again.
+- Themes, media, fonts, messages, the playlist and the CCLI usage record are merged an item at a time too, so two
+  consoles adding a theme, a picture or a message at the same moment both keep theirs.
+- Adding a song no longer sends the order of the whole library with it.
 - Two consoles opened on a new, empty server no longer each save their own demo library: the second loads the
   first one's.
 - Import, Export and Reset move from the top bar into a **Library…** dialog. Starting over needs START OVER typed,
@@ -28,6 +31,9 @@ What changed in each release of Lumen Presenter, newest first. Changes waiting f
   needs a restart.
 
 ### Added
+- A first-run setup on a new library: keep the demo songs or start empty, choose where the audience output and
+  stage display go, import songs with the church's CCLI licence number, and pick the look of the words. **Library…**
+  can run it again.
 - Undo and redo for the library (Ctrl+Z, Ctrl+Shift+Z, and ↶ ↷ in the top bar): editing or deleting a song, themes,
   the playlist, services, messages and the rest. Changes made within a moment of each other are one step.
 - Backups can be listed and restored from the Library dialog. A backup is made before every import, restore or
@@ -37,4 +43,6 @@ What changed in each release of Lumen Presenter, newest first. Changes waiting f
 - An icon for the pages in browser tabs.
 
 ### Development
-- Browser tests of the console (Playwright), ESLint, and type checking of files marked `// @ts-check`, all run in CI.
+- Browser tests of the console (Playwright), ESLint, and type checking of every file of the server, desktop app
+  and console, all run in CI.
+- The code and styles are formatted by Prettier, checked in CI.

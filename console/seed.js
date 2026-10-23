@@ -5,7 +5,9 @@ import { makePres, uid } from './slides.js';
 
 // ---------- seed data (public-domain hymns) ----------
 const SEED_SONGS = [
-  ['Amazing Grace', `[Verse 1]
+  [
+    'Amazing Grace',
+    `[Verse 1]
 Amazing grace! How sweet the sound
 That saved a wretch like me!
 
@@ -31,8 +33,11 @@ When we've been there ten thousand years,
 Bright shining as the sun,
 
 We've no less days to sing God's praise
-Than when we'd first begun.`],
-  ['Holy, Holy, Holy', `[Verse 1]
+Than when we'd first begun.`,
+  ],
+  [
+    'Holy, Holy, Holy',
+    `[Verse 1]
 Holy, holy, holy! Lord God Almighty!
 Early in the morning our song shall rise to Thee;
 
@@ -51,8 +56,11 @@ Holy, holy, holy! Lord God Almighty!
 All Thy works shall praise Thy name, in earth, and sky, and sea;
 
 Holy, holy, holy; merciful and mighty!
-God in three Persons, blessed Trinity!`],
-  ['Be Thou My Vision', `[Verse 1]
+God in three Persons, blessed Trinity!`,
+  ],
+  [
+    'Be Thou My Vision',
+    `[Verse 1]
 Be Thou my Vision, O Lord of my heart;
 Naught be all else to me, save that Thou art.
 
@@ -71,8 +79,11 @@ High King of Heaven, my victory won,
 May I reach Heaven's joys, O bright Heaven's Sun!
 
 Heart of my own heart, whatever befall,
-Still be my Vision, O Ruler of all.`],
-  ['Doxology', `[Chorus]
+Still be my Vision, O Ruler of all.`,
+  ],
+  [
+    'Doxology',
+    `[Chorus]
 Praise God, from whom all blessings flow;
 Praise Him, all creatures here below;
 
@@ -80,8 +91,11 @@ Praise Him above, ye heavenly host;
 Praise Father, Son, and Holy Ghost.
 
 [Tag]
-Amen.`],
-  ['Welcome & Announcements', `@bg: linear-gradient(135deg,#1e3c72,#2a5298)
+Amen.`,
+  ],
+  [
+    'Welcome & Announcements',
+    `@bg: linear-gradient(135deg,#1e3c72,#2a5298)
 [Intro]
 Welcome!
 We're glad you're here.
@@ -94,7 +108,8 @@ Youth night
 Friday · 7 PM
 
 [Ending]
-Have a great week!`]
+Have a great week!`,
+  ],
 ];
 
 const BUILTIN_MEDIA = [
@@ -113,7 +128,7 @@ const SEED_CREDITS = {
   'Amazing Grace': { author: 'John Newton', copyright: 'Public Domain', ccli: '22025' },
   'Holy, Holy, Holy': { author: 'Reginald Heber, John Bacchus Dykes', copyright: 'Public Domain' },
   'Be Thou My Vision': { author: 'Traditional Irish, tr. Mary Byrne and Eleanor Hull', copyright: 'Public Domain' },
-  'Doxology': { author: 'Thomas Ken', copyright: 'Public Domain' },
+  Doxology: { author: 'Thomas Ken', copyright: 'Public Domain' },
 };
 
 /** The templates a library starts with: Classic, Lower third, Scripture and Big & bold. Fixed ids, so every console
@@ -121,14 +136,20 @@ const SEED_CREDITS = {
 export const BUILTIN_TEMPLATES = () => migrateLibrary({ presentations: [] }).templates;
 
 export function seed() {
-  const pres = SEED_SONGS.map(([n, t]) => SEED_CREDITS[n] ? { ...makePres(n, t), meta: { ...SEED_CREDITS[n] } } : makePres(n, t));
+  const pres = SEED_SONGS.map(([n, t]) =>
+    SEED_CREDITS[n] ? { ...makePres(n, t), meta: { ...SEED_CREDITS[n] } } : makePres(n, t),
+  );
   return migrateLibrary({
     presentations: pres,
     playlist: [pres[4].id, pres[0].id, pres[2].id, pres[3].id],
     media: BUILTIN_MEDIA.map(m => ({ id: uid(), builtin: true, ...m })),
     theme: { ...DEFAULT_THEME_V1 },
     themes: BUILTIN_THEMES_V1.map(t => ({ ...t })),
-    messages: ['Welcome! Please silence your phones.', 'Nursery parents: please come to the nursery.', 'The parking lot lights are on — car ABC-123.'],
+    messages: [
+      'Welcome! Please silence your phones.',
+      'Nursery parents: please come to the nursery.',
+      'The parking lot lights are on — car ABC-123.',
+    ],
     logoText: 'WELCOME',
   });
 }

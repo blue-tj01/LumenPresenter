@@ -21,20 +21,31 @@ const delay = ms => new Promise(r => setTimeout(r, ms));
 const pad = b => Buffer.concat([b, Buffer.alloc(4 - (b.length % 4))]); // OSC strings always end in at least one 0
 const str = s => pad(Buffer.from(s));
 function message(address, ...args) {
-  const tags = ',' + args.map(a => typeof a === 'string' ? 's' : a === true ? 'T' : a === false ? 'F'
-    : Number.isInteger(a) ? 'i' : 'f').join('');
+  const tags =
+    ',' +
+    args
+      .map(a => (typeof a === 'string' ? 's' : a === true ? 'T' : a === false ? 'F' : Number.isInteger(a) ? 'i' : 'f'))
+      .join('');
   const data = args.map(a => {
     if (typeof a === 'string') return str(a);
     if (typeof a === 'boolean') return Buffer.alloc(0);
     const b = Buffer.alloc(4);
-    if (Number.isInteger(a)) b.writeInt32BE(a); else b.writeFloatBE(a);
+    if (Number.isInteger(a)) b.writeInt32BE(a);
+    else b.writeFloatBE(a);
     return b;
   });
   return Buffer.concat([str(address), str(tags), ...data]);
 }
 function bundle(...parts) {
   const head = Buffer.concat([Buffer.from('#bundle\0'), Buffer.alloc(8)]);
-  return Buffer.concat([head, ...parts.flatMap(p => { const n = Buffer.alloc(4); n.writeInt32BE(p.length); return [n, p]; })]);
+  return Buffer.concat([
+    head,
+    ...parts.flatMap(p => {
+      const n = Buffer.alloc(4);
+      n.writeInt32BE(p.length);
+      return [n, p];
+    }),
+  ]);
 }
 
 describe('commands', () => {
@@ -46,8 +57,16 @@ describe('commands', () => {
     assert.deepEqual(command({ action: 'video', what: 'restart' }), { action: 'video', what: 'restart' });
     assert.deepEqual(command({ action: 'timer', what: 'pause' }), { action: 'timer', what: 'pause' });
     assert.deepEqual(command({ action: 'auto' }), { action: 'auto' });
-    for (const bad of [{}, { action: 'jump' }, { action: 'item' }, { action: 'item', item: -1 }, { action: 'slide', idx: 1.5 },
-      { action: 'video', what: 'stop' }, { action: 'timer', what: 'set' }, { action: 'clear', what: 'screen' }]) {
+    for (const bad of [
+      {},
+      { action: 'jump' },
+      { action: 'item' },
+      { action: 'item', item: -1 },
+      { action: 'slide', idx: 1.5 },
+      { action: 'video', what: 'stop' },
+      { action: 'timer', what: 'set' },
+      { action: 'clear', what: 'screen' },
+    ]) {
       assert.throws(() => command(bad), { status: 400 }, JSON.stringify(bad));
     }
   });
@@ -56,10 +75,15 @@ describe('commands', () => {
 describe('OSC', () => {
   it('reads messages and bundles', () => {
     assert.deepEqual(decode(message('/lumen/next')), [{ address: '/lumen/next', args: [] }]);
-    assert.deepEqual(decode(message('/lumen/slide', 3, 'x', true)), [{ address: '/lumen/slide', args: [3, 'x', true] }]);
+    assert.deepEqual(decode(message('/lumen/slide', 3, 'x', true)), [
+      { address: '/lumen/slide', args: [3, 'x', true] },
+    ]);
     assert.equal(decode(message('/a', 0.5))[0].args[0], 0.5);
     const b = bundle(message('/lumen/clear/all'), bundle(message('/lumen/logo', 1)));
-    assert.deepEqual(decode(b).map(m => m.address), ['/lumen/clear/all', '/lumen/logo']);
+    assert.deepEqual(
+      decode(b).map(m => m.address),
+      ['/lumen/clear/all', '/lumen/logo'],
+    );
     assert.deepEqual(decode(str('/old')), [{ address: '/old', args: [] }]); // no type tags at all
     for (const junk of [Buffer.from('hello'), Buffer.from('/x\0\0,i\0\0'), bundle(Buffer.from('/x'))]) {
       assert.throws(() => decode(junk));
@@ -87,10 +111,24 @@ describe('OSC', () => {
     ];
     for (const [[address, ...args], want] of cases) assert.deepEqual(oscCommand(address, args), want, address);
     // A button let go (0 or false), nothing to do, or numbers that aren't a place.
-    for (const [address, ...args] of [['/lumen/next', 0], ['/lumen/next', 0.0], ['/lumen/clear/all', false],
-      ['/lumen/item/3', 0], ['/lumen/item'], ['/lumen/item', 0], ['/lumen/item', 'three'], ['/lumen/slide/0'],
-      ['/lumen/slide', 2.5], ['/lumen'], ['/next'], ['/lumen/jump'], ['/lumen/clear/screen'], ['/lumen/next/now'],
-      ['/lumen/clear/all/now'], ['/lumen/timer/set']]) {
+    for (const [address, ...args] of [
+      ['/lumen/next', 0],
+      ['/lumen/next', 0.0],
+      ['/lumen/clear/all', false],
+      ['/lumen/item/3', 0],
+      ['/lumen/item'],
+      ['/lumen/item', 0],
+      ['/lumen/item', 'three'],
+      ['/lumen/slide/0'],
+      ['/lumen/slide', 2.5],
+      ['/lumen'],
+      ['/next'],
+      ['/lumen/jump'],
+      ['/lumen/clear/screen'],
+      ['/lumen/next/now'],
+      ['/lumen/clear/all/now'],
+      ['/lumen/timer/set'],
+    ]) {
       assert.equal(oscCommand(address, args), null, `${address} ${args}`);
     }
   });
@@ -99,7 +137,8 @@ describe('OSC', () => {
 /** A server on free ports with its own data folder. */
 function harness() {
   const t = {
-    srv: null, data: null,
+    srv: null,
+    data: null,
     async start(opts = {}) {
       t.srv = new LumenServer({ host: '127.0.0.1', port: 0, data: t.data, ...opts });
       await t.srv.listen();
@@ -107,13 +146,19 @@ function harness() {
     },
     req(method, p, body, headers = {}) {
       const h = { ...headers };
-      if (body !== undefined) { body = JSON.stringify(body); h['Content-Type'] = 'application/json'; }
+      if (body !== undefined) {
+        body = JSON.stringify(body);
+        h['Content-Type'] = 'application/json';
+      }
       return new Promise((resolve, reject) => {
         const r = http.request({ host: '127.0.0.1', port: t.port, method, path: p, headers: h, agent: false }, res => {
           const chunks = [];
           res.on('data', c => chunks.push(c));
           res.on('end', () => {
-            let json; try { json = JSON.parse(Buffer.concat(chunks)); } catch {}
+            let json;
+            try {
+              json = JSON.parse(Buffer.concat(chunks));
+            } catch {}
             resolve({ status: res.statusCode, json });
           });
         });
@@ -124,43 +169,74 @@ function harness() {
     /** A console's event stream; next(name) resolves to the data of the next event of that name. */
     console() {
       return new Promise((resolve, reject) => {
-        const r = http.get({ host: '127.0.0.1', port: t.port, path: '/api/events', agent: false,
-          headers: { Referer: `http://127.0.0.1:${t.port}/` } }, res => {
-          let buf = '';
-          const queue = [], waiting = [];
-          const flush = () => {
-            for (let i = 0; i < waiting.length; i++) {
-              const j = queue.findIndex(([ev]) => ev === waiting[i][0]);
-              if (j >= 0) { waiting[i][1](queue.splice(j, 1)[0][1]); waiting.splice(i--, 1); }
-            }
-          };
-          res.setEncoding('utf8');
-          res.on('data', d => {
-            buf += d;
-            let i;
-            while ((i = buf.indexOf('\n\n')) >= 0) {
-              const block = buf.slice(0, i); buf = buf.slice(i + 2);
-              const ev = /^event: (.*)$/m.exec(block), data = /^data: (.*)$/m.exec(block);
-              if (ev) queue.push([ev[1], data ? JSON.parse(data[1]) : null]);
-            }
-            flush();
-          });
-          resolve({ close: () => r.destroy(), next: ev => new Promise(ok => { waiting.push([ev, ok]); flush(); }),
-            seen: ev => queue.some(([e]) => e === ev) });
-        });
+        const r = http.get(
+          {
+            host: '127.0.0.1',
+            port: t.port,
+            path: '/api/events',
+            agent: false,
+            headers: { Referer: `http://127.0.0.1:${t.port}/` },
+          },
+          res => {
+            let buf = '';
+            const queue = [],
+              waiting = [];
+            const flush = () => {
+              for (let i = 0; i < waiting.length; i++) {
+                const j = queue.findIndex(([ev]) => ev === waiting[i][0]);
+                if (j >= 0) {
+                  waiting[i][1](queue.splice(j, 1)[0][1]);
+                  waiting.splice(i--, 1);
+                }
+              }
+            };
+            res.setEncoding('utf8');
+            res.on('data', d => {
+              buf += d;
+              let i;
+              while ((i = buf.indexOf('\n\n')) >= 0) {
+                const block = buf.slice(0, i);
+                buf = buf.slice(i + 2);
+                const ev = /^event: (.*)$/m.exec(block),
+                  data = /^data: (.*)$/m.exec(block);
+                if (ev) queue.push([ev[1], data ? JSON.parse(data[1]) : null]);
+              }
+              flush();
+            });
+            resolve({
+              close: () => r.destroy(),
+              next: ev =>
+                new Promise(ok => {
+                  waiting.push([ev, ok]);
+                  flush();
+                }),
+              seen: ev => queue.some(([e]) => e === ev),
+            });
+          },
+        );
         r.on('error', reject);
       });
     },
   };
-  beforeEach(async () => { t.data = fs.mkdtempSync(path.join(os.tmpdir(), 'lumen-')); await t.start(); });
-  afterEach(async () => { await t.srv.close(); fs.rmSync(t.data, { recursive: true, force: true }); });
+  beforeEach(async () => {
+    t.data = fs.mkdtempSync(path.join(os.tmpdir(), 'lumen-'));
+    await t.start();
+  });
+  afterEach(async () => {
+    await t.srv.close();
+    fs.rmSync(t.data, { recursive: true, force: true });
+  });
   return t;
 }
 
-const sendUdp = (port, buf) => new Promise((resolve, reject) => {
-  const s = dgram.createSocket('udp4');
-  s.send(buf, port, '127.0.0.1', e => { s.close(); e ? reject(e) : resolve(); });
-});
+const sendUdp = (port, buf) =>
+  new Promise((resolve, reject) => {
+    const s = dgram.createSocket('udp4');
+    s.send(buf, port, '127.0.0.1', e => {
+      s.close();
+      e ? reject(e) : resolve();
+    });
+  });
 
 describe('OSC listening', () => {
   const t = harness();
@@ -180,7 +256,7 @@ describe('OSC listening', () => {
     await con.next('hello');
     await sendUdp(port, message('/lumen/next', 0)); // let go: ignored
     await sendUdp(port, bundle(message('/lumen/slide/3'), message('/lumen/nonsense')));
-    assert.deepEqual({ ...await con.next('remote'), time: 0 }, { action: 'slide', idx: 2, time: 0 });
+    assert.deepEqual({ ...(await con.next('remote')), time: 0 }, { action: 'slide', idx: 2, time: 0 });
     await sendUdp(port, Buffer.from('not osc'));
     await sendUdp(port, message('/lumen/clear/msg'));
     assert.deepEqual((await con.next('remote')).what, 'msg');
@@ -190,9 +266,18 @@ describe('OSC listening', () => {
   it('is switched on, moved and kept from the Control tab', async () => {
     const free = await new Promise(resolve => {
       const s = dgram.createSocket('udp4');
-      s.bind(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => resolve(p)); });
+      s.bind(0, '127.0.0.1', () => {
+        const p = s.address().port;
+        s.close(() => resolve(p));
+      });
     });
-    for (const bad of [{ osc: 1 }, { osc: { port: 80 } }, { osc: { port: 70000 } }, { osc: { port: '9000' } }, { osc: { port: t.port } }]) {
+    for (const bad of [
+      { osc: 1 },
+      { osc: { port: 80 } },
+      { osc: { port: 70000 } },
+      { osc: { port: '9000' } },
+      { osc: { port: t.port } },
+    ]) {
       assert.equal((await t.req('POST', '/api/control', bad)).status, 400, JSON.stringify(bad));
     }
     let c = (await t.req('POST', '/api/control', { osc: { on: true, port: free } })).json;
@@ -223,7 +308,8 @@ describe('OSC listening', () => {
 
   it('only lets the computer running Lumen change it', async () => {
     await t.srv.setNetwork(true);
-    const token = t.srv.token, other = { 'X-Forwarded-For': '192.168.1.20', 'X-Lumen-Token': token };
+    const token = t.srv.token,
+      other = { 'X-Forwarded-For': '192.168.1.20', 'X-Lumen-Token': token };
     assert.equal((await t.req('POST', '/api/control', { osc: { on: true } }, other)).status, 403);
     const seen = (await t.req('GET', '/api/control', undefined, other)).json;
     assert.deepEqual(seen, { local: false, network: true, osc: { on: false } });
@@ -236,9 +322,17 @@ describe('Companion module', () => {
   const t = harness();
   const client = (opts = {}) => {
     const c = { lives: [], states: [] };
-    c.lumen = new LumenClient({ host: '127.0.0.1', port: t.port, ...opts,
-      onLive: live => c.lives.push(live), onStatus: (s, why) => c.states.push([s, why]) });
-    c.until = async test => { for (let i = 0; i < 200 && !test(); i++) await delay(10); assert.ok(test()); };
+    c.lumen = new LumenClient({
+      host: '127.0.0.1',
+      port: t.port,
+      ...opts,
+      onLive: live => c.lives.push(live),
+      onStatus: (s, why) => c.states.push([s, why]),
+    });
+    c.until = async test => {
+      for (let i = 0; i < 200 && !test(); i++) await delay(10);
+      assert.ok(test());
+    };
     return c;
   };
 
@@ -267,7 +361,8 @@ describe('Companion module', () => {
   it('says when Lumen is not there or the token is wrong, and keeps trying', async () => {
     await t.srv.setNetwork(true);
     // From this computer the stream needs no token, so ask as another device would, through a proxy.
-    const proxied = (url, init = {}) => fetch(url, { ...init, headers: { ...init.headers, 'X-Forwarded-For': '192.168.1.20' } });
+    const proxied = (url, init = {}) =>
+      fetch(url, { ...init, headers: { ...init.headers, 'X-Forwarded-For': '192.168.1.20' } });
     const c = client({ token: 'wrong', fetch: proxied });
     c.lumen.start();
     await c.until(() => c.states.some(([s]) => s === 'auth'));
@@ -290,18 +385,43 @@ describe('Companion module', () => {
 
   it('shows what is on screen as variables and feedbacks', () => {
     const now = Date.UTC(2026, 9, 25, 10, 30);
-    assert.deepEqual(variables(null, now), { presentation: '', group: '', slide_number: '', slide_text: '', next_text: '',
-      message: '', timer: '00:00', clock: variables(null, now).clock });
-    const live = { slide: { label: 'Be Thou — My Vision — Chorus', stageText: 'High King', video: true, play: { paused: false } },
-      idx: 0, next: 'Riches', msg: 'Welcome', logo: false, bg: { type: 'image' }, timer: { endAt: now + 65_400, remaining: 300 } };
+    assert.deepEqual(variables(null, now), {
+      presentation: '',
+      group: '',
+      slide_number: '',
+      slide_text: '',
+      next_text: '',
+      message: '',
+      timer: '00:00',
+      clock: variables(null, now).clock,
+    });
+    const live = {
+      slide: { label: 'Be Thou — My Vision — Chorus', stageText: 'High King', video: true, play: { paused: false } },
+      idx: 0,
+      next: 'Riches',
+      msg: 'Welcome',
+      logo: false,
+      bg: { type: 'image' },
+      timer: { endAt: now + 65_400, remaining: 300 },
+    };
     const v = variables(live, now);
-    assert.deepEqual([v.presentation, v.group, v.slide_number, v.slide_text, v.next_text, v.message, v.timer],
-      ['Be Thou — My Vision', 'Chorus', '1', 'High King', 'Riches', 'Welcome', '01:05']);
+    assert.deepEqual(
+      [v.presentation, v.group, v.slide_number, v.slide_text, v.next_text, v.message, v.timer],
+      ['Be Thou — My Vision', 'Chorus', '1', 'High King', 'Riches', 'Welcome', '01:05'],
+    );
     assert.equal(variables({ slide: { label: 'Quick slide' }, idx: -1 }, now).slide_number, '');
     assert.equal(variables({ timer: { endAt: null, remaining: 90 } }, now).timer, '01:30');
     assert.equal(variables({ timer: { endAt: now - 5000 } }, now).timer, '-00:05');
-    assert.deepEqual(flags(live, now), { slide: true, background: true, message: true, logo: false, cleared: false,
-      videoPlaying: true, timerRunning: true, timerOver: false });
+    assert.deepEqual(flags(live, now), {
+      slide: true,
+      background: true,
+      message: true,
+      logo: false,
+      cleared: false,
+      videoPlaying: true,
+      timerRunning: true,
+      timerOver: false,
+    });
     assert.equal(flags({}, now).cleared, true);
     assert.equal(flags({ timer: { endAt: now - 1 } }, now).timerOver, true);
   });
@@ -313,14 +433,31 @@ describe('Companion module', () => {
     assert.equal(m.runtime.entrypoint, '../src/main.js');
     assert.ok(fs.existsSync(path.join(__dirname, '../companion-module/src/main.js')));
     assert.equal(pkg.main, 'src/main.js');
-    for (const k of ['id', 'name', 'shortname', 'description', 'version', 'license', 'repository', 'bugs', 'maintainers',
-      'legacyIds', 'runtime', 'manufacturer', 'products', 'keywords']) assert.ok(k in m, k);
+    for (const k of [
+      'id',
+      'name',
+      'shortname',
+      'description',
+      'version',
+      'license',
+      'repository',
+      'bugs',
+      'maintainers',
+      'legacyIds',
+      'runtime',
+      'manufacturer',
+      'products',
+      'keywords',
+    ])
+      assert.ok(k in m, k);
   });
 });
 
 describe('MIDI', () => {
   let m;
-  before(async () => { m = await import('../console/midi.js'); });
+  before(async () => {
+    m = await import('../console/midi.js');
+  });
 
   it('knows a key, pad, pedal or button from what it sends', () => {
     assert.equal(m.midiTrigger([0x90, 60, 100]), 'note:1:60');
@@ -354,7 +491,11 @@ describe('MIDI', () => {
     assert.equal(m.triggerLabel('pc:1:0'), 'Program 1, channel 1');
     assert.equal(m.triggerLabel('sysex'), '');
     assert.deepEqual(m.midiSettings(null), { on: false, device: '', map: {} });
-    const s = m.midiSettings({ on: 1, device: 'Pedal', map: { next: 'note:1:60', prev: 'nonsense', jump: 'cc:1:1', logo: 'note:1:60' } });
+    const s = m.midiSettings({
+      on: 1,
+      device: 'Pedal',
+      map: { next: 'note:1:60', prev: 'nonsense', jump: 'cc:1:1', logo: 'note:1:60' },
+    });
     assert.deepEqual(s, { on: true, device: 'Pedal', map: { next: 'note:1:60', logo: 'note:1:60' } });
     assert.deepEqual(m.commandsFor(s, 'note:1:60'), [{ action: 'next' }, { action: 'clear', what: 'logo' }]);
     assert.deepEqual(m.commandsFor(s, 'note:1:61'), []);

@@ -1,18 +1,104 @@
-.pp-screen { position: relative; overflow: hidden; background: #000; }
-.pp-inner { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden; }
-.pp-layer, .pp-fill { position: absolute; inset: 0; }
-.pp-fill video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pp-el { position: absolute; box-sizing: border-box; }
-.pp-el > img, .pp-el > video { width: 100%; height: 100%; display: block; }
-.pp-el > video.pp-once { transition: opacity 1.2s ease; }
-.pp-el > video.pp-done { opacity: 0; }
-.pp-text { display: flex; flex-direction: column; align-items: stretch; box-sizing: border-box; }
-.pp-words { white-space: pre-wrap; overflow-wrap: break-word; }
-.pp-motion { background-size: 400% 400% !important; animation: pp-drift 18s ease-in-out infinite; }
-@keyframes pp-drift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-.pp-msgwrap { display: flex; align-items: flex-end; justify-content: center; padding-bottom: 70px; }
-.pp-msgbar { background: rgba(10, 12, 20, .82); color: #fff; font: 600 54px/1.25 "Segoe UI", system-ui, sans-serif;
-  padding: 22px 60px; border-radius: 14px; border-left: 10px solid #4f8cff; max-width: 1600px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
-.pp-logo { background: #000; display: flex; align-items: center; justify-content: center; }
-.pp-logo img { max-width: 60%; max-height: 60%; }
-.pp-logotext { color: #fff; font: 300 120px/1.1 Georgia, serif; letter-spacing: .08em; text-align: center; white-space: pre-wrap; }
+.pp-screen {
+  position: relative;
+  overflow: hidden;
+  background: #000;
+}
+.pp-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: 0 0;
+  overflow: hidden;
+}
+.pp-layer,
+.pp-fill {
+  position: absolute;
+  inset: 0;
+}
+.pp-fill video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pp-el {
+  position: absolute;
+  box-sizing: border-box;
+}
+.pp-el > img,
+.pp-el > video {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.pp-el > video.pp-once {
+  transition: opacity 1.2s ease;
+}
+.pp-el > video.pp-done {
+  opacity: 0;
+}
+.pp-text {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  box-sizing: border-box;
+}
+.pp-words {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.pp-motion {
+  background-size: 400% 400% !important;
+  animation: pp-drift 18s ease-in-out infinite;
+}
+@keyframes pp-drift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+.pp-msgwrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 70px;
+}
+.pp-msgbar {
+  background: rgba(10, 12, 20, 0.82);
+  color: #fff;
+  font:
+    600 54px/1.25 'Segoe UI',
+    system-ui,
+    sans-serif;
+  padding: 22px 60px;
+  border-radius: 14px;
+  border-left: 10px solid #4f8cff;
+  max-width: 1600px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.pp-logo {
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pp-logo img {
+  max-width: 60%;
+  max-height: 60%;
+}
+.pp-logotext {
+  color: #fff;
+  font:
+    300 120px/1.1 Georgia,
+    serif;
+  letter-spacing: 0.08em;
+  text-align: center;
+  white-space: pre-wrap;
+}

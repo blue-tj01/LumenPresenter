@@ -4,10 +4,14 @@ const assert = require('assert/strict');
 const { it, before } = require('node:test');
 
 let slides;
-before(async () => { slides = await import('../console/slides.js'); });
+before(async () => {
+  slides = await import('../console/slides.js');
+});
 
 it('splits text into named groups of slides', () => {
-  const { groups, bg } = slides.parseText('[Verse 1]\nAmazing grace\nhow sweet\n\nThat saved\n\n[Chorus]\r\nMy chains\n\n\n[Empty]\n');
+  const { groups, bg } = slides.parseText(
+    '[Verse 1]\nAmazing grace\nhow sweet\n\nThat saved\n\n[Chorus]\r\nMy chains\n\n\n[Empty]\n',
+  );
   assert.deepEqual(groups, [
     { name: 'Verse 1', slides: ['Amazing grace\nhow sweet', 'That saved'] },
     { name: 'Chorus', slides: ['My chains'] },
@@ -17,7 +21,10 @@ it('splits text into named groups of slides', () => {
 
 it('puts slides before any heading in a group called Slides, and reads the background line', () => {
   const r = slides.parseText('@bg: #112233\nWelcome\n\n[Notes]\nBe seated');
-  assert.deepEqual(r.groups.map(g => g.name), ['Slides', 'Notes']);
+  assert.deepEqual(
+    r.groups.map(g => g.name),
+    ['Slides', 'Notes'],
+  );
   assert.deepEqual(r.bg, { type: 'color', src: '#112233' });
   assert.deepEqual(slides.parseText('@BG: /media/abc.mp4').bg, { type: 'video', src: '/media/abc.mp4' });
   assert.deepEqual(slides.parseText('@bg: linear-gradient(#000, #fff)').bg.type, 'gradient');
@@ -25,7 +32,11 @@ it('puts slides before any heading in a group called Slides, and reads the backg
 });
 
 it('takes picture and video lines out of a slide', () => {
-  assert.deepEqual(slides.splitSlide('@image: #m1\nHello\n@VIDEO: /media/a.mp4'), { text: 'Hello', image: '#m1', video: '/media/a.mp4' });
+  assert.deepEqual(slides.splitSlide('@image: #m1\nHello\n@VIDEO: /media/a.mp4'), {
+    text: 'Hello',
+    image: '#m1',
+    video: '/media/a.mp4',
+  });
   assert.deepEqual(slides.splitSlide('Just words'), { text: 'Just words', image: null, video: null });
 });
 

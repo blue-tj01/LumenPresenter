@@ -15,7 +15,8 @@ const isDataFolder = dir => ['lumen.db', 'library.json'].some(f => fs.existsSync
  * into another, first saving the files being replaced into to/backups/before-import-<time>. Media already in
  * `to` stays: the names are random, so nothing is overwritten. Returns where the old files were kept. */
 function importDataFolder(from, to, now = Date.now()) {
-  from = path.resolve(from); to = path.resolve(to);
+  from = path.resolve(from);
+  to = path.resolve(to);
   if (from === to) throw new Error('That is the data folder Lumen is already using.');
   if (!isDataFolder(from)) throw new Error('That folder has no Lumen library in it.');
   const keep = path.join(to, 'backups', `before-import-${now}`);

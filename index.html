@@ -291,6 +291,60 @@
       <button id="usageCopy" class="btn">Copy</button><button id="usageCsv" class="btn">Download CSV</button><button id="usageClose" class="btn primary">Close</button></div>
   </div>
 </div>
+<!-- First-run setup (console/setup.js) -->
+<div id="setupDialog" class="modal" hidden>
+  <div class="modal-card setup-card" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+    <div class="setup-body">
+      <section data-step="welcome">
+        <h2 id="setupTitle">Welcome to Lumen Presenter</h2>
+        <p>A few quick choices and you're ready for Sunday. Each one can be changed later, and you can skip this now.</p>
+        <p>Your library has some public-domain hymns and a welcome slide to try things out with. Keep them for now, or start with an empty library?</p>
+      </section>
+      <section data-step="screens" hidden>
+        <h2>Where do the screens go?</h2>
+        <div id="setupScreensDesk">
+          <p>Choose the display for the words the congregation sees, and one for the band's stage display. They open full screen there by themselves, and come back each time Lumen starts.</p>
+          <label class="setup-field">Audience output <select id="setupScreen-output"></select></label>
+          <label class="setup-field">Stage display <select id="setupScreen-stage"></select></label>
+          <p id="setupNoSecond" class="muted small">Only one display is connected now. Plug in the projector or TV and it appears here; the <b>Screens</b> menu has the same choices later.</p>
+          <button id="setupIdentify" type="button" class="btn">Show each display's number</button>
+        </div>
+        <div id="setupScreensWeb" hidden>
+          <p>Click <b>▣ Audience Output</b> in the top bar, drag the window onto the projector or TV, and double-click it to go full screen. <b>▤ Stage Display</b> does the same for the band.</p>
+          <p class="muted">Any other computer, tablet or phone can show them too: turn on network mode under <b>⚙ Setup → Network</b> and open the links it gives.</p>
+        </div>
+      </section>
+      <section data-step="songs" hidden>
+        <h2>Bring your songs in</h2>
+        <p>Import songs from CCLI SongSelect, ProPresenter 7, EasyWorship (2009, 6 and 7), OpenLP or OpenSong. Several files can be chosen at once, and more can be dropped on the library at any time.</p>
+        <button id="setupImport" type="button" class="btn primary">Import songs…</button>
+        <label class="setup-field">CCLI licence number <input id="setupLicence" type="text" inputmode="numeric" placeholder="Optional" autocomplete="off"></label>
+        <p class="muted small">Shown in each song's credits on its last slide, and used for the CCLI usage report.</p>
+      </section>
+      <section data-step="look" hidden>
+        <h2>Pick a look for the words</h2>
+        <p>Every song uses it unless you choose another for one. Themes can be changed and designed on the <b>Theme</b> tab.</p>
+        <div id="setupLooks" class="setup-looks"></div>
+      </section>
+      <section data-step="done" hidden>
+        <h2>You're ready</h2>
+        <p id="setupSummary"></p>
+        <ul class="setup-tips">
+          <li>Click a slide to put it on screen; <kbd>→</kbd> or <kbd>Space</kbd> moves to the next, through the whole playlist.</li>
+          <li><kbd>F1</kbd> clears the screen. <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes a change.</li>
+          <li>Drag songs into the playlist for this week's service; <b>⧉</b> copies a service to next week.</li>
+        </ul>
+      </section>
+    </div>
+    <div class="modal-h setup-actions">
+      <span id="setupCount" class="muted small"></span><span class="spacer"></span>
+      <button id="setupSkip" type="button" class="btn ghost">Skip setup</button>
+      <button id="setupBack" type="button" class="btn">Back</button>
+      <button id="setupEmpty" type="button" class="btn">Start empty</button>
+      <button id="setupNext" type="button" class="btn primary">Next</button>
+    </div>
+  </div>
+</div>
 <!-- The library: export, import, backups and starting over -->
 <div id="libDialog" class="modal" hidden>
   <div class="modal-card lib-card" role="dialog" aria-modal="true" aria-labelledby="libDialogTitle">
@@ -307,6 +361,8 @@
         <p class="muted">Replace every song, service, theme and setting with the demo library, on every screen. A backup is kept first.</p>
         <button id="btnReset" class="btn danger">Start over with the demo library…</button>
       </div>
+      <h4>Setup</h4>
+      <div class="lib-row"><button id="btnSetup" class="btn">Run the first-time setup again…</button></div>
     </div>
   </div>
 </div>

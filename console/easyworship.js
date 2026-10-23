@@ -1,3 +1,4 @@
+// @ts-check
 // Songs from EasyWorship. EasyWorship 2009 and earlier keep their library in a Paradox database: Songs.DB holds
 // each song's title, writers and copyright, with the start of its words, and Songs.MB (its memo file) holds the
 // words in full. The words are RTF, a blank line between slides, with a slide that starts a section headed by its
@@ -10,13 +11,21 @@ import { presentation, tidy } from './songselect.js';
 import { uid } from './slides.js';
 
 // ---------- Paradox ----------
-const u16 = (b, i) => b[i] | b[i + 1] << 8;
-const u32 = (b, i) => (b[i] | b[i + 1] << 8 | b[i + 2] << 16 | b[i + 3] << 24) >>> 0;
-const TEXT = 1, MEMO = 12; // the field types read here: a fixed-length string, and text kept in the memo file
+const u16 = (b, i) => b[i] | (b[i + 1] << 8);
+const u32 = (b, i) => (b[i] | (b[i + 1] << 8) | (b[i + 2] << 16) | (b[i + 3] << 24)) >>> 0;
+const TEXT = 1,
+  MEMO = 12; // the field types read here: a fixed-length string, and text kept in the memo file
 
 /** Whether bytes are a Paradox table (as Songs.DB is), by its header: record and header sizes, and a known block size. */
 export function isParadox(b) {
-  return b.length >= 2048 && u16(b, 0) > 0 && u16(b, 2) >= 0x78 && u16(b, 2) <= b.length && [1, 2, 3, 4, 8, 16, 32].includes(b[5]) && b[4] === 0;
+  return (
+    b.length >= 2048 &&
+    u16(b, 0) > 0 &&
+    u16(b, 2) >= 0x78 &&
+    u16(b, 2) <= b.length &&
+    [1, 2, 3, 4, 8, 16, 32].includes(b[5]) &&
+    b[4] === 0
+  );
 }
 
 /** A Paradox table's records as objects by field name. A string is decoded (Windows-1252); a memo is { leader,
@@ -25,7 +34,10 @@ export function isParadox(b) {
 export function readParadox(bytes) {
   const b = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   if (!isParadox(b)) throw new Error('not a Paradox table');
-  const recordSize = u16(b, 0), headerSize = u16(b, 2), blockSize = b[5] * 1024, count = u16(b, 0x21);
+  const recordSize = u16(b, 0),
+    headerSize = u16(b, 2),
+    blockSize = b[5] * 1024,
+    count = u16(b, 0x21);
   // The field types and sizes, from 0x78, then (past a table of pointers and the table's name) their names.
   const types = Array.from({ length: count }, (_, i) => [b[0x78 + i * 2], b[0x79 + i * 2]]);
   let at = 0x78 + count * 2 + 4 + count * 4 + 261;
@@ -36,9 +48,11 @@ export function readParadox(bytes) {
     names.push(decodePage(b.subarray(at, end)));
     at = end + 1;
   }
-  if (names.length < count || recordSize < types.reduce((n, [, size]) => n + size, 0)) throw new Error('not a Paradox table');
+  if (names.length < count || recordSize < types.reduce((n, [, size]) => n + size, 0))
+    throw new Error('not a Paradox table');
 
-  const records = [], seen = new Set();
+  const records = [],
+    seen = new Set();
   // Blocks are chained: each starts with the next block's number, the previous one's, and the offset of its last record.
   for (let block = u16(b, 0x0e); block && !seen.has(block); block = u16(b, headerSize + (block - 1) * blockSize)) {
     seen.add(block);
@@ -50,8 +64,11 @@ export function readParadox(bytes) {
       let f = r;
       types.forEach(([type, size], i) => {
         const v = b.subarray(f, f + size);
-        if (type === TEXT) { const end = v.indexOf(0); rec[names[i]] = decodePage(end < 0 ? v : v.subarray(0, end)); }
-        else if (type === MEMO) rec[names[i]] = { leader: v.subarray(0, size - 10), offset: u32(v, size - 10), size: u32(v, size - 6) };
+        if (type === TEXT) {
+          const end = v.indexOf(0);
+          rec[names[i]] = decodePage(end < 0 ? v : v.subarray(0, end));
+        } else if (type === MEMO)
+          rec[names[i]] = { leader: v.subarray(0, size - 10), offset: u32(v, size - 10), size: u32(v, size - 6) };
         f += size;
       });
       records.push(rec);
@@ -65,7 +82,8 @@ export function readParadox(bytes) {
 export function readMemo(memo, mb) {
   if (!memo?.size) return new Uint8Array();
   if (!mb || memo.size <= memo.leader.length) return memo.leader.subarray(0, Math.min(memo.size, memo.leader.length));
-  const block = memo.offset & ~0xff, index = memo.offset & 0xff;
+  const block = memo.offset & ~0xff,
+    index = memo.offset & 0xff;
   if (block + 12 > mb.length) throw new Error('the memo file does not go with this table');
   let start;
   if (mb[block] === 2) start = block + 9;
@@ -77,7 +95,8 @@ export function readMemo(memo, mb) {
 
 // ---------- the song ----------
 // The section names EasyWorship users head slides with, as Lumen's group names.
-const SECTION = /^(verse|chorus|pre[- ]?chorus|bridge|tag|intro|ending|end|outro|vamp|interlude|misc|slide)\s*(\d+[a-z]?)?\s*(\(.*\))?\s*:?$/i;
+const SECTION =
+  /^(verse|chorus|pre[- ]?chorus|bridge|tag|intro|ending|end|outro|vamp|interlude|misc|slide)\s*(\d+[a-z]?)?\s*(\(.*\))?\s*:?$/i;
 const NAMES = { prechorus: 'Pre-Chorus', end: 'Ending', slide: 'Slides' };
 /** A heading line as a group name ("chorus 2" → "Chorus 2"), or '' for a line that isn't one. */
 export function sectionName(line) {
@@ -92,7 +111,10 @@ export function sectionName(line) {
 export function songFromWords(title, words, meta = {}) {
   const sections = [];
   for (const block of words.replace(/\r/g, '').split(/\n\s*\n/)) {
-    const lines = block.split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const lines = block
+      .split('\n')
+      .map(l => l.replace(/\s+/g, ' ').trim())
+      .filter(Boolean);
     if (!lines.length) continue;
     const name = sectionName(lines[0]);
     if (name) lines.shift();
@@ -105,16 +127,22 @@ export function songFromWords(title, words, meta = {}) {
 /** A song from its sections in the order written, each { name, slides }. A section sung again with the same words
  * plays again rather than being copied; one with different words under the same name is numbered on. */
 function songFromSections(title, sections, meta) {
-  const groups = [], order = [];
+  const groups = [],
+    order = [];
   for (const { name, slides } of sections) {
     if (!slides.length) continue;
     const text = slides.join('\n\n');
     const same = groups.find(g => g.base === name.toLowerCase() && g.slides.map(s => s.text).join('\n\n') === text);
-    if (same) { order.push(same.id); continue; }
-    let label = name, n = 2;
+    if (same) {
+      order.push(same.id);
+      continue;
+    }
+    let label = name,
+      n = 2;
     while (groups.some(g => g.name.toLowerCase() === label.toLowerCase())) label = `${name} (${n++})`;
     const g = { id: uid(), name: label, base: name.toLowerCase(), slides: slides.map(t => ({ id: uid(), text: t })) };
-    groups.push(g); order.push(g.id);
+    groups.push(g);
+    order.push(g.id);
   }
   if (!groups.length) throw new Error('no words found');
   groups.forEach(g => delete g.base);
@@ -133,16 +161,23 @@ const details = (author, copyright, admin, number) => ({
 export function parseEasyWorship(db, mb) {
   const memoFile = mb && (mb instanceof Uint8Array ? mb : new Uint8Array(mb));
   const records = readParadox(db);
-  if (!records.length || !('Title' in records[0]) || !('Words' in records[0])) throw new Error('not an EasyWorship song library');
+  if (!records.length || !('Title' in records[0]) || !('Words' in records[0]))
+    throw new Error('not an EasyWorship song library');
   const songs = [];
-  let cut = 0, empty = 0;
+  let cut = 0,
+    empty = 0;
   for (const r of records) {
-    if (!memoFile && r.Words?.size > r.Words?.leader.length) { cut++; continue; }
+    if (!memoFile && r.Words?.size > r.Words?.leader.length) {
+      cut++;
+      continue;
+    }
     try {
       const raw = decodePage(readMemo(r.Words, memoFile)).replace(/\0/g, '');
       const words = /^\s*\{\\rtf/.test(raw) ? rtfText(raw) : raw;
       songs.push(songFromWords(r.Title, words, details(r.Author, r.Copyright, r.Administrator, r['Song Number'])));
-    } catch { empty++; }
+    } catch {
+      empty++;
+    }
   }
   return { songs, cut, empty };
 }
@@ -158,8 +193,15 @@ export function parseEasyWorship(db, mb) {
 export function sectionsFromRtf6(rtf) {
   const sections = [];
   let slide = [];
-  const endSlide = () => { if (slide.length) { if (!sections.length) sections.push({ name: 'Slides', slides: [] }); sections.at(-1).slides.push(slide.join('\n')); } slide = []; };
-  for (const [para] of rtf.matchAll(/\{\\pard(?:[^{}]|\{[^{}]*\})*\}/g)) { // each paragraph, a group of its own
+  const endSlide = () => {
+    if (slide.length) {
+      if (!sections.length) sections.push({ name: 'Slides', slides: [] });
+      sections.at(-1).slides.push(slide.join('\n'));
+    }
+    slide = [];
+  };
+  for (const [para] of rtf.matchAll(/\{\\pard(?:[^{}]|\{[^{}]*\})*\}/g)) {
+    // each paragraph, a group of its own
     const words = rtfText(`{\\rtf1${para}}`).replace(/\s+/g, ' ').trim();
     if (/\\sdparawysiwghidden\b/.test(para)) {
       endSlide();
@@ -176,7 +218,8 @@ export function sectionsFromRtf6(rtf) {
 /** The songs in an EasyWorship 6 or 7 library: Songs.db's bytes and SongWords.db's. Returns { songs, empty }: empty
  * counts songs with no words. */
 export function parseEasyWorship6(songsDb, wordsDb) {
-  const songs = readSqlite(songsDb, n => n === 'song').song, words = readSqlite(wordsDb, n => n === 'word').word;
+  const songs = readSqlite(songsDb, n => n === 'song').song,
+    words = readSqlite(wordsDb, n => n === 'word').word;
   if (!songs || !words) throw new Error('not an EasyWorship 6 song library');
   const bySong = new Map(words.rows.map(w => [w.song_id, w.words]));
   const out = [];
@@ -188,10 +231,14 @@ export function parseEasyWorship6(songsDb, wordsDb) {
       const meta = details(s.author, s.copyright, s.administrator, s.reference_number);
       // Songs typed in EasyWorship 6 or later mark their sections and slides; older ones it brought in (and the
       // songs it comes with) are plain RTF laid out as in EasyWorship 2009.
-      out.push(/\\sd(parawysiwghidden|slidemarker)\b/.test(rtf)
-        ? songFromSections(s.title, sectionsFromRtf6(rtf), meta)
-        : songFromWords(s.title, rtfText(rtf), meta));
-    } catch { empty++; }
+      out.push(
+        /\\sd(parawysiwghidden|slidemarker)\b/.test(rtf)
+          ? songFromSections(s.title, sectionsFromRtf6(rtf), meta)
+          : songFromWords(s.title, rtfText(rtf), meta),
+      );
+    } catch {
+      empty++;
+    }
   }
   return { songs: out, empty };
 }
@@ -201,5 +248,7 @@ export function easyWorship6Kind(bytes) {
   try {
     const names = tableNames(bytes);
     return names.includes('song') ? 'songs' : names.includes('word') ? 'words' : '';
-  } catch { return ''; }
+  } catch {
+    return '';
+  }
 }

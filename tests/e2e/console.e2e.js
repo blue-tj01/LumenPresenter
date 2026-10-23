@@ -14,7 +14,8 @@ const { LumenServer } = require('../../server.js');
 let browser;
 /** @type {LumenServer} */
 let srv;
-let data = '', url = '';
+let data = '',
+  url = '';
 /** @type {string[]} */
 let errors = [];
 /** @type {import('playwright').Page[]} */
@@ -23,12 +24,15 @@ let pages = [];
 before(async () => {
   browser = await chromium.launch(process.env.LUMEN_CHROMIUM ? { executablePath: process.env.LUMEN_CHROMIUM } : {});
 });
-after(async () => { await browser.close(); });
+after(async () => {
+  await browser.close();
+});
 beforeEach(async () => {
   data = fs.mkdtempSync(path.join(os.tmpdir(), 'lumen-e2e-'));
   srv = new LumenServer({ host: '127.0.0.1', port: 0, data });
   url = `http://127.0.0.1:${await srv.listen()}/`;
-  errors = []; pages = [];
+  errors = [];
+  pages = [];
 });
 afterEach(async () => {
   const seen = [...errors];
@@ -38,14 +42,17 @@ afterEach(async () => {
   assert.deepEqual(seen, [], 'no errors in the pages');
 });
 
-/** A page of Lumen, with its errors collected. */
-async function open(page = '') {
+/** A page of Lumen, with its errors collected. The first-run setup a new library opens with is skipped, unless asked. */
+async function open(page = '', setup = 'skip') {
   const p = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   pages.push(p);
   p.on('pageerror', e => errors.push(`${page || 'console'}: ${e.message}`));
-  p.on('console', m => { if (m.type() === 'error') errors.push(`${page || 'console'}: ${m.text()} ${m.location().url}`); });
+  p.on('console', m => {
+    if (m.type() === 'error') errors.push(`${page || 'console'}: ${m.text()} ${m.location().url}`);
+  });
   await p.goto(url + page);
   if (!page) await p.waitForSelector('#libList li');
+  if (!page && setup === 'skip' && (await p.isVisible('#setupDialog'))) await p.click('#setupSkip');
   return p;
 }
 const songs = p => p.$$eval('#libList li', l => l.map(li => li.textContent.replace('♪', '').trim()));
@@ -64,7 +71,10 @@ async function rename(p, from, to) {
 }
 /** Wait until a condition on the page holds, or fail after a few seconds. */
 async function until(fn, what) {
-  for (let i = 0; i < 100; i++) { if (await fn()) return; await new Promise(r => setTimeout(r, 100)); }
+  for (let i = 0; i < 100; i++) {
+    if (await fn()) return;
+    await new Promise(r => setTimeout(r, 100));
+  }
   assert.fail(`timed out waiting for ${what}`);
 }
 
@@ -76,9 +86,15 @@ describe('console', () => {
     await until(async () => (await songs(c)).includes('Test Hymn'), 'the new song in the library');
     await c.click('#libList li:has-text("Test Hymn")');
     await c.click('#slideGrid .slide >> nth=0');
-    await until(async () => (await out.textContent('#screen'))?.includes('First line of the hymn'), 'the slide on the output');
+    await until(
+      async () => (await out.textContent('#screen'))?.includes('First line of the hymn'),
+      'the slide on the output',
+    );
     await c.keyboard.press('ArrowRight');
-    await until(async () => (await out.textContent('#screen'))?.includes('Sing the chorus'), 'the next slide on the output');
+    await until(
+      async () => (await out.textContent('#screen'))?.includes('Sing the chorus'),
+      'the next slide on the output',
+    );
     await c.keyboard.press('F1');
     await until(async () => !(await out.textContent('#screen'))?.includes('Sing the chorus'), 'the output cleared');
     await c.waitForTimeout(600); // the save is sent a moment after the change
@@ -94,7 +110,10 @@ describe('console', () => {
     const b = await open();
     await Promise.all([rename(a, 'Amazing Grace', 'Grace (A)'), rename(b, 'Doxology', 'Doxology (B)')]);
     for (const p of [a, b]) {
-      await until(async () => { const s = await songs(p); return s.includes('Grace (A)') && s.includes('Doxology (B)'); }, 'both changes on both screens');
+      await until(async () => {
+        const s = await songs(p);
+        return s.includes('Grace (A)') && s.includes('Doxology (B)');
+      }, 'both changes on both screens');
     }
     await Promise.all([rename(a, 'Be Thou My Vision', 'Vision (A)'), rename(b, 'Be Thou My Vision', 'Vision (B)')]);
     await until(async () => {
@@ -102,7 +121,35 @@ describe('console', () => {
       return sa.some(n => n.startsWith('Vision')) && sa.join() === sb.join();
     }, 'both screens to agree on one version');
     const toasts = [await a.textContent('#toast'), await b.textContent('#toast')];
-    assert.ok(toasts.some(t => /changed on another screen/.test(t || '')), 'one console says its change was not kept');
+    assert.ok(
+      toasts.some(t => /changed on another screen/.test(t || '')),
+      'one console says its change was not kept',
+    );
+  });
+
+  it('keeps messages and songs both operators add at the same moment', async () => {
+    const a = await open();
+    await until(async () => (await (await fetch(url + 'api/library')).json()).library !== null, 'the library saved');
+    const b = await open();
+    const say = async (p, text) => {
+      await p.click('.tabs > button[data-tab="msg"]');
+      await p.fill('#msgInput', text);
+      await p.click('#msgShow');
+    };
+    await Promise.all([say(a, 'Car park full'), say(b, 'Coffee after')]);
+    await Promise.all([writeSong(a, 'Song from A', '[Verse 1]\nA'), writeSong(b, 'Song from B', '[Verse 1]\nB')]);
+    for (const p of [a, b]) {
+      await until(async () => {
+        const msgs = await p.$$eval('#msgList li', l => l.map(li => li.textContent));
+        const s = await songs(p);
+        return (
+          msgs.some(m => m.includes('Car park full')) &&
+          msgs.some(m => m.includes('Coffee after')) &&
+          s.includes('Song from A') &&
+          s.includes('Song from B')
+        );
+      }, 'both messages and both songs on both screens');
+    }
   });
 
   it('starts over only once START OVER is typed, and puts the library back from a backup', async () => {
@@ -135,7 +182,7 @@ describe('console', () => {
     await until(async () => !(await songs(c)).includes('Doxology'), 'the song deleted');
     await c.keyboard.press('Control+z');
     await until(async () => (await songs(c)).includes('Doxology'), 'the song back');
-    assert.match(await c.textContent('#toast') || '', /Undid “Doxology”/);
+    assert.match((await c.textContent('#toast')) || '', /Undid “Doxology”/);
     await c.keyboard.press('Control+Shift+z');
     await until(async () => !(await songs(c)).includes('Doxology'), 'the song deleted again');
     await c.click('#btnUndo');
@@ -147,18 +194,61 @@ describe('console', () => {
   });
 
   it('draws a large library a page at a time', async () => {
-    const lib = { format: 2, presentations: Array.from({ length: 3000 }, (_, i) => ({ id: `p${i}`, name: `Song ${i}`,
-      groups: [{ id: 'g', name: 'Verse 1', slides: [{ id: 's', text: `Words of song ${i}` }] }] })), playlist: [] };
-    const r = await fetch(url + 'api/library', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ library: lib }) });
+    const lib = {
+      format: 2,
+      presentations: Array.from({ length: 3000 }, (_, i) => ({
+        id: `p${i}`,
+        name: `Song ${i}`,
+        groups: [{ id: 'g', name: 'Verse 1', slides: [{ id: 's', text: `Words of song ${i}` }] }],
+      })),
+      playlist: [],
+    };
+    const r = await fetch(url + 'api/library', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ library: lib }),
+    });
     assert.equal(r.status, 200);
     const c = await open();
     const count = () => c.$$eval('#libList li[data-id]', l => l.length);
     assert.equal(await count(), 150);
     assert.deepEqual((await songs(c)).slice(0, 3), ['Song 0', 'Song 1', 'Song 2']); // numbers in order, not 0, 1, 10
-    await c.$eval('#libList', ul => { ul.scrollTop = ul.scrollHeight; });
-    await until(async () => await count() > 150, 'more songs as the list scrolls');
+    await c.$eval('#libList', ul => {
+      ul.scrollTop = ul.scrollHeight;
+    });
+    await until(async () => (await count()) > 150, 'more songs as the list scrolls');
     await c.fill('#libSearch', 'song 2999');
     await until(async () => (await songs(c))[0]?.startsWith('Song 2999'), 'the search result');
+  });
+
+  it('walks through the first-run setup once, on a new library', async () => {
+    const c = await open('', 'keep');
+    await c.waitForSelector('#setupDialog:not([hidden])');
+    await c.click('#setupEmpty'); // no demo songs
+    await until(async () => (await c.$$('#libList li[data-id]')).length === 0, 'an empty library');
+    assert.equal(await c.isVisible('#setupScreensWeb'), true); // in a browser: how to place the windows
+    await c.click('#setupNext');
+    await c.fill('#setupLicence', '123456');
+    await c.press('#setupLicence', 'Tab');
+    await c.click('#setupNext');
+    await c.click('#setupLooks .setup-look >> nth=1');
+    assert.equal(await c.getAttribute('#setupLooks .setup-look >> nth=1', 'aria-pressed'), 'true');
+    await c.click('#setupNext');
+    assert.match((await c.textContent('#setupSummary')) || '', /An empty library/);
+    await c.click('#setupNext');
+    await c.waitForSelector('#setupDialog', { state: 'hidden' });
+    await until(async () => {
+      const lib = (await (await fetch(url + 'api/library')).json()).library;
+      return lib?.setupDone && lib.ccliLicence === '123456' && lib.defaultTemplateId && lib.presentations.length === 0;
+    }, 'the choices saved');
+    await c.reload();
+    await c.waitForTimeout(500);
+    assert.equal(await c.isVisible('#setupDialog'), false, 'not shown again');
+    await c.click('#btnLibrary');
+    await c.click('#btnSetup');
+    assert.equal(await c.isVisible('#setupDialog'), true, 'brought back from the Library dialog');
+    await c.keyboard.press('Escape');
+    await c.waitForSelector('#setupDialog', { state: 'hidden' });
   });
 
   it('keeps the stage display, network and control settings under Setup', async () => {

@@ -1,3 +1,4 @@
+// @ts-check
 // Sends the audience output over the network as an NDI source, for vision mixers, streaming software and other
 // computers to pick up without OBS in between. The output page is drawn in a hidden window and each frame goes
 // to NDI as it is. Picture only: video sound still plays from this computer. With a transparent background (the
@@ -12,8 +13,11 @@ const DEFAULTS = { on: false, size: '1920x1080', fps: 30, alpha: true };
 
 /** The NDI library, or why it can't be used. */
 function loadNdi() {
-  try { return { ndi: ndiLib.open() }; }
-  catch (e) { return { error: e.message, missing: e.code === 'NDI_MISSING' }; }
+  try {
+    return { ndi: ndiLib.open() };
+  } catch (e) {
+    return { error: e.message, missing: e.code === 'NDI_MISSING' };
+  }
 }
 
 /** Chromium paints with premultiplied alpha and NDI's BGRA is straight alpha, so each part-covered pixel's colour is
@@ -22,9 +26,9 @@ function unpremultiply(data) {
   for (let i = 3; i < data.length; i += 4) {
     const a = data[i];
     if (a === 0 || a === 255) continue;
-    data[i - 3] = Math.min(255, Math.round(data[i - 3] * 255 / a));
-    data[i - 2] = Math.min(255, Math.round(data[i - 2] * 255 / a));
-    data[i - 1] = Math.min(255, Math.round(data[i - 1] * 255 / a));
+    data[i - 3] = Math.min(255, Math.round((data[i - 3] * 255) / a));
+    data[i - 2] = Math.min(255, Math.round((data[i - 2] * 255) / a));
+    data[i - 1] = Math.min(255, Math.round((data[i - 1] * 255) / a));
   }
   return data;
 }
@@ -33,20 +37,41 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 class NdiOutput {
   /** onChange is called when what the menu shows changes (on, off, receivers connected). */
-  constructor({ electron, origin, webPreferences, settings, save, onChange, load = loadNdi, name = 'Lumen Presenter',
-    platform = process.platform }) {
-    Object.assign(this, { electron, origin, webPreferences, settings, save, onChange, load, name, platform });
+  constructor({
+    electron,
+    origin,
+    webPreferences,
+    settings,
+    save,
+    onChange,
+    load = loadNdi,
+    name = 'Lumen Presenter',
+    platform = process.platform,
+  }) {
+    this.electron = electron;
+    this.origin = origin;
+    this.webPreferences = webPreferences;
+    this.settings = settings;
+    this.save = save;
+    this.onChange = onChange;
+    this.load = load;
+    this.name = name;
+    this.platform = platform;
     this.settings.ndi = { ...DEFAULTS, ...this.settings.ndi };
     this.sender = null;
     this.win = null;
-    this.frame = null;   // the latest picture, sent again until the page draws a new one
+    this.frame = null; // the latest picture, sent again until the page draws a new one
     this.sending = null; // the frame NDI is reading now
     this.receivers = 0;
     this.error = '';
   }
 
-  get config() { return this.settings.ndi; }
-  get on() { return !!this.sender; }
+  get config() {
+    return this.settings.ndi;
+  }
+  get on() {
+    return !!this.sender;
+  }
 
   /** The library, loaded once found. Until then it is looked for again each time, so NDI installed while Lumen
    * is open is found without restarting. */
@@ -64,14 +89,18 @@ class NdiOutput {
   async set(on) {
     this.settings.ndi = { ...this.config, on };
     this.save();
-    if (on) this.start(); else await this.stop();
+    if (on) this.start();
+    else await this.stop();
   }
 
   /** Start sending (at launch, when it was on last time). False if NDI can't be used here. */
   start() {
     if (this.sender) return true;
     const ndi = this.lib();
-    if (!ndi) { this.onChange(); return false; }
+    if (!ndi) {
+      this.onChange();
+      return false;
+    }
     try {
       this.sender = ndi.send({ name: this.name });
       this.error = '';
@@ -108,7 +137,10 @@ class NdiOutput {
   async configure(change) {
     this.settings.ndi = { ...this.config, ...change };
     this.save();
-    if (this.sender) { await this.stop(); this.start(); }
+    if (this.sender) {
+      await this.stop();
+      this.start();
+    }
   }
 
   /** The output page, drawn off screen at the size NDI sends. */
@@ -116,9 +148,15 @@ class NdiOutput {
     const { BrowserWindow } = this.electron;
     const [width, height] = this.config.size.split('x').map(Number);
     const alpha = !!this.config.alpha;
-    const win = this.win = new BrowserWindow({ width, height, show: false, frame: false, transparent: alpha,
+    const win = (this.win = new BrowserWindow({
+      width,
+      height,
+      show: false,
+      frame: false,
+      transparent: alpha,
       backgroundColor: alpha ? '#00000000' : '#000000',
-      webPreferences: { ...this.webPreferences, offscreen: { deviceScaleFactor: 1 } } });
+      webPreferences: { ...this.webPreferences, offscreen: { deviceScaleFactor: 1 } },
+    }));
     const wc = win.webContents;
     wc.setFrameRate(this.config.fps);
     wc.on('paint', (e, dirty, image) => {
@@ -126,7 +164,9 @@ class NdiOutput {
       const data = image.toBitmap();
       this.frame = { size: image.getSize(), data: alpha ? unpremultiply(data) : data };
     });
-    win.on('closed', () => { if (this.win === win) this.win = null; });
+    win.on('closed', () => {
+      if (this.win === win) this.win = null;
+    });
     wc.loadURL(`${this.origin}/output.html?display${alpha ? '&alpha' : ''}`);
     this.check();
   }
@@ -136,10 +176,17 @@ class NdiOutput {
   async pump(sender) {
     while (this.sender === sender) {
       const f = this.frame;
-      if (!f) { await wait(1000 / this.config.fps); continue; }
+      if (!f) {
+        await wait(1000 / this.config.fps);
+        continue;
+      }
       this.sending = sender.video({ ...f.size, fps: this.config.fps, data: f.data });
-      try { await this.sending; }
-      catch (e) { console.error(`NDI: ${e.message}`); await wait(1000); }
+      try {
+        await this.sending;
+      } catch (e) {
+        console.error(`NDI: ${e.message}`);
+        await wait(1000);
+      }
     }
   }
 
@@ -148,48 +195,100 @@ class NdiOutput {
   check() {
     if (!this.sender) return;
     const n = this.sender.connections();
-    if (n !== this.receivers) { this.receivers = n; this.onChange(); }
+    if (n !== this.receivers) {
+      this.receivers = n;
+      this.onChange();
+    }
     const wc = this.win?.webContents;
     if (!wc || wc.isDestroyed()) return;
-    const isOutput = other => { try { return new URL(other.getURL()).pathname === '/output.html'; } catch { return false; } };
-    const shown = this.electron.webContents.getAllWebContents()
+    const isOutput = other => {
+      try {
+        return new URL(other.getURL()).pathname === '/output.html';
+      } catch {
+        return false;
+      }
+    };
+    const shown = this.electron.webContents
+      .getAllWebContents()
       .some(other => other !== wc && !other.isDestroyed() && !other.isOffscreen() && isOutput(other));
     if (wc.isAudioMuted() !== shown) wc.setAudioMuted(shown);
   }
 
   /** The source name receivers list, such as 'STUDIO-PC (Lumen Presenter)'. */
   sourceName() {
-    try { return this.sender?.sourcename() || this.name; } catch { return this.name; }
+    try {
+      return this.sender?.sourcename() || this.name;
+    } catch {
+      return this.name;
+    }
   }
 
   /** The NDI Output submenu. */
   menu(rebuild) {
-    const then = fn => async () => { await fn(); rebuild(); };
+    const then = fn => async () => {
+      await fn();
+      rebuild();
+    };
     const available = this.lib() !== null;
     const get = ndiLib.download(this.platform);
     const Name = get.name[0].toUpperCase() + get.name.slice(1);
     const status = !available
-      ? [{ label: this.missing ? `${Name} isn’t installed on this computer` : this.error, enabled: false },
-        ...this.missing ? [{ label: `Get ${get.name}…`, click: () => this.electron.shell.openExternal(get.url) },
-          { label: 'Look for NDI Again', click: then(() => this.lib()) }] : []]
-      : this.error ? [{ label: this.error, enabled: false }]
-      : this.on ? [{ label: `Sending as ${this.sourceName()}`, enabled: false },
-        { label: this.receivers ? `Seen by ${this.receivers} receiver${this.receivers === 1 ? '' : 's'}` : 'No receivers yet', enabled: false }]
-      : [];
-    return { label: 'NDI Output', submenu: [
-      { label: 'Send Audience Output over NDI', type: 'checkbox', checked: this.on, enabled: available,
-        click: then(() => this.set(!this.on)) },
-      ...status.length ? [{ type: 'separator' }, ...status] : [],
-      { type: 'separator' },
-      { label: 'Words Only, on a Transparent Background', type: 'checkbox', checked: !!this.config.alpha,
-        click: then(() => this.configure({ alpha: !this.config.alpha })) },
-      { type: 'separator' },
-      ...Object.entries(SIZES).map(([size, label]) => ({ label, type: 'radio', checked: this.config.size === size,
-        click: then(() => this.configure({ size })) })),
-      { type: 'separator' },
-      ...RATES.map(fps => ({ label: `${fps} frames a second`, type: 'radio', checked: this.config.fps === fps,
-        click: then(() => this.configure({ fps })) })),
-    ] };
+      ? [
+          { label: this.missing ? `${Name} isn’t installed on this computer` : this.error, enabled: false },
+          ...(this.missing
+            ? [
+                { label: `Get ${get.name}…`, click: () => this.electron.shell.openExternal(get.url) },
+                { label: 'Look for NDI Again', click: then(() => this.lib()) },
+              ]
+            : []),
+        ]
+      : this.error
+        ? [{ label: this.error, enabled: false }]
+        : this.on
+          ? [
+              { label: `Sending as ${this.sourceName()}`, enabled: false },
+              {
+                label: this.receivers
+                  ? `Seen by ${this.receivers} receiver${this.receivers === 1 ? '' : 's'}`
+                  : 'No receivers yet',
+                enabled: false,
+              },
+            ]
+          : [];
+    return {
+      label: 'NDI Output',
+      submenu: [
+        {
+          label: 'Send Audience Output over NDI',
+          type: 'checkbox',
+          checked: this.on,
+          enabled: available,
+          click: then(() => this.set(!this.on)),
+        },
+        ...(status.length ? [{ type: 'separator' }, ...status] : []),
+        { type: 'separator' },
+        {
+          label: 'Words Only, on a Transparent Background',
+          type: 'checkbox',
+          checked: !!this.config.alpha,
+          click: then(() => this.configure({ alpha: !this.config.alpha })),
+        },
+        { type: 'separator' },
+        ...Object.entries(SIZES).map(([size, label]) => ({
+          label,
+          type: 'radio',
+          checked: this.config.size === size,
+          click: then(() => this.configure({ size })),
+        })),
+        { type: 'separator' },
+        ...RATES.map(fps => ({
+          label: `${fps} frames a second`,
+          type: 'radio',
+          checked: this.config.fps === fps,
+          click: then(() => this.configure({ fps })),
+        })),
+      ],
+    };
   }
 }
 

@@ -9,10 +9,15 @@ function options(argv = process.argv.slice(2), env = process.env) {
   const { values: v } = parseArgs({
     args: argv,
     options: {
-      host: { type: 'string' }, port: { type: 'string' }, data: { type: 'string' }, token: { type: 'string' },
-      'allowed-host': { type: 'string', multiple: true }, 'max-upload-mb': { type: 'string' },
+      host: { type: 'string' },
+      port: { type: 'string' },
+      data: { type: 'string' },
+      token: { type: 'string' },
+      'allowed-host': { type: 'string', multiple: true },
+      'max-upload-mb': { type: 'string' },
       'media-folder': { type: 'string', multiple: true },
-      verbose: { type: 'boolean', short: 'v' }, help: { type: 'boolean', short: 'h' },
+      verbose: { type: 'boolean', short: 'v' },
+      help: { type: 'boolean', short: 'h' },
     },
   });
   if (v.help) {
@@ -44,7 +49,9 @@ function options(argv = process.argv.slice(2), env = process.env) {
     data: v.data || env.LUMEN_DATA || path.join(APP_DIR, 'data'),
     token: v.token ?? env.LUMEN_TOKEN ?? '',
     allowedHosts: [...(env.LUMEN_ALLOWED_HOSTS || '').split(','), ...(v['allowed-host'] || [])],
-    mediaFolders: [...(env.LUMEN_MEDIA_FOLDERS || '').split(path.delimiter), ...(v['media-folder'] || [])].filter(Boolean),
+    mediaFolders: [...(env.LUMEN_MEDIA_FOLDERS || '').split(path.delimiter), ...(v['media-folder'] || [])].filter(
+      Boolean,
+    ),
     maxUploadMb: int(v['max-upload-mb'] ?? env.LUMEN_MAX_UPLOAD_MB ?? 4096, '--max-upload-mb'),
     verbose: !!v.verbose,
   };
