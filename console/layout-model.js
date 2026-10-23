@@ -17,7 +17,7 @@ export function elementName(el) {
   if (el.name) return el.name;
   if (el.type === 'text') return el.bind ? BINDS.find(([b]) => b === el.bind)?.[1] || 'Text'
     : plainWords(el.content).split('\n')[0].slice(0, 30) || 'Text';
-  if (el.type === 'shape') return el.kind === 'ellipse' ? 'Circle' : 'Box';
+  if (el.type === 'shape') return el.kind === 'ellipse' ? 'Circle' : el.kind === 'line' ? 'Line' : 'Box';
   return KIND[el.type] || el.type;
 }
 
@@ -29,6 +29,8 @@ export function newElement(type, id, src) {
     style: { ...TEXT_STYLE, size: 72, shadow: false } };
   if (type === 'shape') return { id, type, kind: 'rect', frame: box(600, 300), fill: 'rgba(0, 0, 0, 0.5)', radius: 0 };
   if (type === 'ellipse') return { id, type: 'shape', kind: 'ellipse', frame: box(400, 400), fill: 'rgba(255, 255, 255, 0.2)' };
+  // A line runs across its frame's middle, `thickness` pixels thick, so it is turned with the frame's rotation.
+  if (type === 'line') return { id, type: 'shape', kind: 'line', frame: box(800, 40), fill: '#ffffff', thickness: 6 };
   if (type === 'image') return { id, type, src, fit: 'contain', frame: box(640, 360) };
   if (type === 'video') return { id, type, src, fit: 'cover', loop: true, muted: true, frame: box(640, 360) };
   throw new Error(`No element type ${type}`);

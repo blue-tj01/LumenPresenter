@@ -352,3 +352,5 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 4px; color: #ffcf
 .le-words .word-bar { padding: 4px; gap: 3px; }
 .le-words .word-bar .wb-hint { display: none; }
 .le-words textarea { border: 0; border-radius: 0; display: block; }
+.le-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.le-paint { display: flex; flex-direction: column; gap: 6px; }

@@ -222,7 +222,7 @@ function renderLayers() {
     li.innerHTML = `<span class="k"></span><span class="n"><span></span><small></small></span>` +
       `<button class="le-tog" data-k="hidden" title="Show or hide">${el.hidden ? '◌' : '👁'}</button>` +
       `<button class="le-tog" data-k="locked" title="Lock in place">${el.locked ? '🔒' : '🔓'}</button>`;
-    li.querySelector('.k').textContent = el.type === 'shape' && el.kind === 'ellipse' ? '●' : ICON[el.type] || '?';
+    li.querySelector('.k').textContent = el.type === 'shape' && el.kind === 'ellipse' ? '●' : el.kind === 'line' ? '―' : ICON[el.type] || '?';
     li.querySelector('.n span').textContent = elementName(el);
     li.querySelector('small').textContent = [what, when].filter(Boolean).join(' · ');
     li.onclick = e => {
@@ -335,6 +335,23 @@ function colour(value, apply, none) {
   toggle();
   return node('div', { className: 'le-colour' }, node('label', { className: 'le-chk' }, on, none), row);
 }
+// A fill: none (when `none` names it), a colour with its opacity, or a two-colour gradient.
+function paint(value, apply, none) {
+  const g = parseGradient(value), kind = !value ? '' : g ? 'gradient' : 'color';
+  const kinds = [...none ? [['', none]] : [], ['color', 'Colour'], ['gradient', 'Gradient']];
+  const out = [choice(kinds, kind, v => {
+    if (!v) apply(null);
+    else if (v === 'color') apply(g ? g.from : value || '#ffffff');
+    else if (v === 'gradient') apply(gradient({ angle: 90, from: g?.from || (value && parseColor(value).hex) || '#ffd54f', to: '#ff5a5a' }));
+  })];
+  if (kind === 'color') out.push(colour(value, apply));
+  if (kind === 'gradient') {
+    const upd = k => v => { if (v == null) return; g[k] = v; apply(gradient(g)); };
+    out.push(node('div', { className: 'le-grid3' }, field('From', input('color', parseColor(g.from).hex, upd('from'))),
+      field('To', input('color', parseColor(g.to).hex, upd('to'))), field('Angle °', input('number', g.angle, upd('angle'), { min: 0, max: 360, step: 15 }))));
+  }
+  return node('div', { className: 'le-paint' }, ...out);
+}
 
 function renderInspector() {
   const box = $('#leInspector'); box.innerHTML = '';
@@ -389,12 +406,19 @@ function renderInspector() {
       node('div', { className: 'le-row le-segs' }, seg([['left', 'Left'], ['center', 'Centre'], ['right', 'Right']], st.align || 'center', setS('align')),
         seg([['top', 'Top'], ['middle', 'Middle'], ['bottom', 'Bottom']], st.valign || 'middle', setS('valign'))),
       field('Too long for the box', choice([['shrink', 'Shrink to fit'], ['none', 'Leave as it is']], st.fit || 'shrink', setS('fit'))),
-      field('Box behind the words', colour(el.fill, v => { if (v) el.fill = v; else delete el.fill; }, 'Fill')));
+      field('Box behind the words', paint(el.fill, v => { if (v) el.fill = v; else delete el.fill; }, 'None')));
   }
-  if (el.type === 'shape') {
+  if (el.type === 'shape' && el.kind === 'line') {
+    box.append(node('div', { className: 'sub-h', textContent: 'Line' }),
+      field('Colour', paint(el.fill || '#ffffff', v => { el.fill = v; })),
+      node('div', { className: 'le-grid2' },
+        field('Thickness px', input('number', el.thickness || 4, v => { if (v > 0) el.thickness = v; }, { min: 1, max: 200 })),
+        node('div', { className: 'le-checks' }, check('Rounded ends', el.round, v => { if (v) el.round = true; else delete el.round; }))),
+      node('p', { className: 'muted small', textContent: 'Turn it with the round handle, or Rotate above, for a slanted or upright line.' }));
+  } else if (el.type === 'shape') {
     box.append(node('div', { className: 'sub-h', textContent: 'Shape' }),
       field('Kind', choice([['rect', 'Rectangle'], ['ellipse', 'Circle or oval']], el.kind || 'rect', v => { el.kind = v; })),
-      field('Fill', colour(el.fill, v => { if (v) el.fill = v; else delete el.fill; }, 'Fill')),
+      field('Fill', paint(el.fill, v => { if (v) el.fill = v; else delete el.fill; }, 'None')),
       node('div', { className: 'le-grid2' },
         field('Border px', input('number', el.stroke?.width || 0, v => { if (v > 0) el.stroke = { color: '#ffffff', ...el.stroke, width: v }; else delete el.stroke; }, { min: 0, max: 60 })),
         field('Border colour', input('color', parseColor(el.stroke?.color || '#ffffff').hex, v => { el.stroke = { width: 2, ...el.stroke, color: v }; }))));

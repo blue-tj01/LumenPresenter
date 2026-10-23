@@ -59,7 +59,12 @@
       inner = document.createElement('img'); inner.src = e.src; inner.alt = '';
       inner.style.objectFit = FIT[e.fit] || 'contain';
     } else if (e.type === 'video') inner = makeVideo(e, opts);
-    else if (e.type === 'shape') {
+    else if (e.type === 'shape' && e.kind === 'line') {
+      inner = document.createElement('div');
+      const th = Math.max(1, e.thickness || 4);
+      Object.assign(inner.style, { position: 'absolute', left: 0, right: 0, top: `calc(50% - ${th / 2}px)`, height: th + 'px',
+        background: e.fill || '#fff', borderRadius: e.round ? th / 2 + 'px' : 0 });
+    } else if (e.type === 'shape') {
       inner = document.createElement('div');
       Object.assign(inner.style, { width: '100%', height: '100%', boxSizing: 'border-box', background: e.fill || 'none',
         borderRadius: e.kind === 'ellipse' ? '50%' : (e.radius || 0) + 'px', border: e.stroke ? `${e.stroke.width || 2}px solid ${e.stroke.color || '#fff'}` : 'none' });
