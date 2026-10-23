@@ -100,6 +100,7 @@
   let libRev = 0, pendingLib = null, sendingLib = false, libTimer = null;
   let synced = null; // the library as the server has it at libRev: {lists: {name: {items: Map id → JSON, order}}, fields: Map}
   let stale = false; // the server changed elsewhere while a save was waiting; load it again once saved
+  let emptyAtLoad = false; // the server had no library yet: the first save goes only if no other console's did
   const libBusy = () => sendingLib || !!pendingLib;
 
   /** A library as its saved parts, or null if a list has an item without an id of its own. */
@@ -154,7 +155,7 @@
 
   async function loadLibrary() {
     const r = await request('GET', 'api/library');
-    libRev = r.rev; synced = snapshot(r.library); stale = false;
+    libRev = r.rev; synced = snapshot(r.library); stale = false; emptyAtLoad = r.library === null;
     return r.library;
   }
   function saveLibrary(lib) {
@@ -177,11 +178,14 @@
         if (r.prev !== base) stale = true; // changed elsewhere too
         if (r.conflicts.length) { stale = true; emit('conflict', r.conflicts); }
       } else {
-        libRev = (await request('PUT', 'api/library', { client, library: lib })).rev; synced = next;
+        const ifEmpty = emptyAtLoad; // the server had no library when this page loaded
+        libRev = (await request('PUT', 'api/library', { client, library: lib, ...(ifEmpty ? { ifEmpty } : {}) })).rev; synced = next;
+        emptyAtLoad = false;
       }
     } catch (e) {
       if (!pendingLib) pendingLib = lib;
-      if (e.status === 401 || e.status === 400 || e.status === 413) { pendingLib = null; emit('error', `Library not saved: ${e.message}`); }
+      if (e.status === 409) { pendingLib = null; stale = true; } // another console saved the first library: load it
+      else if (e.status === 401 || e.status === 400 || e.status === 413) { pendingLib = null; emit('error', `Library not saved: ${e.message}`); }
       else { retry = true; emit('error', 'Server unreachable — library will be saved when it reconnects'); }
     } finally { sendingLib = false; }
     if (retry) setTimeout(flushLib, 3000);

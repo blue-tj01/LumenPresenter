@@ -15,6 +15,9 @@ module.exports = {
     if (!isObject(lib) || !Array.isArray(lib.presentations)) throw bad('library.presentations must be a list');
     // A page from before an update would write the library back in its older format, losing what the newer one added.
     if ((lib.format || 1) < (this.store.library?.format || 1)) throw bad('this page is older than the library; reload it');
+    // A console that found no library brings its own (this browser's copy, or the demo); if another got there
+    // first, it loads that one instead.
+    if (body.ifEmpty === true && this.store.library !== null) return this.error(409, 'there is a library already');
     const origin = String(body.client ?? '');
     const rev = this.store.setLibrary(lib, body.replace === true);
     this.sendJson({ rev });

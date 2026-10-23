@@ -219,6 +219,12 @@ describe('server', () => {
     assert.equal((await t.req('PATCH', '/api/library', { base: 1 })).status, 400);
   });
 
+  it('keeps the first library when two consoles bring one to an empty server', async () => {
+    assert.equal((await t.req('PUT', '/api/library', { library: LIB, ifEmpty: true })).status, 200);
+    assert.equal((await t.req('PUT', '/api/library', { library: { presentations: [] }, ifEmpty: true })).status, 409);
+    assert.deepEqual((await t.req('GET', '/api/library')).json.library, LIB);
+  });
+
   it('validates the library', async () => {
     assert.equal((await t.req('PUT', '/api/library', { library: { nope: 1 } })).status, 400);
     assert.equal((await t.req('PUT', '/api/library', 'not json', { 'Content-Type': 'application/json' })).status, 400);

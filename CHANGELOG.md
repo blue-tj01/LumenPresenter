@@ -13,6 +13,8 @@ What changed in each release of Lumen Presenter, newest first. Changes waiting f
 - Two consoles changing different songs at the same time no longer lose one of the changes. When both change the
   same song, the first saved is kept and the other console says which song it was.
 - Other consoles receive just the change, instead of loading the whole library again.
+- Two consoles opened on a new, empty server no longer each save their own demo library: the second loads the
+  first one's.
 - Import, Export and Reset move from the top bar into a **Library…** dialog. Starting over needs START OVER typed,
   and importing asks first.
 - The browser's own copy of the library moves from localStorage (about 5 MB) to IndexedDB.

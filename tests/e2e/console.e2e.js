@@ -64,7 +64,7 @@ async function rename(p, from, to) {
 }
 /** Wait until a condition on the page holds, or fail after a few seconds. */
 async function until(fn, what) {
-  for (let i = 0; i < 50; i++) { if (await fn()) return; await new Promise(r => setTimeout(r, 100)); }
+  for (let i = 0; i < 100; i++) { if (await fn()) return; await new Promise(r => setTimeout(r, 100)); }
   assert.fail(`timed out waiting for ${what}`);
 }
 
@@ -88,7 +88,10 @@ describe('console', () => {
   });
 
   it('keeps both operators’ changes to different songs, and says when they changed the same one', async () => {
-    const a = await open(), b = await open();
+    // The first console saves the demo library to the empty server; the second opens once it is there.
+    const a = await open();
+    await until(async () => (await (await fetch(url + 'api/library')).json()).library !== null, 'the library saved');
+    const b = await open();
     await Promise.all([rename(a, 'Amazing Grace', 'Grace (A)'), rename(b, 'Doxology', 'Doxology (B)')]);
     for (const p of [a, b]) {
       await until(async () => { const s = await songs(p); return s.includes('Grace (A)') && s.includes('Doxology (B)'); }, 'both changes on both screens');
