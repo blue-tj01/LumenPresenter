@@ -13,6 +13,9 @@ What changed in each release of Lumen Presenter, newest first. Changes waiting f
 - Two consoles changing different songs at the same time no longer lose one of the changes. When both change the
   same song, the first saved is kept and the other console says which song it was.
 - Other consoles receive just the change, instead of loading the whole library again.
+- Themes, media, fonts, messages, the playlist and the CCLI usage record are merged an item at a time too, so two
+  consoles adding a theme, a picture or a message at the same moment both keep theirs.
+- Adding a song no longer sends the order of the whole library with it.
 - Two consoles opened on a new, empty server no longer each save their own demo library: the second loads the
   first one's.
 - Import, Export and Reset move from the top bar into a **Library…** dialog. Starting over needs START OVER typed,

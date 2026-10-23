@@ -118,6 +118,33 @@
     }
     return { lists, fields };
   }
+  /** Whether `next` is `prev` with some keys taken out and new ones added at the end, which needs no order sent. */
+  function appendOnly(prev, next) {
+    const had = new Set(prev), has = new Set(next);
+    const kept = prev.filter(k => has.has(k)), added = next.filter(k => !had.has(k));
+    return next.length === kept.length + added.length && [...kept, ...added].every((k, i) => k === next[i]);
+  }
+  /** How a list field's items are told apart: by id when every one has its own ('id'), by value when they are
+   * plain and all different ('value'), or not at all (null: the field is sent whole). */
+  function listMode(v) {
+    if (!Array.isArray(v)) return null;
+    const ids = v.map(x => (x && typeof x === 'object' && typeof x.id === 'string' ? x.id : null));
+    if (v.length && !ids.includes(null) && new Set(ids).size === ids.length) return 'id';
+    const values = v.map(x => JSON.stringify(x));
+    return new Set(values).size === values.length ? 'value' : null;
+  }
+  /** A list field's change as items put and removed, and its order when that can't be worked out, or null when
+   * it has to be sent whole. Two consoles adding a theme or a picture at once then both keep theirs. */
+  function fieldChange(before, after) {
+    const mode = listMode(after);
+    if (!mode || !Array.isArray(before) || (before.length && listMode(before) !== mode)) return null;
+    const keyOf = mode === 'id' ? x => x.id : x => JSON.stringify(x);
+    const was = new Map(before.map(x => [keyOf(x), JSON.stringify(x)]));
+    const keys = after.map(keyOf), has = new Set(keys);
+    const put = after.filter(x => was.get(keyOf(x)) !== JSON.stringify(x));
+    const remove = [...was.keys()].filter(k => !has.has(k));
+    return { mode, put, remove, ...(appendOnly([...was.keys()], keys) ? {} : { order: keys }) };
+  }
   /** What changed from `from` to `to` as the server's PATCH takes it, or {} if nothing did. A list that appeared
    * or went is every item added or removed. */
   function diff(to, from) {
@@ -129,11 +156,18 @@
       const put = [...b.items].filter(([id, json]) => a.items.get(id) !== json).map(([, json]) => JSON.parse(json));
       const remove = a.order.filter(id => !b.items.has(id));
       const moved = a.order.length !== b.order.length || b.order.some((id, i) => id !== a.order[i]);
-      if (put.length || remove.length || moved) changes[name] = { put, remove, ...(moved ? { order: b.order } : {}) };
+      if (put.length || remove.length || moved) changes[name] = { put, remove, ...(appendOnly(a.order, b.order) ? {} : { order: b.order }) };
     }
-    const set = Object.fromEntries([...to.fields].filter(([k, json]) => from.fields.get(k) !== json).map(([k, json]) => [k, JSON.parse(json)]));
+    const set = {}, merge = {};
+    for (const [k, json] of to.fields) {
+      if (from.fields.get(k) === json) continue;
+      const v = JSON.parse(json);
+      const m = from.fields.has(k) ? fieldChange(JSON.parse(from.fields.get(k)), v) : null;
+      if (m) merge[k] = m; else set[k] = v;
+    }
     const unset = [...from.fields.keys()].filter(k => !to.fields.has(k));
     if (Object.keys(set).length) changes.set = set;
+    if (Object.keys(merge).length) changes.merge = merge;
     if (unset.length) changes.unset = unset;
     return changes;
   }
@@ -145,7 +179,8 @@
       const byId = new Map((lib[name] || []).map(x => [x.id, x]));
       c.put.forEach(x => byId.set(x.id, x));
       c.remove.forEach(id => byId.delete(id));
-      const order = c.order || (lib[name] || []).map(x => x.id).filter(id => byId.has(id));
+      const had = (lib[name] || []).map(x => x.id);
+      const order = c.order || [...had.filter(id => byId.has(id)), ...c.put.map(x => x.id).filter(id => !had.includes(id))];
       lib[name] = order.map(id => byId.get(id)).filter(Boolean);
     }
     Object.assign(lib, changes.set || {});
@@ -177,6 +212,8 @@
         libRev = r.rev; synced = next;
         if (r.prev !== base) stale = true; // changed elsewhere too
         if (r.conflicts.length) { stale = true; emit('conflict', r.conflicts); }
+        // Fields the server couldn't merge an item at a time: send them whole.
+        if (r.resend?.length) { r.resend.forEach(k => synced.fields.delete(k)); if (!pendingLib) pendingLib = lib; }
       } else {
         const ifEmpty = emptyAtLoad; // the server had no library when this page loaded
         libRev = (await request('PUT', 'api/library', { client, library: lib, ...(ifEmpty ? { ifEmpty } : {}) })).rev; synced = next;
@@ -238,9 +275,10 @@
           const c = ch[name], l = synced.lists[name];
           if (!c) continue;
           if (!l) { emit('library', d); return; }
+          const had = new Set(l.order);
           c.put.forEach(x => l.items.set(x.id, JSON.stringify(x)));
           c.remove.forEach(id => l.items.delete(id));
-          l.order = c.order || l.order.filter(id => l.items.has(id));
+          l.order = c.order || [...l.order.filter(id => l.items.has(id)), ...c.put.map(x => x.id).filter(id => !had.has(id))];
         }
         Object.entries(ch.set || {}).forEach(([k, v]) => synced.fields.set(k, JSON.stringify(v)));
         (ch.unset || []).forEach(k => synced.fields.delete(k));

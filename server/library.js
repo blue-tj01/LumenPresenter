@@ -81,6 +81,36 @@ function keyFor(x, taken, n) {
   return key;
 }
 
+/** Whether `next` is `prev` with some keys taken out and new ones added at the end: an order a change need not
+ * send, as anyone can work it out from what was removed and added. */
+function appendOnly(prev, next) {
+  const had = new Set(prev), has = new Set(next);
+  const kept = prev.filter(k => has.has(k)), added = next.filter(k => !had.has(k));
+  return next.length === kept.length + added.length && [...kept, ...added].every((k, i) => k === next[i]);
+}
+
+/** A list field (themes, media, fonts, messages, the playlist, the usage record) merged with one console's change
+ * to it, {mode, put, remove, order}: items found by id ('id') or, for plain values, by the value itself ('value').
+ * Items added or removed elsewhere stay as they are. Null when the field as kept here can't be read that way. */
+function mergeField(cur, c, mode) {
+  const keyOf = mode === 'id' ? x => (isObject(x) && typeof x.id === 'string' ? x.id : null) : x => JSON.stringify(x);
+  const list = Array.isArray(cur) ? cur : [];
+  const keys = list.map(keyOf);
+  if (keys.includes(null) || new Set(keys).size !== keys.length) return null;
+  const byKey = new Map(list.map((x, i) => [keys[i], x]));
+  for (const k of Array.isArray(c.remove) ? c.remove : []) byKey.delete(k);
+  const added = [];
+  for (const x of Array.isArray(c.put) ? c.put : []) {
+    const k = keyOf(x);
+    if (k === null) return null;
+    if (!byKey.has(k) && !keys.includes(k)) added.push(k);
+    byKey.set(k, x);
+  }
+  const want = Array.isArray(c.order) ? c.order.filter(k => byKey.has(k)) : keys.filter(k => byKey.has(k));
+  const order = [...new Set([...want, ...keys.filter(k => byKey.has(k)), ...added])];
+  return order.map(k => byKey.get(k));
+}
+
 /** before-database-20261020-181500, in local time. */
 const stamp = (d = new Date()) => {
   const p = n => String(n).padStart(2, '0');
@@ -173,10 +203,11 @@ class Library {
   }
 
   /** Changes made in one console since it last had the library at revision `base`: for each list, {put: [items],
-   * remove: [ids], order: [ids]}, and fields to set and unset. A presentation or service changed or deleted here
+   * remove: [ids], order: [ids]}, fields to set and unset, and list fields to merge (mergeField). A presentation or service changed or deleted here
    * since `base` is not touched, and is listed in `conflicts` instead; the rest is applied, the list's order
-   * merged with items added elsewhere. Returns {rev, prev, conflicts, applied}, where `applied` is what changed,
-   * in the same form, to send to the other windows (or null when nothing did). */
+   * merged with items added elsewhere. Returns {rev, prev, conflicts, resend, applied}: `resend` names merged
+   * fields to send whole instead, and `applied` is what changed, in the same form (merged fields as set), to send
+   * to the other windows (or null when nothing did). */
   patch(changes, base) {
     const prev = this.rev;
     const conflicts = [];
@@ -213,7 +244,8 @@ class Library {
       const moved = order.length !== this.order[t].length || order.some((k, i) => k !== this.order[t][i]);
       if (put.length || remove.length || moved) {
         changed = true;
-        out[t] = { put: put.map(([, x]) => x), remove, ...(moved ? { order } : {}) };
+        // The order goes to the other windows only when they can't work it out (more than removing and appending).
+        out[t] = { put: put.map(([, x]) => x), remove, ...(appendOnly(this.order[t], order) ? {} : { order }) };
         out[t]._apply = { put, remove, order };
       }
     }
@@ -221,14 +253,22 @@ class Library {
       if (k in TABLES || this.meta[k] === JSON.stringify(v ?? null)) continue;
       out.set[k] = v ?? null; changed = true;
     }
+    // Lists kept as fields, merged an item at a time; one that can't be read that way is asked for whole.
+    const resend = [];
+    for (const [k, c] of Object.entries(isObject(changes.merge) ? changes.merge : {})) {
+      if (k in TABLES || k in out.set || !isObject(c)) continue;
+      const merged = mergeField(this.fields[k], c, c.mode === 'id' ? 'id' : 'value');
+      if (merged === null) { resend.push(k); continue; }
+      if (this.meta[k] !== JSON.stringify(merged)) { out.set[k] = merged; changed = true; }
+    }
     for (const k of Array.isArray(changes.unset) ? changes.unset : []) {
       if (typeof k === 'string' && k in this.meta && !(k in out.set)) { out.unset.push(k); changed = true; }
     }
-    if (!changed) return { rev: this.rev, prev, conflicts, applied: null };
+    if (!changed) return { rev: this.rev, prev, conflicts, resend, applied: null };
     const apply = { set: out.set, unset: out.unset };
     for (const t of Object.keys(TABLES)) if (out[t]) { apply[t] = out[t]._apply; delete out[t]._apply; }
     this.transaction(() => this.apply(apply, this.rev + 1, nowMs()));
-    return { rev: this.rev, prev, conflicts, applied: out };
+    return { rev: this.rev, prev, conflicts, resend, applied: out };
   }
 
   /** Write changes, each list's as {put: [[key, item]], remove: [keys], order: [keys]}, as revision `rev`. */

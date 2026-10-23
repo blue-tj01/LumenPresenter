@@ -34,8 +34,8 @@ module.exports = {
     if (this.store.library === null) throw bad('there is no library yet; save it whole');
     if ((body.format || 1) < (this.store.library.format || 1)) throw bad('this page is older than the library; reload it');
     const origin = String(body.client ?? '');
-    const { rev, prev, conflicts, applied } = this.store.patchLibrary(body.changes, body.base);
-    this.sendJson({ rev, prev, conflicts });
+    const { rev, prev, conflicts, resend, applied } = this.store.patchLibrary(body.changes, body.base);
+    this.sendJson({ rev, prev, conflicts, resend });
     if (applied) this.srv.hub.send('library', { rev, prev, origin, time: nowMs(), changes: applied });
   },
 

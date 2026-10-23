@@ -263,3 +263,30 @@ it('moves a database from rows by place to rows by id, keeping its search', () =
   lib.close();
   assert.deepEqual(open(dir).library.presentations, [...rows.slice(0, 3), song('b', 'Two again')]);
 });
+
+it('merges themes, media and other list fields an item at a time', () => {
+  const dir = folder();
+  const lib = open(dir);
+  const theme = (id, name) => ({ id, name, size: 80 });
+  lib.set({ presentations: [], templates: [theme('t1', 'One')], media: [], messages: ['Hi'], usage: [{ day: '2026-10-18', id: 'a' }] });
+  // Two consoles at revision 1: one adds a theme, a picture and a message; the other renames a theme, adds a
+  // picture and notes a song used.
+  lib.patch({ merge: { templates: { mode: 'id', put: [theme('t2', 'Two')], remove: [] },
+    media: { mode: 'id', put: [{ id: 'm1', src: 'media/a.png' }], remove: [] },
+    messages: { mode: 'value', put: ['Welcome'], remove: [], order: ['"Welcome"', '"Hi"'] } } }, 1);
+  const r = lib.patch({ merge: { templates: { mode: 'id', put: [theme('t1', 'One renamed')], remove: [] },
+    media: { mode: 'id', put: [{ id: 'm2', src: 'media/b.png' }], remove: [] },
+    usage: { mode: 'value', put: [{ day: '2026-10-25', id: 'a' }], remove: [] } } }, 1);
+  assert.deepEqual(r.resend, []);
+  assert.deepEqual(lib.library.templates.map(t => t.name), ['One renamed', 'Two']);
+  assert.deepEqual(lib.library.media.map(m => m.id), ['m1', 'm2']);
+  assert.deepEqual(lib.library.messages, ['Welcome', 'Hi']);
+  assert.deepEqual(lib.library.usage.map(u => u.day), ['2026-10-18', '2026-10-25']);
+  assert.deepEqual(r.applied.set.media.map(m => m.id), ['m1', 'm2']); // the merged list, for the other windows
+  // Removing one, and a field that can't be read by id, which is asked for whole.
+  lib.set({ ...lib.library, fonts: [{ name: 'No id' }, { name: 'No id' }] });
+  const d = lib.patch({ merge: { media: { mode: 'id', put: [], remove: ['m1'] }, fonts: { mode: 'id', put: [{ id: 'f' }], remove: [] } } }, lib.rev);
+  assert.deepEqual(lib.library.media.map(m => m.id), ['m2']);
+  assert.deepEqual(d.resend, ['fonts']);
+  lib.close();
+});

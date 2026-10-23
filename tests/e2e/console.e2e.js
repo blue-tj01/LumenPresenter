@@ -105,6 +105,23 @@ describe('console', () => {
     assert.ok(toasts.some(t => /changed on another screen/.test(t || '')), 'one console says its change was not kept');
   });
 
+  it('keeps messages and songs both operators add at the same moment', async () => {
+    const a = await open();
+    await until(async () => (await (await fetch(url + 'api/library')).json()).library !== null, 'the library saved');
+    const b = await open();
+    const say = async (p, text) => { await p.click('.tabs > button[data-tab="msg"]'); await p.fill('#msgInput', text); await p.click('#msgShow'); };
+    await Promise.all([say(a, 'Car park full'), say(b, 'Coffee after')]);
+    await Promise.all([writeSong(a, 'Song from A', '[Verse 1]\nA'), writeSong(b, 'Song from B', '[Verse 1]\nB')]);
+    for (const p of [a, b]) {
+      await until(async () => {
+        const msgs = await p.$$eval('#msgList li', l => l.map(li => li.textContent));
+        const s = await songs(p);
+        return msgs.some(m => m.includes('Car park full')) && msgs.some(m => m.includes('Coffee after'))
+          && s.includes('Song from A') && s.includes('Song from B');
+      }, 'both messages and both songs on both screens');
+    }
+  });
+
   it('starts over only once START OVER is typed, and puts the library back from a backup', async () => {
     const c = await open();
     await writeSong(c, 'Keep Me', '[Verse 1]\nDo not lose this');

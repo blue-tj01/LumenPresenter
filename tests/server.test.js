@@ -204,10 +204,10 @@ describe('server', () => {
     await s.next(); // hello
     const song = { id: 'b', name: 'Another', groups: [] };
     let r = await t.req('PATCH', '/api/library', { client: 'op2', base: 1, changes: { presentations: { put: [song] }, set: { playlist: ['a', 'b'] } } });
-    assert.deepEqual(r.json, { rev: 2, prev: 1, conflicts: [] });
+    assert.deepEqual(r.json, { rev: 2, prev: 1, conflicts: [], resend: [] });
     const [ev, d] = await s.next();
     assert.deepEqual([ev, d.rev, d.prev, d.origin, d.changes.presentations, d.changes.set],
-      ['library', 2, 1, 'op2', { put: [song], remove: [], order: ['a', 'b'] }, { playlist: ['a', 'b'] }]);
+      ['library', 2, 1, 'op2', { put: [song], remove: [] }, { playlist: ['a', 'b'] }]); // added at the end: no order
     s.close();
     // op1, still at revision 1, renames a song op2 has not touched, and edits one op2 just added: no conflict.
     r = await t.req('PATCH', '/api/library', { client: 'op1', base: 1, changes: { presentations: { put: [{ ...LIB.presentations[0], name: 'Renamed' }] } } });

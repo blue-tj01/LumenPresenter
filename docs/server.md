@@ -55,7 +55,7 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | --- | --- |
 | `GET /api/health` | Status, server time and connected clients |
 | `GET` / `PUT /api/library` | Read / replace the library (`{library}`) |
-| `PATCH /api/library` | Save what changed since revision `base`: `{base, changes}`, with `changes` holding `presentations` and `services` as `{put, remove, order}` and other fields as `set` / `unset`. A presentation or service changed elsewhere since `base` is left alone and listed in the answer's `conflicts` |
+| `PATCH /api/library` | Save what changed since revision `base`: `{base, changes}`, with `changes` holding `presentations` and `services` as `{put, remove, order}`, list fields (themes, media, messages, the playlist…) to merge an item at a time as `merge: {field: {mode: "id" or "value", put, remove, order}}`, and other fields as `set` / `unset`. `order` is left out when it is the old order with items removed and new ones at the end. A presentation or service changed elsewhere since `base` is left alone and listed in the answer's `conflicts`; a list field that can't be merged is named in `resend`, to send whole |
 | `GET /api/backups` | The library's backups, newest first (`{backups: [{name, time, size}]}`) |
 | `POST /api/backups` | Put a backup back: `{restore: "<name>"}`. The current library is backed up first |
 | `GET /api/search?q=<words>` | Song search, best match first (`{results: [{id, name, snippet}]}`); in `snippet`, the matching words are between `\u0002` and `\u0003` |
