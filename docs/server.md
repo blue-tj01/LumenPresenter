@@ -28,7 +28,7 @@ A systemd unit is provided in [`deploy/lumen.service`](../deploy/lumen.service).
 
 ### Without the server
 
-The pages also work from any static host (for example `npx http-server`). In that mode the library is kept in the browser's `localStorage`, pictures are kept in the media bin and referenced as `@image: #<id>`, videos last for the current session only, and all windows must be on the same computer. The console's status indicator shows **Local only**.
+The pages also work from any static host (for example `npx http-server`). In that mode the library is kept in the browser (IndexedDB), pictures are kept in the media bin and referenced as `@image: #<id>`, videos last for the current session only, and all windows must be on the same computer. The console's status indicator shows **Local only**.
 
 ## Data and backups
 
@@ -55,6 +55,7 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | --- | --- |
 | `GET /api/health` | Status, server time and connected clients |
 | `GET` / `PUT /api/library` | Read / replace the library (`{library}`) |
+| `PATCH /api/library` | Save what changed since revision `base`: `{base, changes}`, with `changes` holding `presentations` and `services` as `{put, remove, order}` and other fields as `set` / `unset`. A presentation or service changed elsewhere since `base` is left alone and listed in the answer's `conflicts` |
 | `GET /api/search?q=<words>` | Song search, best match first (`{results: [{id, name, snippet}]}`); in `snippet`, the matching words are between `\u0002` and `\u0003` |
 | `GET` / `POST /api/live` | Read / set the live state (`{live}`) |
 | `POST /api/remote` | A command for the open console, from the phone remote or Companion: `{action: "next"}`, `"prev"`, `"nextItem"`, `"prevItem"` or `"auto"`; `{action: "item", item}` (place in the playlist, from 0); `{action: "slide", idx}` (slide of the live presentation, from 0); `{action: "go", presId, idx}`; `{action: "clear", what: "all"/"slide"/"bg"/"msg"/"logo"}`; `{action: "video", what: "toggle"/"restart"}`; `{action: "timer", what: "start"/"pause"/"reset"}`. 409 when no console is open |

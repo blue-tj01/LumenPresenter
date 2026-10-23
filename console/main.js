@@ -1,7 +1,7 @@
 // Lumen Presenter: operator console. Loads the library and live state, then wires the page up.
 import { $, toast } from './dom.js';
 import { saveEditor, setupEditor } from './editor.js';
-import { getPres, KEY, normalize, save, state, valid } from './library.js';
+import { getPres, keepCopy, loadCopy, normalize, save, state, valid } from './library.js';
 import { adoptLive, broadcast, clear, refreshLive, step, upgradeLive } from './live.js';
 import { runCommand, setupControl } from './control.js';
 import { loadFolders, renderMedia, setupMedia } from './media.js';
@@ -21,7 +21,7 @@ await Lumen.init();
 let loadFailed = false;
 state.db = Lumen.online ? await Lumen.loadLibrary().catch(() => { loadFailed = true; return null; }) : null;
 const fresh = !valid(state.db) && !loadFailed; // nothing on the server yet: bring over this browser's library, or the demo
-if (!valid(state.db)) { try { state.db = JSON.parse(localStorage.getItem(KEY)); } catch { state.db = null; } }
+if (!valid(state.db)) state.db = await loadCopy();
 if (!valid(state.db)) state.db = seed();
 state.db = normalize(state.db);
 
@@ -67,11 +67,21 @@ Lumen.on('remote', runCommand);
 Lumen.on('library', async () => {
   const d = await Lumen.loadLibrary().catch(() => null);
   if (!valid(d)) return;
+  adoptLibrary(d);
+});
+// A change saved by another console: just that, applied to the library here.
+Lumen.on('changes', ch => adoptLibrary(Lumen.applyChanges({ ...state.db }, ch)));
+// Songs or services another console changed while this one was changing them too: theirs is kept.
+Lumen.on('conflict', list => {
+  const names = list.map(c => c.name ? `“${c.name}”` : (c.list === 'services' ? 'a service' : 'a song'));
+  toast(`${names.join(', ')} ${list.length > 1 ? 'were' : 'was'} changed on another screen at the same time, so that version was kept. Make your change again if it is still needed.`, 9000);
+});
+function adoptLibrary(d) {
   state.db = normalize(d);
-  try { localStorage.setItem(KEY, JSON.stringify(state.db)); } catch {}
+  keepCopy(state.db);
   if (!getPres(state.selectedId)) state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id;
   renderAll(); renderMedia(); renderMessages(); renderTheme(); refreshLive();
-});
+}
 function renderStatus(s) {
   const el = $('#srvStatus');
   el.className = 'srv ' + (!s.online ? 'local' : s.streaming ? 'ok' : 'down');

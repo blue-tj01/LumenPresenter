@@ -82,6 +82,12 @@ class Store {
     return this.lib.set(library);
   }
 
+  /** Apply a console's changes since revision `base` (Library.patch). */
+  patchLibrary(changes, base) {
+    this._backup();
+    return this.lib.patch(changes, base);
+  }
+
   /** Before a change, at most every BACKUP_EVERY seconds: the library as it was, as a JSON file that Import reads. */
   _backup(now = false) {
     if (this.lib.library === null || (!now && Date.now() / 1000 - this.lastBackup < BACKUP_EVERY)) return;

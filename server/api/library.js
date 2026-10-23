@@ -20,6 +20,21 @@ module.exports = {
     this.srv.hub.send('library', { rev, origin, time: nowMs() });
   },
 
+  /** Only what changed since the console last had the library at revision `base`: {client, base, format, changes},
+   * changes as Library.patch takes them. A presentation or service changed elsewhere since then is left as it is
+   * and listed in the answer's conflicts, so the console can say so and load the library again. */
+  async 'PATCH library'() {
+    const body = await this.readBodyJson();
+    if (!isObject(body.changes)) throw bad('changes is missing');
+    if (!Number.isInteger(body.base) || body.base < 0) throw bad('base must be a revision');
+    if (this.store.library === null) throw bad('there is no library yet; save it whole');
+    if ((body.format || 1) < (this.store.library.format || 1)) throw bad('this page is older than the library; reload it');
+    const origin = String(body.client ?? '');
+    const { rev, prev, conflicts, applied } = this.store.patchLibrary(body.changes, body.base);
+    this.sendJson({ rev, prev, conflicts });
+    if (applied) this.srv.hub.send('library', { rev, prev, origin, time: nowMs(), changes: applied });
+  },
+
   /** Song search: /api/search?q=<words>, best match first. */
   'GET search'() {
     this.sendJson({ results: this.store.lib.search(this.query.get('q') || '') });

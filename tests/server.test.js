@@ -197,6 +197,28 @@ describe('server', () => {
     assert.deepEqual((await t.req('GET', '/api/live')).json.live, { idx: 2 });
   });
 
+  it('saves only what changed, and tells the other windows what it was', async () => {
+    assert.equal((await t.req('PATCH', '/api/library', { base: 0, changes: {} })).status, 400); // nothing to change yet
+    await t.req('PUT', '/api/library', { client: 'op1', library: LIB });
+    const s = await t.events();
+    await s.next(); // hello
+    const song = { id: 'b', name: 'Another', groups: [] };
+    let r = await t.req('PATCH', '/api/library', { client: 'op2', base: 1, changes: { presentations: { put: [song] }, set: { playlist: ['a', 'b'] } } });
+    assert.deepEqual(r.json, { rev: 2, prev: 1, conflicts: [] });
+    const [ev, d] = await s.next();
+    assert.deepEqual([ev, d.rev, d.prev, d.origin, d.changes.presentations, d.changes.set],
+      ['library', 2, 1, 'op2', { put: [song], remove: [], order: ['a', 'b'] }, { playlist: ['a', 'b'] }]);
+    s.close();
+    // op1, still at revision 1, renames a song op2 has not touched, and edits one op2 just added: no conflict.
+    r = await t.req('PATCH', '/api/library', { client: 'op1', base: 1, changes: { presentations: { put: [{ ...LIB.presentations[0], name: 'Renamed' }] } } });
+    assert.deepEqual(r.json.conflicts, []);
+    r = await t.req('PATCH', '/api/library', { client: 'op1', base: 1, changes: { presentations: { put: [{ ...song, name: 'Mine' }] } } });
+    assert.deepEqual(r.json.conflicts, [{ list: 'presentations', id: 'b', name: 'Another' }]);
+    assert.deepEqual((await t.req('GET', '/api/library')).json.library.presentations.map(p => p.name), ['Renamed', 'Another']);
+    assert.equal((await t.req('PATCH', '/api/library', { base: 'x', changes: {} })).status, 400);
+    assert.equal((await t.req('PATCH', '/api/library', { base: 1 })).status, 400);
+  });
+
   it('validates the library', async () => {
     assert.equal((await t.req('PUT', '/api/library', { library: { nope: 1 } })).status, 400);
     assert.equal((await t.req('PUT', '/api/library', 'not json', { 'Content-Type': 'application/json' })).status, 400);

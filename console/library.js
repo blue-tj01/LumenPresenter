@@ -1,5 +1,5 @@
 // The library in memory (presentations, services and the open one's playlist, templates, media list, messages), saving it, and looking things
-// up in it. With the server the library lives there; localStorage is the store when running without it.
+// up in it. With the server the library lives there; this browser's copy (IndexedDB) is the store when running without it.
 import { toast } from './dom.js';
 import { arrangement, FORMAT, mainText, migrateLibrary, refUrl, resolveSlide, resolveStage, textTemplate, TEXT_STYLE } from './format.js';
 import { BUILTIN_TEMPLATES } from './seed.js';
@@ -25,6 +25,43 @@ export const normalize = d => {
 /** Saved by a newer Lumen: shown, but not saved over, so nothing it added is lost. */
 export const newer = () => (state.db.format || 1) > FORMAT;
 
+// This browser's copy of the library: the store without the server, and what the console shows when it can't reach
+// the server. It is kept in IndexedDB, which holds far more than localStorage's few megabytes; localStorage is read
+// for a copy saved by an earlier Lumen, and written where IndexedDB can't be used.
+const IDB = 'lumen', STORE = 'library';
+const openCopy = () => new Promise((res, rej) => {
+  const r = indexedDB.open(IDB, 1);
+  r.onupgradeneeded = () => r.result.createObjectStore(STORE);
+  r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+});
+export async function loadCopy() {
+  try {
+    const db = await openCopy();
+    const lib = await new Promise((res, rej) => { const q = db.transaction(STORE).objectStore(STORE).get(KEY); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+    db.close();
+    if (valid(lib)) return lib;
+  } catch {}
+  try { return JSON.parse(localStorage.getItem(KEY)); } catch { return null; }
+}
+let copyTimer = null, copyLib = null;
+/** Keep this library as the browser's copy: straight away without the server, a moment after the last change with it. */
+export function keepCopy(lib, now = !Lumen.online) {
+  copyLib = lib; clearTimeout(copyTimer); copyTimer = setTimeout(writeCopy, now ? 0 : 2000);
+}
+async function writeCopy() {
+  const lib = copyLib; copyLib = null;
+  if (!lib) return;
+  try {
+    const db = await openCopy();
+    await new Promise((res, rej) => { const tx = db.transaction(STORE, 'readwrite'); tx.objectStore(STORE).put(lib, KEY); tx.oncomplete = res; tx.onerror = tx.onabort = () => rej(tx.error); });
+    db.close();
+    try { localStorage.removeItem(KEY); } catch {}
+  } catch {
+    try { localStorage.setItem(KEY, JSON.stringify(lib)); }
+    catch { if (!Lumen.online) toast('Storage full — large images are kept for this session only'); }
+  }
+}
+
 let warned = false;
 export const save = () => {
   if (newer()) {
@@ -35,8 +72,7 @@ export const save = () => {
   stashPlaylist(state.db);
   const keep = { ...state.db, media: state.db.media.filter(m => !m.src.startsWith('blob:')) };
   Lumen.saveLibrary(keep);
-  try { localStorage.setItem(KEY, JSON.stringify(keep)); }
-  catch { if (!Lumen.online) toast('Storage full — large images are kept for this session only'); }
+  keepCopy(keep);
 };
 
 
