@@ -90,11 +90,12 @@ it('resolves a slide into what a screen draws, with words bound and media as URL
 it('round-trips a presentation through the text editor, keeping slide ids and settings', () => {
   const [song] = f.migrateLibrary(V1()).presentations;
   song.groups[0].slides[0].notes = 'Slow';
-  song.groups[0].slides.push({ id: 'own', layout: { elements: [] } });
+  song.groups[0].slides.push({ id: 'own', layout: { elements: [] } }, { id: 'own2', text: 'Youth night\nFriday', layout: { elements: [] } });
   const text = f.toText(song);
-  assert.equal(text, '@bg: media/abc.jpg\n[Verse 1]\nLine one\nLine two\n\nWith picture\n@image: #m1\n\n@slide: own\n\n[Chorus]\nSing');
+  assert.equal(text, '@bg: media/abc.jpg\n[Verse 1]\nLine one\nLine two\n\nWith picture\n@image: #m1\n\n@slide: own\n\n'
+    + '@slide: own2 · Youth night\n\n[Chorus]\nSing');
   const parsed = { bg: { type: 'image', src: 'media/abc.jpg' }, groups: [
-    { name: 'Verse 1', slides: ['Line one fixed\nLine two', '@slide: own', 'New slide'] }, { name: 'Bridge', slides: ['B'] }] };
+    { name: 'Verse 1', slides: ['Line one fixed\nLine two', '@slide: own', 'New slide', '@slide: own2 · Youth night'] }, { name: 'Bridge', slides: ['B'] }] };
   const { groups, background } = f.fromText(parsed, song);
   assert.deepEqual(background, { type: 'image', src: 'media:abc.jpg' });
   assert.equal(groups[0].id, 'g1');
@@ -102,6 +103,7 @@ it('round-trips a presentation through the text editor, keeping slide ids and se
   assert.equal(groups[0].slides[1], song.groups[0].slides[2]); // the slide with its own layout, as it was
   assert.equal(groups[0].slides[2].text, 'New slide');
   assert.notEqual(groups[0].slides[2].id, 's3'); // position 2 held a laid-out slide, so this one is new
+  assert.equal(groups[0].slides[3], song.groups[0].slides[3]); // its first words after the id change nothing
   assert.equal(groups[1].name, 'Bridge');
   assert.match(groups[1].id, /^[a-z0-9]+$/);
   assert.deepEqual(f.orderIds(groups, ['bridge', 'Nope', 'Verse 1']), [groups[1].id, 'g1']);

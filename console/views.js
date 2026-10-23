@@ -11,6 +11,7 @@ import { isSqlite } from './sqlite.js';
 import { decode, findSame, parseSongSelect } from './songselect.js';
 import { slideFiles } from './powerpoint.js';
 import { renderTheme } from './themes.js';
+import { openSlideDesign, useThemeAgain } from './layout-editor.js';
 
 // With the server, search is the library database's song search, which ranks matches and shows the words that
 // matched; without it, titles, words and song details are matched as typed.
@@ -144,13 +145,40 @@ export function renderGrid() {
     const scr = document.createElement('div'); card.appendChild(scr);
     const lbl = document.createElement('div'); lbl.className = 'lbl'; lbl.style.background = s.color;
     lbl.innerHTML = `<span class="n">${i + 1}</span><span></span>`; lbl.lastChild.textContent = s.group;
+    if (s.slide.layout) lbl.insertAdjacentHTML('beforeend', '<span class="designed" title="This slide has its own design">✎</span>');
     card.appendChild(lbl);
     card.onclick = () => goLive(p.id, i);
+    if (p !== state.preview) card.oncontextmenu = e => { e.preventDefault(); slideMenu(e, p, s.slide); };
     grid.appendChild(card);
     PP.createScreen(scr);
     PP.update(scr, { bg: slideBackground(p, s.slide) || { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' }, slide: { elements: s.elements } }, { animate: false, still: true });
   });
   renderLiveMarks();
+}
+
+// A slide's right-click menu: give it its own design, add a designed slide after it, or put it back on its theme.
+function slideMenu(e, p, slide) {
+  const menu = $('#slideMenu'); menu.innerHTML = '';
+  const item = (label, run) => {
+    const b = document.createElement('button'); b.textContent = label;
+    b.onclick = () => { closeMenu(); run(); };
+    menu.appendChild(b);
+  };
+  item(slide.layout ? 'Edit this slide’s design…' : 'Design this slide…', () => openSlideDesign(p.id, slide.id));
+  item('Add a designed slide after it…', () => openSlideDesign(p.id, slide.id, { after: true }));
+  if (slide.layout) item('Use the theme again', () => useThemeAgain(p.id, slide.id));
+  menu.hidden = false;
+  const r = menu.getBoundingClientRect();
+  menu.style.left = Math.min(e.clientX, innerWidth - r.width - 8) + 'px';
+  menu.style.top = Math.min(e.clientY, innerHeight - r.height - 8) + 'px';
+  setTimeout(() => addEventListener('pointerdown', outside, true));
+  addEventListener('keydown', escape, true);
+}
+const outside = e => { if (!$('#slideMenu').contains(e.target)) closeMenu(); };
+const escape = e => { if (e.key === 'Escape') { e.stopPropagation(); closeMenu(); } };
+function closeMenu() {
+  $('#slideMenu').hidden = true;
+  removeEventListener('pointerdown', outside, true); removeEventListener('keydown', escape, true);
 }
 
 export function renderLiveMarks() {

@@ -232,6 +232,7 @@
         <p>Optional first line <code>@bg: #hex</code> or an image URL sets the presentation's default background.</p>
         <p><code>@image: …</code> on a slide shows a picture on it, with any other lines on that slide as text over it.</p>
         <p><code>@video: …</code> on a slide plays a video on it, once, with sound on the audience output.</p>
+        <p><code>@slide: …</code> stands for a slide with its own design, followed by its first words. Keep the line to keep the slide, or delete it to remove it. Right-click a slide in the slide grid to design it.</p>
         <p><b>Add images / videos</b> (or drop files onto the text) adds one slide each, which makes a slideshow.</p>
         <p><b>Play order</b> lists groups in the order they're sung, e.g. <code>Verse 1, Chorus, Verse 2, Chorus</code>. Click a group below to add it. Leave it empty to play the groups as written.</p>
         <p><b>Written by</b>, <b>Copyright</b> and <b>CCLI song #</b> are shown on the song's last slide, with your church's CCLI licence number from the Theme tab. Search finds songs by any of them, and by their words.</p>
@@ -293,19 +294,20 @@
       <select id="leAlign" title="Line the selected element up with the screen"><option value="">Align</option><option value="left">Left edge</option><option value="center">Centre</option><option value="right">Right edge</option><option value="top">Top edge</option><option value="middle">Middle</option><option value="bottom">Bottom edge</option></select>
       <select id="leOrder" title="Move the selected element in front of or behind the others"><option value="">Arrange</option><option value="front">Bring to front</option><option value="forward">Bring forward</option><option value="backward">Send backward</option><option value="back">Send to back</option></select>
       <span class="spacer"></span>
-      <button id="leCancel" class="btn ghost">Cancel</button><button id="leSaveAs" class="btn" title="Keep this theme as it was, and save the changes as a new one">Save as new…</button><button id="leSave" class="btn primary" title="Ctrl+S">Save theme</button>
+      <button id="leCancel" class="btn ghost">Cancel</button><button id="leSaveAs" class="btn le-theme-only" title="Keep this theme as it was, and save the changes as a new one">Save as new…</button><button id="leSave" class="btn primary" title="Ctrl+S">Save theme</button>
     </div>
     <div class="le-main">
       <div class="le-side"><div class="panel-h">Layers</div><ul id="leLayers" class="le-layers"></ul>
         <p class="muted small le-hint">The top of the list is in front. Drag to reorder.</p></div>
       <div class="le-stage">
         <div id="leWrap" class="le-wrap"><div id="leCanvas" class="le-canvas"><div id="leScreen"></div><div id="leOverlay" class="le-overlay"></div></div></div>
-        <div class="le-strip"><div class="panel-h"><span id="leStripH"></span><label class="le-pres">Preview with <select id="lePres"></select></label></div><div id="leStrip" class="le-thumbs"></div></div>
+        <div class="le-strip"><div class="panel-h"><span id="leStripH"></span><label class="le-pres le-theme-only">Preview with <select id="lePres"></select></label></div><div id="leStrip" class="le-thumbs"></div></div>
       </div>
       <div id="leInspector" class="le-insp"></div>
     </div>
   </div>
 </div>
+<div id="slideMenu" class="ctx-menu" role="menu" hidden></div>
 <div id="toast" class="toast"></div>
 <div id="errBox" class="err-box" role="alert" hidden>
   <div class="err-h">Something went wrong <span class="spacer"></span>

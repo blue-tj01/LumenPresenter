@@ -115,3 +115,26 @@ it('undoes and redoes finished changes', () => {
   const v = h.undo(); v.n = 100;
   assert.deepEqual(h.redo(), { n: 9 }); // what it handed out is a copy
 });
+
+it('starts a slide design from its theme, with the words as its own text', () => {
+  let n = 0;
+  const layout = { elements: [{ id: 'text', type: 'text', name: 'Slide text', bind: 'slide.text', frame: { x: 1, y: 2, w: 3, h: 4 } },
+    { id: 'credits', type: 'text', bind: 'pres.credits' }, { type: 'shape' }] };
+  const d = m.designFrom(layout, 'Youth night\nFriday', () => 'n' + ++n);
+  assert.deepEqual(d.elements[0], { id: 'text', type: 'text', content: 'Youth night\nFriday', frame: { x: 1, y: 2, w: 3, h: 4 } });
+  assert.equal(d.elements[1].bind, 'pres.credits');
+  assert.equal(d.elements[2].id, 'n1');
+  assert.equal(layout.elements[0].bind, 'slide.text'); // the theme is untouched
+  assert.equal(m.designFrom(layout, '', () => 'x').elements[0].content, 'New slide');
+  d.elements.push({ type: 'text', content: '  ' }, { type: 'text', content: 'Hidden', hidden: true }, { type: 'text', content: 'All ages' });
+  assert.equal(m.designWords(d), 'Youth night\nFriday\nAll ages');
+});
+
+it('reads and writes two-colour gradients', () => {
+  assert.deepEqual(m.parseGradient('linear-gradient(160deg,#1b2030,#0d0f15)'), { angle: 160, from: '#1b2030', to: '#0d0f15' });
+  assert.deepEqual(m.parseGradient('linear-gradient(90deg, rgba(0, 0, 0, 0.5) 0%, #fff 100%)'), { angle: 90, from: 'rgba(0, 0, 0, 0.5)', to: '#fff' });
+  assert.equal(m.parseGradient('linear-gradient(135deg,#ff7a45,#c2185b 55%,#3a0b4d)'), null);
+  assert.equal(m.parseGradient('radial-gradient(#000, #fff)'), null);
+  assert.equal(m.gradient({ angle: 45, from: '#000000', to: '#ffffff' }), 'linear-gradient(45deg, #000000, #ffffff)');
+  assert.deepEqual(m.parseGradient(m.gradient()), { angle: 160, from: '#1b2030', to: '#0d0f15' });
+});

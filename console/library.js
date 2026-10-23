@@ -54,13 +54,16 @@ export const flat = p => {
       licence: state.db.ccliLicence, showCredits: state.db.showCredits !== false }) }));
 };
 export const isVideoPres = p => { const sl = flat(p); return sl.length > 0 && sl.every(s => s.video); };
-/** The background a slide brings with it: its own, or its presentation's. */
-export const slideBackground = (p, slide) => {
-  const bg = slide?.background || p?.background;
+/** A background as a screen draws it, with a picture or video's reference as a URL. */
+export const bgUrl = bg => {
   if (!bg) return null;
   const src = ['image', 'video'].includes(bg.type) ? mediaUrl(bg.src) : bg.src;
   return src ? { ...bg, src } : null;
 };
+/** The background a slide brings with it: its own, its presentation's, or its theme's. A video in the playlist
+ * or an imported slide deck doesn't show with the theme, so it doesn't take the theme's background. */
+export const slideBackground = (p, slide) =>
+  bgUrl(slide?.background || p?.background || (p?.kind ? null : templateFor(p)?.background));
 // Every presentation uses the all-songs template (a saved one, or the default style) unless it picked its own.
 export const findTemplate = id => id ? state.db.templates.find(t => t.id === id) || null : null;
 export const savedTemplate = p => p ? findTemplate(p.templateId) : null;

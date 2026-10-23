@@ -192,11 +192,14 @@ export function slideSummary(slide) {
 
 // ---------- the text editor ----------
 /** A presentation as the text editor shows it: @bg, [Group] headings, slides with @image/@video lines, and
- * @slide: <id> for a slide with its own layout. */
+ * @slide: <id> · <its first words> for a slide with its own layout. */
 export function toText(p) {
   let out = p.background && !/^(blob|data):/.test(p.background.src) ? `@bg: ${legacyRef(p.background.src)}\n` : '';
   out += p.groups.map(g => `[${g.name}]\n` + g.slides.map(s => {
-    if (s.layout) return `@slide: ${s.id}`;
+    if (s.layout) {
+      const first = slideSummary(s).split('\n')[0].trim();
+      return `@slide: ${s.id}` + (first ? ` · ${first.length > 40 ? first.slice(0, 39) + '…' : first}` : '');
+    }
     const line = s.media ? `@${s.media.type}: ${legacyRef(s.media.src)}` : '';
     return [s.text, line].filter(Boolean).join('\n');
   }).join('\n\n')).join('\n\n');
@@ -211,7 +214,7 @@ export function fromText(parsed, old = { groups: [] }) {
     const og = old.groups.find(g => !used.has(g) && g.name.toLowerCase() === pg.name.toLowerCase());
     if (og) used.add(og);
     const slides = pg.slides.map((raw, si) => {
-      const kept = /^@slide:\s*(\S+)\s*$/.exec(raw);
+      const kept = /^@slide:\s*(\S+)(?:\s.*)?$/.exec(raw); // the words after the id are only a reminder
       if (kept) return byId.get(kept[1]) || null;
       const { text, image, video } = splitSlide(raw);
       const prev = og?.slides[si] && !og.slides[si].layout ? og.slides[si] : null;

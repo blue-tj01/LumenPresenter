@@ -191,8 +191,19 @@ The font, size, colour and alignment controls edit the theme the selected song i
 - **Layers**, on the left, lists everything front to back. Drag a row to put it in front of or behind the others, and use its eye and lock to hide it or stop it moving. **Place** on the song credits row adds the credits to the theme, so you can move and style them; until then they sit at the bottom of the last slide.
 - **The inspector**, on the right, sets the exact position and size in screen pixels, and the font, colour, shadow, outline, spacing, a box behind the words, a shape's fill and border, or how a picture fits its box.
 - **Every slide** of a song, picked under **Preview with**, is shown along the bottom with the theme, and a slide whose words had to shrink to fit is marked. Click one to show it on the canvas.
+- **Background**, at the bottom of the layers list, gives the theme a colour, a two-colour gradient, a picture or a video. It shows behind every presentation using the theme that has no background of its own; videos in the playlist and imported slide decks don't take it.
 
 Nothing changes on the screens until you press **Save theme** (Ctrl+S), and every song using the theme follows. **Save as new…** keeps the theme as it was and saves your changes as a new one instead, and **Cancel** (Esc) throws them away. Ctrl+Z and Ctrl+Y undo and redo, Ctrl+D duplicates the selected element, and Delete removes it. Every theme keeps the box for the slide's words: hide it rather than delete it.
+
+### Designing one slide
+
+Right-click a slide in the slide grid for its menu:
+
+- **Design this slide…** opens it in the same editor, starting from its theme with its words in their own text box. Move things, change the words, add a picture or a different background, and press **Save slide**. Only that slide changes; it's marked ✎ in the grid.
+- **Add a designed slide after it…** opens a new slide, started from the theme, that goes in after it when you save. Use it for announcements, sermon titles and the like.
+- **Use the theme again** throws a slide's design away and shows its words with the theme once more.
+
+A designed slide's words still count for search and show on the stage display. In the text editor it appears as one line, `@slide:` followed by its id and first words: keep the line to keep the slide where it is, or delete it to remove the slide.
 
 ### Transitions
 
