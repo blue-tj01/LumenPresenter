@@ -41,11 +41,11 @@ With the app or the server, everything lives in the data directory. For the inst
 | `settings.json` | Network mode, the access token, signed-in devices and media folders (readable only by the account running the server) |
 | `bibles.db` | The Bible translations in use and the ones imported, with their search index, in a database of their own |
 | `media/` | Uploaded images and videos |
-| `backups/` | Snapshots of the library as JSON, at most one every 10 minutes, newest 50 kept |
+| `backups/` | Snapshots of the library as JSON: at most one every 10 minutes while it changes, plus one before every import, restore or start over. The newest 50 are kept, and the last of each day for 30 days before them |
 
 Back up the data directory to back up everything (with Lumen closed, so the database is in one file).
 
-Earlier versions kept the library in `library.json`. When Lumen starts and finds one there, it moves it into the database and keeps the file in `backups/before-database-<time>/`, so copying an old `library.json` into the data directory is still a way to restore it. **Export** / **Import** in the console produce and read a portable JSON library.
+Earlier versions kept the library in `library.json`. When Lumen starts and finds one there, it moves it into the database and keeps the file in `backups/before-database-<time>/`, so copying an old `library.json` into the data directory is still a way to restore it. **Library…** in the console's top bar exports and imports a portable JSON library, lists the backups and puts one back (keeping the library it replaces as a backup), and starts over with the demo library.
 
 > **Note:** If several operator consoles edit the library at the same time, the last save wins.
 
@@ -56,6 +56,8 @@ Earlier versions kept the library in `library.json`. When Lumen starts and finds
 | `GET /api/health` | Status, server time and connected clients |
 | `GET` / `PUT /api/library` | Read / replace the library (`{library}`) |
 | `PATCH /api/library` | Save what changed since revision `base`: `{base, changes}`, with `changes` holding `presentations` and `services` as `{put, remove, order}` and other fields as `set` / `unset`. A presentation or service changed elsewhere since `base` is left alone and listed in the answer's `conflicts` |
+| `GET /api/backups` | The library's backups, newest first (`{backups: [{name, time, size}]}`) |
+| `POST /api/backups` | Put a backup back: `{restore: "<name>"}`. The current library is backed up first |
 | `GET /api/search?q=<words>` | Song search, best match first (`{results: [{id, name, snippet}]}`); in `snippet`, the matching words are between `\u0002` and `\u0003` |
 | `GET` / `POST /api/live` | Read / set the live state (`{live}`) |
 | `POST /api/remote` | A command for the open console, from the phone remote or Companion: `{action: "next"}`, `"prev"`, `"nextItem"`, `"prevItem"` or `"auto"`; `{action: "item", item}` (place in the playlist, from 0); `{action: "slide", idx}` (slide of the live presentation, from 0); `{action: "go", presId, idx}`; `{action: "clear", what: "all"/"slide"/"bg"/"msg"/"logo"}`; `{action: "video", what: "toggle"/"restart"}`; `{action: "timer", what: "start"/"pause"/"reset"}`. 409 when no console is open |

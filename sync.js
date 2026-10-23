@@ -186,6 +186,19 @@
     else if (pendingLib) flushLib();
     else if (stale) { stale = false; emit('library', { rev: libRev }); }
   }
+  /** Replace the whole library on purpose (an import, or starting over): sent at once, with a backup kept first. */
+  async function replaceLibrary(lib) {
+    clearTimeout(libTimer); pendingLib = null;
+    while (sendingLib) await new Promise(r => setTimeout(r, 50));
+    libRev = (await request('PUT', 'api/library', { client, library: lib, replace: true })).rev;
+    synced = snapshot(lib); stale = false;
+  }
+  /** Put a backup back; every console, this one too, then loads it. Changes waiting to be saved go first. */
+  async function restoreBackup(name) {
+    if (pendingLib && !sendingLib) { clearTimeout(libTimer); await flushLib(); }
+    return request('POST', 'api/backups', { restore: name });
+  }
+
   /** Song search on the server; a change still waiting to be saved is sent first, so results include it. */
   async function search(q) {
     if (pendingLib && !sendingLib) { clearTimeout(libTimer); await flushLib(); }
@@ -259,6 +272,8 @@
   window.Lumen = {
     client, init, publish, loadLibrary, saveLibrary, search, // search(q): [{id, name, snippet}], best first
     applyChanges, // applyChanges(lib, changes): a change made elsewhere ('changes' event), applied to a library
+    replaceLibrary, restoreBackup, // restoreBackup(name), a name from backups()
+    backups: async () => (await request('GET', 'api/backups')).backups, // [{name, time, size}], newest first
     on: (type, fn) => listeners[type].push(fn),
     hello: () => chan.postMessage({ type: 'hello' }), // ask same-browser operator windows for the current state
     getLive: () => request('GET', 'api/live'),

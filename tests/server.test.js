@@ -392,6 +392,37 @@ describe('server', () => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(t.data, 'backups', backups[0]))).rev, 1);
   });
 
+  it('lists backups, and puts one back, keeping the library it replaces', async () => {
+    await t.req('PUT', '/api/library', { library: LIB });
+    await t.req('PUT', '/api/library', { library: { ...LIB, presentations: [] }, replace: true }); // starting over
+    const { backups } = (await t.req('GET', '/api/backups')).json;
+    assert.equal(backups.length, 1);
+    assert.match(backups[0].name, /^library-\d{8}-\d{6}\.json$/);
+    assert.ok(backups[0].size > 0 && Math.abs(backups[0].time - Date.now()) < 60000);
+    const s = await t.events();
+    await s.next();
+    const r = await t.req('POST', '/api/backups', { restore: backups[0].name });
+    assert.equal(r.json.rev, 3);
+    assert.deepEqual((await s.next())[0], 'library');
+    s.close();
+    assert.deepEqual((await t.req('GET', '/api/library')).json.library, LIB);
+    assert.equal((await t.req('GET', '/api/backups')).json.backups.length, 2); // the emptied one, kept too
+    assert.equal((await t.req('POST', '/api/backups', { restore: '../lumen.db' })).status, 400);
+    assert.equal((await t.req('POST', '/api/backups', { restore: 'library-20200101-000000.json' })).status, 400);
+  });
+
+  it('keeps the latest backups, and one a day before them', async () => {
+    const dir = path.join(t.data, 'backups');
+    const name = (day, h) => `library-202609${String(day).padStart(2, '0')}-${String(h).padStart(2, '0')}0000.json`;
+    for (let day = 1; day <= 30; day++) for (let h = 10; h < 13; h++) fs.writeFileSync(path.join(dir, name(day, h)), '{}');
+    await t.req('PUT', '/api/library', { library: LIB });
+    await t.req('PUT', '/api/library', { library: LIB, replace: true });
+    const kept = fs.readdirSync(dir).filter(f => f.startsWith('library-')).sort();
+    // The 50 newest (today's, then September 30 back to 14 at noon), then the last of each day before: 14 to 1.
+    assert.equal(kept.length, 50 + 14);
+    assert.ok(kept.includes(name(1, 12)) && !kept.includes(name(1, 11)));
+  });
+
   it('backs the library up before it is saved in a new format, and refuses the old format after', async () => {
     await t.req('PUT', '/api/library', { library: LIB });
     await t.req('PUT', '/api/library', { library: LIB });

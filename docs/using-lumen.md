@@ -21,6 +21,12 @@ How to build services, write slides and put words, scripture, pictures and video
 
 With the server running, any of these pages can be opened on any device that can reach it.
 
+## Library, backups and starting over
+
+**Library…** in the top bar exports the whole library to a file, imports one (replacing this library on every screen), and lists the backups Lumen keeps: one every 10 minutes while the library changes, the latest 50 and the last of each day for a month before them, plus one before every import, restore or start over. **Restore…** puts one back, keeping the library it replaces as a backup, so a restore can be undone the same way. **Start over with the demo library…** asks you to type START OVER first.
+
+When two consoles change the same song at the same moment, the change saved first is kept and the other console says which song it was, so nothing is overwritten without anyone knowing.
+
 ## Writing slides
 
 Slides are written as plain text in the editor:

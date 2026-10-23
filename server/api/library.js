@@ -15,7 +15,7 @@ module.exports = {
     // A page from before an update would write the library back in its older format, losing what the newer one added.
     if ((lib.format || 1) < (this.store.library?.format || 1)) throw bad('this page is older than the library; reload it');
     const origin = String(body.client ?? '');
-    const rev = this.store.setLibrary(lib);
+    const rev = this.store.setLibrary(lib, body.replace === true);
     this.sendJson({ rev });
     this.srv.hub.send('library', { rev, origin, time: nowMs() });
   },
@@ -33,6 +33,20 @@ module.exports = {
     const { rev, prev, conflicts, applied } = this.store.patchLibrary(body.changes, body.base);
     this.sendJson({ rev, prev, conflicts });
     if (applied) this.srv.hub.send('library', { rev, prev, origin, time: nowMs(), changes: applied });
+  },
+
+  /** The library's backups, newest first: {backups: [{name, time, size}]}. */
+  'GET backups'() {
+    this.sendJson({ backups: this.store.backups() });
+  },
+
+  /** Put a backup back: {restore: '<name>'}. The library it replaces is backed up first. */
+  async 'POST backups'() {
+    const body = await this.readBodyJson();
+    const rev = this.store.restoreBackup(body.restore);
+    if (rev === null) throw bad('no such backup');
+    this.sendJson({ rev });
+    this.srv.hub.send('library', { rev, origin: '', time: nowMs() });
   },
 
   /** Song search: /api/search?q=<words>, best match first. */

@@ -362,3 +362,28 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 4px; color: #ffcf
 .le-top .btn[data-add] { padding: 5px 7px; }
 .le-top > select { max-width: 84px; }
 .le-insp .word-bar .wb-c { width: 18px; height: 18px; }
+
+/* Questions (console/dialog.js) */
+.modal.ask { z-index: 40; }
+.ask-card { width: min(440px, 92vw); height: auto; padding: 18px 18px 14px; gap: 10px; }
+.ask-title { font-size: 15px; }
+.ask-text { margin: 0; line-height: 1.5; white-space: pre-line; }
+.ask-label { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 12px; }
+.ask-typed { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; color: var(--text); letter-spacing: .06em; }
+.ask-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.btn.danger-solid { background: var(--live); border-color: var(--live); color: #fff; }
+.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.btn:focus-visible, .icon:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The Library dialog: export, import, backups and starting over */
+.lib-card { width: min(620px, 92vw); height: auto; max-height: 88vh; }
+.lib-body { overflow-y: auto; padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 4px; }
+.lib-body h4 { margin: 14px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.lib-body p { margin: 0 0 8px; }
+.lib-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.backup-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; max-height: 260px; overflow-y: auto; }
+.backup-list li { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+.backup-list li:last-child { border-bottom: 0; }
+.backup-list li .when { flex: 1; }
+.backup-list li.none { color: var(--muted); }
+.danger-zone { margin-top: 10px; border: 1px solid #5a2a31; border-radius: 8px; padding: 0 12px 12px; }

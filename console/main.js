@@ -1,5 +1,6 @@
 // Lumen Presenter: operator console. Loads the library and live state, then wires the page up.
 import { $, toast } from './dom.js';
+import { setupBackups } from './backups.js';
 import { saveEditor, setupEditor } from './editor.js';
 import { getPres, keepCopy, loadCopy, normalize, save, state, valid } from './library.js';
 import { adoptLive, broadcast, clear, refreshLive, step, upgradeLive } from './live.js';
@@ -8,7 +9,6 @@ import { loadFolders, renderMedia, setupMedia } from './media.js';
 import { setupNetwork } from './network.js';
 import { setupPowerPoint } from './powerpoint.js';
 import { setupReport } from './report.js';
-import { migrateLibrary } from './format.js';
 import { setupScripture } from './scripture.js';
 import { seed } from './seed.js';
 import { setupLayoutEditor } from './layout-editor.js';
@@ -35,18 +35,7 @@ setupViews(); setupEditor(); setupMedia(); setupThemes(); setupTimer(); setupNet
 const popup = (url, name) => { const w = window.open(url, name, 'width=1280,height=760'); if (!w) toast('Allow pop-ups to open output windows'); else if (!Lumen.online) setTimeout(broadcast, 600); };
 $('#btnOutput').onclick = () => popup('output.html', 'lumen-output');
 $('#btnStage').onclick = () => popup('stage.html', 'lumen-stage');
-$('#btnExport').onclick = () => {
-  const blob = new Blob([JSON.stringify({ ...state.db, media: state.db.media.filter(m => !m.src.startsWith('blob:')) }, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'lumen-library.json'; a.click();
-};
-$('#btnImport').onclick = () => $('#importFile').click();
-$('#importFile').onchange = e => {
-  const f = e.target.files[0]; if (!f) return;
-  f.text().then(t => { const d = JSON.parse(t); if (!valid(d)) throw 0; state.db = normalize({ ...seed(), ...migrateLibrary(d) }); save(); state.selectedId = state.db.presentations[0]?.id; renderAll(); renderMedia(); renderMessages(); renderTheme(); toast('Library imported'); })
-    .catch(() => toast('That file is not a Lumen library'));
-  e.target.value = '';
-};
-$('#btnReset').onclick = () => { if (confirm('Reset library to the demo content? Your changes will be lost.')) { state.db = normalize(seed()); save(); state.selectedId = state.db.playlist[0]; clear('all'); renderAll(); renderMedia(); renderMessages(); renderTheme(); } };
+setupBackups(() => { state.selectedId = state.db.playlist[0] || state.db.presentations[0]?.id; clear('all'); renderAll(); renderMedia(); renderMessages(); renderTheme(); });
 
 document.addEventListener('keydown', e => {
   if (!$('#layoutEditor').hidden) return; // the layout editor has its own keys
