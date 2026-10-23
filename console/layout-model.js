@@ -189,3 +189,29 @@ export function history(start, limit = 100) {
     get changed() { return JSON.stringify(past.at(-1)) !== first; },
   };
 }
+
+// ---------- designed slides ----------
+/** A slide's own layout, started from its theme's: the boxes that showed the slide's words show them as their own
+ * text (`words`, or "New slide"), so they can be edited there, and everything else is kept as it was. */
+export function designFrom(layout, words, newId) {
+  const elements = structuredClone(layout?.elements || []).map(e => {
+    const el = { ...e, id: e.id || newId() };
+    if (el.bind === 'slide.text') { delete el.bind; delete el.name; el.content = words || 'New slide'; }
+    return el;
+  });
+  return { elements };
+}
+/** The words a designed slide shows in its own text boxes, front to back, for search, the stage display and the
+ * text it goes back to when it uses its theme again. */
+export const designWords = layout => (layout?.elements || [])
+  .filter(e => e.type === 'text' && !e.bind && !e.hidden && (e.content || '').trim())
+  .map(e => e.content.trim()).join('\n');
+
+// ---------- backgrounds ----------
+/** A two-colour linear gradient as the inspector edits it, { angle, from, to }, or null for any other kind. */
+export function parseGradient(src) {
+  const m = /^linear-gradient\(\s*(-?\d+(?:\.\d+)?)deg\s*,\s*(#[0-9a-f]{3,8}|rgba?\([^)]*\))(?:\s+0%)?\s*,\s*(#[0-9a-f]{3,8}|rgba?\([^)]*\))(?:\s+100%)?\s*\)$/i
+    .exec(String(src || '').trim());
+  return m ? { angle: +m[1], from: m[2], to: m[3] } : null;
+}
+export const gradient = ({ angle = 160, from = '#1b2030', to = '#0d0f15' } = {}) => `linear-gradient(${angle}deg, ${from}, ${to})`;
