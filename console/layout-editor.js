@@ -2,7 +2,7 @@
 // the screens' own renderer, with a layers list, an inspector, its background, and every slide of a song shown along
 // the bottom. It works on a copy, and the theme or slide changes (and the projector with it) only on Save.
 import { $, $$, toast } from './dom.js';
-import { CREDITS_ELEMENT, H, mainText, resolveSlide, toRef, W } from './format.js';
+import { CREDITS_ELEMENT, H, mainText, resolveSlide, templateLayout, toRef, W } from './format.js';
 import { alignFrame, BINDS, designFrom, designWords, elementAt, elementName, gradient, history, moveFrame, newElement,
   parseColor, parseGradient, reorder, resizeFrame, rotation, snapLines, toColor, SAFE } from './layout-model.js';
 import { bgUrl, findTemplate, flat, fontValue, getPres, mediaUrl, save, slideBackground, state, templateFor } from './library.js';
@@ -13,30 +13,33 @@ import { ADD_FONT, addTemplate, fontChoices, renderTheme } from './themes.js';
 import { renderGrid } from './views.js';
 import { wordBar } from './word-bar.js';
 
-// doc is what is being edited, { layout, background }. In 'theme' mode targetId names the theme (null for the default
-// style); in 'slide' mode target is { presId, slideId, after }, after meaning a new slide to go after that one.
-let doc = null, hist = null, mode = 'theme', targetId = null, target = null;
+// doc is what is being edited, { layout, background, layouts }. In 'theme' mode targetId names the theme (null for
+// the default style), and cur the layout of it being edited: '' for its main one, or the id of one of its other
+// layouts. In 'slide' mode target is { presId, slideId, after }, after meaning a new slide to go after that one.
+let doc = null, hist = null, mode = 'theme', targetId = null, target = null, cur = '';
 let selId = null, presId = null, slideIdx = 0, scale = 0.4, drag = null;
 let screen = null;
 const BG = '__background'; // selId while the background is being edited
-const els = () => doc.layout.elements;
+const curLayout = () => (cur && doc.layouts?.find(l => l.id === cur)?.layout) || doc.layout;
+const els = () => curLayout().elements;
 const sel = () => els().find(e => e.id === selId) || null;
-const asTemplate = () => ({ layout: doc.layout });
+const asTemplate = () => ({ layout: doc.layout, layouts: doc.layouts });
 const SNAP_PX = 7; // how near, on screen, an edge comes to a line before it snaps
 const DEFAULT_BG = { type: 'gradient', src: 'linear-gradient(160deg,#1b2030,#0d0f15)' };
 const SAMPLE = { slide: { text: 'Amazing grace! How sweet the sound\nThat saved a wretch like me!' }, group: 'Verse 1',
   pres: { name: 'Song title', meta: { author: 'Written by', copyright: 'Copyright', ccli: '22025' } } };
 const placesCredits = el => el.bind === 'pres.credits' || el.bind?.startsWith('pres.meta.');
 /** The box showing the slide's words that the Theme tab edits; kept, since a theme can't lose it. */
-const isMain = el => mode === 'theme' && el === mainText(asTemplate())
+const isMain = el => mode === 'theme' && !cur && el === mainText(asTemplate())
   && els().filter(e => e.type === 'text' && e.bind === 'slide.text').length < 2;
 
 // ---------- opening and closing ----------
 /** Open the editor on the theme the selected presentation shows with. */
 export function openLayoutEditor() {
   const p = getPres(state.selectedId), t = templateFor(p);
-  mode = 'theme'; targetId = t.id || null; target = null;
-  start({ layout: structuredClone(t.layout), background: structuredClone(t.background || null) });
+  mode = 'theme'; targetId = t.id || null; target = null; cur = '';
+  start({ layout: structuredClone(t.layout), background: structuredClone(t.background || null),
+    layouts: structuredClone(t.layouts || []) });
   selId = mainText(asTemplate())?.id || null;
   presId = flat(p).some(s => !s.slide.layout) ? p.id : null;
   slideIdx = firstThemed();
@@ -50,8 +53,9 @@ export function openSlideDesign(pid, slideId, { after = false } = {}) {
   const p = getPres(pid), at = flat(p).findIndex(s => s.slide.id === slideId);
   if (at < 0) return;
   const slide = after ? null : flat(p)[at].slide;
-  mode = 'slide'; target = { presId: pid, slideId, after }; targetId = null;
-  start({ layout: slide?.layout ? structuredClone(slide.layout) : designFrom(templateFor(p).layout, slide?.text, uid),
+  mode = 'slide'; target = { presId: pid, slideId, after }; targetId = null; cur = '';
+  const from = templateLayout(templateFor(p), (slide || flat(p)[at].slide).layoutId);
+  start({ layout: slide?.layout ? structuredClone(slide.layout) : designFrom(from, slide?.text, uid),
     background: structuredClone(slide?.background || null) });
   selId = els().find(e => e.type === 'text' && !e.bind)?.id || null;
   presId = pid; slideIdx = after ? at + 1 : at;
@@ -60,7 +64,7 @@ export function openSlideDesign(pid, slideId, { after = false } = {}) {
 }
 function start(d) {
   doc = d;
-  els().forEach(e => { e.id ||= uid(); });
+  for (const layout of [doc.layout, ...(doc.layouts || []).map(l => l.layout)]) layout.elements.forEach(e => { e.id ||= uid(); });
   hist = history(doc);
 }
 function show(title, sub, tip) {
@@ -83,6 +87,7 @@ function saveTheme() {
   const t = targetId ? findTemplate(targetId) : state.db.baseTemplate;
   if (!t) { toast('That theme was deleted meanwhile: save it as a new one'); return; }
   t.layout = structuredClone(doc.layout);
+  if (doc.layouts.length) t.layouts = structuredClone(doc.layouts); else delete t.layouts;
   if (doc.background) t.background = structuredClone(doc.background); else delete t.background;
   save(); broadcast(); renderGrid(); renderTheme(); close();
   toast(`Saved theme “${t.name || 'Default style'}”`);
@@ -92,6 +97,7 @@ function saveAsNew() {
   const base = (targetId ? findTemplate(targetId) : state.db.baseTemplate) || {};
   const { id: _i, name: _n, ...rest } = structuredClone(base);
   const t = { ...rest, layout: structuredClone(doc.layout), id: uid(), name };
+  if (doc.layouts.length) t.layouts = structuredClone(doc.layouts); else delete t.layouts;
   if (doc.background) t.background = structuredClone(doc.background); else delete t.background;
   addTemplate(t);
   broadcast(); renderGrid(); close();
@@ -143,13 +149,17 @@ function previewSlides() {
     return list.map((s, index) => ({ ...s, elements: resolveSlide(s.slide, { ...opts, template: templateFor(p), pres: p,
       group: s.group, index, count: list.length }), bg: slideBackground(p, s.slide) || DEFAULT_BG }));
   }
-  // Slides with their own design don't use the theme: they show as they are, dimmed, so none seems to go missing.
-  const list = p ? flat(p).map(s => ({ ...s, other: !!s.slide.layout })) : [SAMPLE];
-  const pres = p || SAMPLE.pres;
-  return list.map((s, index) => ({ ...s, elements: resolveSlide(s.slide, { ...opts, template: asTemplate(), pres,
+  // Slides with their own design, or that show with another of the theme's layouts, show as they are, dimmed, so
+  // none seems to go missing. Sample words stand in when no slide uses the layout being edited.
+  const list = p ? flat(p).map(s => ({ ...s, other: !!s.slide.layout || layoutOf(s.slide) !== cur })) : [];
+  const sample = { ...SAMPLE, sample: true, slide: { ...SAMPLE.slide, layoutId: cur || undefined } };
+  if (!list.some(s => !s.other)) list.unshift(sample);
+  return list.map((s, index) => ({ ...s, elements: resolveSlide(s.slide, { ...opts, template: asTemplate(), pres: p || SAMPLE.pres,
     group: s.group, index, count: list.length }),
-    bg: bgUrl(s.slide.background || p?.background || (s.other ? null : doc.background)) || DEFAULT_BG }));
+    bg: bgUrl(s.slide.background || p?.background || (s.slide.layout ? null : doc.background)) || DEFAULT_BG }));
 }
+/** Which of the theme's layouts a slide shows with: '' for the main one. */
+const layoutOf = slide => (slide.layoutId && doc.layouts?.some(l => l.id === slide.layoutId) ? slide.layoutId : '');
 /** The first slide the theme shows on, to preview it with. */
 const firstThemed = () => Math.max(0, previewSlides().findIndex(s => !s.other));
 
@@ -161,7 +171,7 @@ function fitCanvas() {
   Object.assign($('#leCanvas').style, { width: W * scale + 'px', height: H * scale + 'px' });
   if (doc) renderOverlay();
 }
-function renderAll() { renderCanvas(); renderOverlay(); renderLayers(); renderInspector(); renderStrip(); renderButtons(); }
+function renderAll() { renderCanvas(); renderOverlay(); renderLayouts(); renderLayers(); renderInspector(); renderStrip(); renderButtons(); }
 function renderButtons() { $('#leUndo').disabled = !hist.canUndo; $('#leRedo').disabled = !hist.canRedo; }
 let frameReq = 0;
 function renderCanvas() {
@@ -198,6 +208,45 @@ function renderOverlay(guides = { x: [], y: [] }) {
   }
   for (const x of guides.x) ov.insertAdjacentHTML('beforeend', `<div class="le-guide v" style="left:${px(x)}"></div>`);
   for (const y of guides.y) ov.insertAdjacentHTML('beforeend', `<div class="le-guide h" style="top:${px(y)}"></div>`);
+}
+
+// A theme's layouts: its main one, which most slides show with, and others a slide can pick (a title, say).
+function renderLayouts() {
+  const ul = $('#leLayoutList'); ul.innerHTML = '';
+  if (mode !== 'theme') return;
+  const theme = targetId ? findTemplate(targetId) : state.db.baseTemplate;
+  const uses = id => state.db.presentations.filter(p => templateFor(p) === theme)
+    .reduce((n, p) => n + flat(p).filter(s => !s.slide.layout && (s.slide.layoutId || '') === id).length, 0);
+  for (const l of [{ id: '', name: 'Main' }, ...doc.layouts]) {
+    const li = node('li', { className: l.id === cur ? 'sel' : '' }, node('span', { className: 'k', textContent: '▤' }),
+      node('span', { className: 'n' }, node('span', { textContent: l.name }),
+        node('small', { textContent: l.id ? `${uses(l.id)} slides · right-click a slide to use it` : 'Every other slide' })));
+    if (l.id && l.id === cur) li.append(
+      node('button', { className: 'le-tog', textContent: '✎', title: 'Rename', onclick: e => { e.stopPropagation(); renameLayout(l); } }),
+      node('button', { className: 'le-tog', textContent: '✕', title: 'Delete this layout', onclick: e => { e.stopPropagation(); deleteLayout(l); } }));
+    li.onclick = () => { if (l.id !== cur) showLayout(l.id); };
+    ul.appendChild(li);
+  }
+}
+function showLayout(id) {
+  cur = id; selId = null; slideIdx = firstThemed();
+  renderAll();
+}
+function addLayout() {
+  const name = (prompt('Name for the new layout, such as Title or Scripture:', '') || '').trim(); if (!name) return;
+  // It starts as a copy of the one on screen, so it keeps the theme's look.
+  const layout = structuredClone(curLayout());
+  layout.elements.forEach(e => { e.id = uid(); });
+  const l = { id: uid(), name, layout };
+  doc.layouts.push(l); commit(); showLayout(l.id);
+}
+function renameLayout(l) {
+  const name = (prompt('Name for this layout:', l.name) || '').trim();
+  if (name && name !== l.name) { l.name = name; commit(); renderLayouts(); }
+}
+function deleteLayout(l) {
+  if (!confirm(`Delete the “${l.name}” layout? Slides using it show with the main layout again.`)) return;
+  doc.layouts = doc.layouts.filter(x => x !== l); commit(); showLayout('');
 }
 
 const ICON = { text: 'T', image: '▣', video: '▶', shape: '■' };
@@ -267,7 +316,9 @@ function renderStrip() {
       card.className = 'le-thumb' + (i === slideIdx ? ' sel' : '') + (s.other ? ' other' : '');
       card.innerHTML = '<div></div><div class="cap"><span class="dot"></span><span></span></div>';
       card.querySelector('.dot').style.background = s.color || '#4f8cff';
-      card.querySelector('.cap span:last-child').textContent = s.group + (mode === 'theme' && s.other ? ' ✎' : '');
+      const which = mode !== 'theme' ? '' : s.slide.layout ? ' ✎' : doc.layouts.length && !s.sample
+        ? ' · ' + (doc.layouts.find(l => l.id === layoutOf(s.slide))?.name || 'Main') : '';
+      card.querySelector('.cap span:last-child').textContent = s.group + which;
       if (s.slide.layout) card.title = 'This slide has its own design, so the theme doesn’t change it';
       if (mode === 'theme' && !s.other) card.onclick = () => { slideIdx = i; renderCanvas(); $$('#leStrip .le-thumb').forEach((c, j) => c.classList.toggle('sel', j === i)); };
       box.appendChild(card);
@@ -487,7 +538,13 @@ function relabel() {
 function live() { renderCanvas(); renderOverlay(); }
 function commit() { if (hist.push(doc)) renderButtons(); renderStrip(); }
 function select(id) { selId = id; renderOverlay(); renderLayers(); renderInspector(); }
-function restore(v) { if (!v) return; doc = v; if (!sel() && selId !== BG) selId = null; renderAll(); }
+function restore(v) {
+  if (!v) return;
+  doc = v;
+  if (cur && !doc.layouts?.some(l => l.id === cur)) cur = '';
+  if (!sel() && selId !== BG) selId = null;
+  renderAll();
+}
 function add(el) { els().push(el); selId = el.id; commit(); renderAll(); }
 function duplicate() {
   const el = sel(); if (!el) return;
@@ -584,6 +641,7 @@ export function setupLayoutEditor() {
   $('#leCancel').onclick = cancel;
   $('#leSave').onclick = saveLayout;
   $('#leSaveAs').onclick = saveAsNew;
+  $('#leAddLayout').onclick = addLayout;
   $('#leUndo').onclick = () => restore(hist.undo());
   $('#leRedo').onclick = () => restore(hist.redo());
   document.querySelectorAll('#layoutEditor [data-add]').forEach(b => b.onclick = () => {

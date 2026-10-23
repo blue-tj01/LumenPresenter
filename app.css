@@ -269,6 +269,8 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 4px; color: #ffcf
 .ctx-menu[hidden] { display: none; }
 .ctx-menu button { background: none; border: 0; text-align: left; padding: 7px 10px; border-radius: 5px; cursor: pointer; color: var(--text); }
 .ctx-menu button:hover { background: #2b3550; }
+.ctx-sep { height: 1px; background: var(--line); margin: 4px 6px; }
+.ctx-h { font-size: 11px; color: var(--muted); padding: 4px 10px 2px; }
 
 .srv { font-size: 12px; color: #8b92a3; display: flex; align-items: center; gap: 6px; cursor: default; }
 .srv::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
@@ -354,3 +356,9 @@ code { background: var(--bg); padding: 1px 5px; border-radius: 4px; color: #ffcf
 .le-words textarea { border: 0; border-radius: 0; display: block; }
 .le-grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 .le-paint { display: flex; flex-direction: column; gap: 6px; }
+.le-side .panel-h { display: flex; align-items: center; justify-content: space-between; }
+.le-layouts { margin-bottom: 8px; }
+.slide .lbl .designed { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%; }
+.le-top .btn[data-add] { padding: 5px 7px; }
+.le-top > select { max-width: 84px; }
+.le-insp .word-bar .wb-c { width: 18px; height: 18px; }

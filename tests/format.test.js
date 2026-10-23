@@ -151,3 +151,14 @@ it('sends formatted words to the screens as runs, with the plain words for every
   assert.deepEqual(f.resolveSlide({ id: 's', text: '****' }, { template, showCredits: false }), [], 'marks with no words draw nothing');
   assert.equal(f.slideSummary({ text: 'Amazing **grace**' }), 'Amazing grace');
 });
+
+it("shows a slide with the theme layout it picked, or the theme's main one", () => {
+  const template = f.textTemplate();
+  template.layouts = [{ id: 'title', name: 'Title', layout: { elements: [{ id: 't', type: 'text', bind: 'pres.name',
+    frame: { x: 0, y: 0, w: 1920, h: 300 }, style: { size: 140 } }] } }];
+  const opts = { template, pres: { name: 'Easter Sunday' }, showCredits: false };
+  assert.deepEqual(f.resolveSlide({ id: 's', text: 'Words', layoutId: 'title' }, opts).map(e => [e.content, e.style.size]), [['Easter Sunday', 140]]);
+  assert.deepEqual(f.resolveSlide({ id: 's', text: 'Words' }, opts).map(e => e.content), ['Words']);
+  assert.deepEqual(f.resolveSlide({ id: 's', text: 'Words', layoutId: 'gone' }, opts).map(e => e.content), ['Words']);
+  assert.equal(f.templateLayout(template, 'title'), template.layouts[0].layout);
+});

@@ -42,7 +42,10 @@ export function slideRefs(slide) {
   const refs = [];
   if (slide.media?.src) refs.push(slide.media.src);
   if (slide.background?.src) refs.push(slide.background.src);
-  for (const el of slide.layout?.elements || []) if (el.src) refs.push(el.src);
+  // A template's other layouts hold pictures and videos too.
+  for (const layout of [slide.layout, ...(slide.layouts || []).map(l => l.layout)]) {
+    for (const el of layout?.elements || []) if (el.src) refs.push(el.src);
+  }
   return refs;
 }
 
@@ -59,6 +62,10 @@ export function textTemplate({ id, name, margin = MARGIN, ...style } = {}) {
   if (id) Object.assign(t, { id, name });
   return t;
 }
+/** The layout a slide shows with from its template: the one it picked by `layoutId` from the template's other
+ * layouts ([{ id, name, layout }], such as a title or a scripture layout), or the template's main one. */
+export const templateLayout = (template, layoutId) =>
+  (layoutId && template?.layouts?.find(l => l.id === layoutId)?.layout) || template?.layout;
 /** The text box a template's style controls edit: the first one showing the slide's words. */
 export const mainText = t => t?.layout?.elements?.find(e => e.type === 'text' && e.bind === 'slide.text') || null;
 
@@ -166,7 +173,7 @@ export function resolveSlide(slide, { template, pres = null, group = '', index =
   }
   const shown = el => !el.hidden && (!el.showOn || el.showOn === 'all' || (el.showOn === 'first' && index === 0)
     || (el.showOn === 'last' && index === count - 1));
-  const elements = (slide.layout || template?.layout)?.elements || [];
+  const elements = (slide.layout || templateLayout(template, slide.layoutId))?.elements || [];
   const extra = showCredits && !elements.some(placesCredits) ? [CREDITS_ELEMENT] : [];
   for (const el of [...elements, ...extra]) {
     if (!shown(el)) continue;
