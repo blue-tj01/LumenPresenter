@@ -249,7 +249,8 @@ function renderLayouts() {
   for (const l of [{ id: '', name: 'Main' }, ...doc.layouts]) {
     const li = node('li', { className: l.id === cur ? 'sel' : '' }, node('span', { className: 'k', textContent: '▤' }),
       node('span', { className: 'n' }, node('span', { textContent: l.name }),
-        node('small', { textContent: l.id ? `${uses(l.id)} slides · right-click a slide to use it` : 'Every other slide' })));
+        node('small', { textContent: l.id ? (n => `${n} slide${n === 1 ? '' : 's'}`)(uses(l.id)) : 'Every other slide',
+          title: l.id ? 'Right-click a slide in the slide grid to show it with this layout' : '' })));
     if (l.id && l.id === cur) li.append(
       node('button', { className: 'le-tog', textContent: '✎', title: 'Rename', onclick: e => { e.stopPropagation(); renameLayout(l); } }),
       node('button', { className: 'le-tog', textContent: '✕', title: 'Delete this layout', onclick: e => { e.stopPropagation(); deleteLayout(l); } }));

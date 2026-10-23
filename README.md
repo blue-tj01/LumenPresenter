@@ -11,8 +11,8 @@ Lumen runs as a desktop app on the presentation computer, or as a small Node ser
 - **Scripture.** Find a passage by reference or by its words in the KJV, WEB or BSB, or a Bible you import, and put it on slides in one click.
 - **Pictures, videos and slide decks.** Slideshows, videos with synchronised playback on every screen, and PowerPoint, Impress or PDF decks shown exactly as designed.
 - **Songs and CCLI.** Search as you type, credits on each song's last slide, a CCLI usage report, and import from SongSelect, ProPresenter 7, EasyWorship (2009, 6 and 7), OpenLP and OpenSong.
-- **Themes and transitions.** Saved themes for every song or one presentation, laid out on a canvas with text boxes, shapes, pictures, videos and a background, designed one-off slides, and cut, fade, dip, push and zoom.
-- **Stage display, NDI and phone remote.** A stage clock and next slide for the band, NDI output (including words only on a transparent background for streaming), and a remote for any phone.
+- **Themes and transitions.** Saved themes for every song or one presentation, laid out on a canvas with text boxes, shapes, lines, pictures, videos, gradients and a background, several layouts per theme, your own fonts on every screen, bold or coloured single words, designed one-off slides, and cut, fade, dip, push and zoom.
+- **Stage display, NDI and phone remote.** A stage clock and next slide for the band, laid out as you like, NDI output (including words only on a transparent background for streaming), and a remote for any phone.
 - **Outside control.** Bitfocus Companion (Stream Deck), OSC and MIDI.
 - **Never loses the show.** Library, media and live state are saved on disk, so reloading a window or restarting never blanks the projector.
 
