@@ -146,6 +146,8 @@ export const CREDITS_ELEMENT = { id: 'credits', type: 'text', name: 'Song credit
 const placesCredits = el => el.bind === 'pres.credits' || el.bind?.startsWith('pres.meta.');
 
 // ---------- resolving what a screen draws ----------
+// Words with formatting marks go out as runs to draw, with the plain words beside them.
+const markedWords = content => hasMarks(content) ? { content: plainWords(content), runs: parseWords(content) } : { content };
 const media = (ref, ctx) => refUrl(ref, ctx.bin);
 
 /** What a text element shows: its own words, or the field it is bound to. */
@@ -181,14 +183,45 @@ export function resolveSlide(slide, { template, pres = null, group = '', index =
     if (el.type === 'text') {
       const content = boundText(el, ctx);
       if (!content) continue;
-      // Words with formatting marks go out as runs to draw, with the plain words beside them.
-      const marked = hasMarks(content) ? { content: plainWords(content), runs: parseWords(content) } : { content };
+      const marked = markedWords(content);
       if (!marked.content.trim()) continue;
       out.push({ ...e, ...marked, style: { ...TEXT_STYLE, ...el.style } });
     } else if (el.type === 'image' || el.type === 'video') {
       const src = media(el.src, ctx);
       if (src) out.push({ ...e, src });
     } else out.push(e);
+  }
+  return out;
+}
+
+// ---------- the stage display ----------
+// The stage display can have a layout of its own, made in the layout editor: text boxes showing what the stage
+// display shows (the live slide's words, the next slide's, the clock...), with shapes and pictures around them.
+// The stage page fills the words in itself, since the clock and timer change every second.
+export const STAGE_BINDS = [['stage.current', 'Current slide'], ['stage.next', 'Next slide'], ['stage.group', 'Current group'],
+  ['stage.clock', 'Clock'], ['stage.timer', 'Timer'], ['stage.message', 'Stage message']];
+const stageText = (id, bind, frame, style) => ({ id, type: 'text', bind, frame, style: { ...TEXT_STYLE, shadow: false, ...style } });
+/** A stage layout like the standard stage display, to start from. */
+export const stageTemplate = () => ({ layout: { elements: [
+  stageText('clock', 'stage.clock', { x: 60, y: 30, w: 600, h: 110 }, { font: 'ui-monospace, Consolas, monospace', size: 72, weight: 600, align: 'left' }),
+  stageText('timer', 'stage.timer', { x: 1260, y: 30, w: 600, h: 110 }, { font: 'ui-monospace, Consolas, monospace', size: 72, weight: 600, align: 'right' }),
+  { id: 'curbox', type: 'shape', kind: 'rect', frame: { x: 60, y: 170, w: 1800, h: 560 }, stroke: { width: 3, color: '#2b3550' }, radius: 16 },
+  stageText('group', 'stage.group', { x: 90, y: 180, w: 1740, h: 50 }, { size: 26, color: '#ffcf7a', align: 'left', upper: true, letterSpacing: 3 }),
+  stageText('current', 'stage.current', { x: 90, y: 230, w: 1740, h: 480 }, { size: 76, weight: 600 }),
+  { id: 'nextbox', type: 'shape', kind: 'rect', frame: { x: 60, y: 760, w: 1800, h: 180 }, fill: '#12151c', radius: 16 },
+  stageText('next', 'stage.next', { x: 90, y: 770, w: 1740, h: 160 }, { size: 44, weight: 400, color: '#9ec1ff', align: 'left' }),
+  { ...stageText('message', 'stage.message', { x: 60, y: 960, w: 1800, h: 90 }, { size: 48 }), fill: '#ff3b4e' },
+] }, background: { type: 'color', src: '#000000' } });
+/** A stage layout as the stage page draws it: hidden elements left out, styles filled in, media as URLs. Text boxes
+ * keep their bind for the page to fill in. */
+export function resolveStage(layout, { bin } = {}) {
+  const out = [];
+  for (const el of layout?.elements || []) {
+    if (el.hidden) continue;
+    const { id: _i, name: _n, locked: _l, hidden: _h, showOn: _s, ...e } = el;
+    if (el.type === 'text') out.push({ ...e, ...markedWords(e.bind ? '' : e.content || ''), style: { ...TEXT_STYLE, ...el.style } });
+    else if (el.type === 'image' || el.type === 'video') { const src = refUrl(el.src, bin); if (src) out.push({ ...e, src }); }
+    else out.push(e);
   }
   return out;
 }

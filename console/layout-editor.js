@@ -2,11 +2,11 @@
 // the screens' own renderer, with a layers list, an inspector, its background, and every slide of a song shown along
 // the bottom. It works on a copy, and the theme or slide changes (and the projector with it) only on Save.
 import { $, $$, toast } from './dom.js';
-import { CREDITS_ELEMENT, H, mainText, resolveSlide, templateLayout, toRef, W } from './format.js';
+import { CREDITS_ELEMENT, H, mainText, resolveSlide, resolveStage, STAGE_BINDS, stageTemplate, templateLayout, toRef, W } from './format.js';
 import { alignFrame, BINDS, designFrom, designWords, elementAt, elementName, gradient, history, moveFrame, newElement,
   parseColor, parseGradient, reorder, resizeFrame, rotation, snapLines, toColor, SAFE } from './layout-model.js';
 import { bgUrl, findTemplate, flat, fontValue, getPres, mediaUrl, save, slideBackground, state, templateFor } from './library.js';
-import { broadcast } from './live.js';
+import { broadcast, live as onAir } from './live.js';
 import { pickFont, storeSlideMedia } from './media.js';
 import { uid } from './slides.js';
 import { ADD_FONT, addTemplate, fontChoices, renderTheme } from './themes.js';
@@ -62,6 +62,14 @@ export function openSlideDesign(pid, slideId, { after = false } = {}) {
   show(p.name, after ? '· a new slide with its own design' : `· slide ${at + 1}, its own design`,
     'Only this slide changes; the rest of the presentation keeps its theme');
 }
+/** Open the editor on the stage display's own layout, or on one like the standard stage display to start from. */
+export function openStageEditor() {
+  mode = 'stage'; targetId = null; target = null; cur = '';
+  const own = state.db.stageLayout?.layout ? state.db.stageLayout : stageTemplate();
+  start({ layout: structuredClone(own.layout), background: structuredClone(own.background || null), layouts: [] });
+  selId = null; presId = null; slideIdx = 0;
+  show('Stage display', '· what the band and speakers see', 'Shown on the stage display instead of the standard one');
+}
 function start(d) {
   doc = d;
   for (const layout of [doc.layout, ...(doc.layouts || []).map(l => l.layout)]) layout.elements.forEach(e => { e.id ||= uid(); });
@@ -70,18 +78,31 @@ function start(d) {
 function show(title, sub, tip) {
   $('#leTitle').textContent = title;
   $('#leUsers').textContent = sub; $('#leUsers').title = tip;
-  $('#leSave').textContent = mode === 'theme' ? 'Save theme' : 'Save slide';
+  $('#leSave').textContent = { theme: 'Save theme', slide: 'Save slide', stage: 'Save stage display' }[mode];
   $('#layoutEditor').classList.toggle('le-slide', mode === 'slide');
+  $('#layoutEditor').classList.toggle('le-stage', mode === 'stage');
   presOptions();
   $('#layoutEditor').hidden = false;
   fitCanvas(); renderAll();
 }
 function close() { $('#layoutEditor').hidden = true; doc = hist = null; drag = null; }
 function cancel() {
-  if (hist?.changed && !confirm(`Throw away your changes to this ${mode}?`)) return;
+  if (hist?.changed && !confirm(`Throw away your changes to this ${mode === 'stage' ? 'stage display' : mode}?`)) return;
   close();
 }
-function saveLayout() { if (mode === 'theme') saveTheme(); else saveSlide(); }
+function saveLayout() { if (mode === 'theme') saveTheme(); else if (mode === 'stage') saveStage(); else saveSlide(); }
+function saveStage() {
+  state.db.stageLayout = { layout: structuredClone(doc.layout), background: structuredClone(doc.background || null) };
+  save(); broadcast(); renderStageButtons(); close();
+  toast('Saved the stage display');
+}
+/** Put the standard stage display back. */
+function standardStage() {
+  if (!state.db.stageLayout || !confirm('Throw away the stage display’s own layout and show the standard one again?')) return;
+  delete state.db.stageLayout;
+  save(); broadcast(); renderStageButtons();
+}
+export function renderStageButtons() { $('#stageStandard').hidden = !state.db.stageLayout; }
 // The theme is looked up again, since the library may have been reloaded from the server while the editor was open.
 function saveTheme() {
   const t = targetId ? findTemplate(targetId) : state.db.baseTemplate;
@@ -141,6 +162,14 @@ const binUrl = id => mediaUrl('bin:' + id);
 function previewSlides() {
   const p = presId && getPres(presId);
   const opts = { bin: binUrl, licence: state.db.ccliLicence, showCredits: state.db.showCredits !== false };
+  if (mode === 'stage') {
+    // The stage display as it would look now: the live slide, the next one, the clock and the timer.
+    const sl = onAir.slide, values = { 'stage.current': sl?.stageText || SAMPLE.slide.text, 'stage.next': onAir.next || 'The next slide’s words',
+      'stage.group': sl?.label || 'Verse 1', 'stage.clock': new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      'stage.timer': '05:00', 'stage.message': 'A message to the stage' };
+    const elements = resolveStage(doc.layout, { bin: binUrl }).flatMap(e => e.bind ? values[e.bind] ? [{ ...e, content: values[e.bind] }] : [] : [e]);
+    return [{ group: 'Stage display', slide: {}, elements, bg: bgUrl(doc.background) || { type: 'color', src: '#000' } }];
+  }
   if (mode === 'slide') {
     const list = flat(p).map(s => ({ ...s, other: true }));
     const mine = { layout: doc.layout, background: doc.background };
@@ -295,7 +324,7 @@ function renderLayers() {
   bg.className = 'bg' + (selId === BG ? ' sel' : '');
   bg.innerHTML = '<span class="k">▦</span><span class="n">Background<small></small></span>';
   bg.querySelector('small').textContent = doc.background ? BG_KINDS.find(([k]) => k === doc.background.type)?.[1] || doc.background.type
-    : mode === 'theme' ? 'Each song’s own' : 'The presentation’s';
+    : { theme: 'Each song’s own', slide: 'The presentation’s', stage: 'Black' }[mode];
   bg.onclick = () => select(BG);
   ul.appendChild(bg);
   const media = mode === 'slide' && previewSlides()[slideIdx]?.slide.media;
@@ -334,7 +363,7 @@ function renderStrip() {
         card.querySelector('.warn').textContent = `· shrunk to ${Math.min(...small)} px`;
       }
     });
-    $('#leStripH').textContent = (p ? `Every slide in ${p.name}` : 'Sample words')
+    $('#leStripH').textContent = (mode === 'stage' ? 'The stage display, with the live slide' : p ? `Every slide in ${p.name}` : 'Sample words')
       + (shrunk ? ` · ${shrunk} shrunk to fit` : '') + (slides.length > 60 ? ` · first 60 of ${slides.length}` : '');
   }, 150);
 }
@@ -423,7 +452,8 @@ function renderInspector() {
       title: isMain(el) ? 'Every theme keeps a box for the slide’s words: hide it instead' : 'Delete', onclick: remove }));
   box.append(head);
   if (el.type === 'text') {
-    box.append(field('Shows', choice(BINDS.filter(([b]) => mode === 'theme' || b !== 'slide.text' || el.bind === b), el.bind || '', v => { if (v) el.bind = v; else { delete el.bind; el.content ||= 'Text'; } })));
+    const binds = mode === 'stage' ? [...STAGE_BINDS, ['', 'Its own text']] : BINDS.filter(([b]) => mode === 'theme' || b !== 'slide.text' || el.bind === b);
+    box.append(field('Shows', choice(binds, el.bind || '', v => { if (v) el.bind = v; else { delete el.bind; el.content ||= 'Text'; } })));
     if (isMain(el)) box.lastChild.querySelector('select').disabled = true;
     // Not a label: a click on it would go to the formatting bar's first button.
     if (!el.bind) box.append(node('div', { className: 'le-f' }, node('span', { textContent: 'Words' }), (() => {
@@ -437,7 +467,7 @@ function renderInspector() {
       field('W', input('number', f.w, setF('w'), { id: 'leW', min: 20 })), field('H', input('number', f.h, setF('h'), { id: 'leH', min: 20 }))),
     node('div', { className: 'le-grid2' }, field('Rotate °', input('number', f.rotate || 0, setF('rotate'), { id: 'leR', min: -180, max: 180 })),
       field('Opacity %', input('number', Math.round((el.opacity ?? 1) * 100), v => { if (v == null || v >= 100) delete el.opacity; else el.opacity = Math.max(0, v) / 100; }, { min: 0, max: 100, step: 5 })),
-      field('Show on', choice([['', 'Every slide'], ['first', 'First slide'], ['last', 'Last slide']], el.showOn || '', v => { if (v) el.showOn = v; else delete el.showOn; }))));
+      ...mode === 'stage' ? [] : [field('Show on', choice([['', 'Every slide'], ['first', 'First slide'], ['last', 'Last slide']], el.showOn || '', v => { if (v) el.showOn = v; else delete el.showOn; }))]));
   if (el.type === 'text') {
     const fontList = fontChoices();
     if (!fontList.some(([v]) => v === st.font)) fontList.push([st.font, String(st.font).split(',')[0].replace(/'/g, '')]);
@@ -501,10 +531,10 @@ function renderBackground(box) {
   const bg = doc.background, kind = bg?.type || '';
   const set = v => { doc.background = v; };
   box.append(node('div', { className: 'le-head' }, node('b', { textContent: 'Background' })),
-    node('p', { className: 'muted small', textContent: mode === 'theme'
-      ? 'Shown behind every presentation using this theme, unless it or its slide has a background of its own.'
-      : 'Shown behind this slide only. Leave it as the presentation’s to use the presentation’s or its theme’s.' }),
-    field('Kind', choice([['', mode === 'theme' ? 'None: each song’s own' : 'The presentation’s'], ...BG_KINDS], BG_KINDS.some(([k]) => k === kind) ? kind : '', v => {
+    node('p', { className: 'muted small', textContent: { theme: 'Shown behind every presentation using this theme, unless it or its slide has a background of its own.',
+      slide: 'Shown behind this slide only. Leave it as the presentation’s to use the presentation’s or its theme’s.',
+      stage: 'Shown behind everything on the stage display.' }[mode] }),
+    field('Kind', choice([['', { theme: 'None: each song’s own', slide: 'The presentation’s', stage: 'Black' }[mode]], ...BG_KINDS], BG_KINDS.some(([k]) => k === kind) ? kind : '', v => {
       if (!v) set(null);
       else if (v === 'color') set({ type: 'color', src: parseGradient(bg?.src)?.from || (bg?.type === 'color' ? bg.src : '#1b2030') });
       else if (v === 'gradient') set({ type: 'gradient', src: gradient(bg?.type === 'color' ? { from: bg.src } : {}) });
@@ -642,6 +672,9 @@ export function setupLayoutEditor() {
   $('#leSave').onclick = saveLayout;
   $('#leSaveAs').onclick = saveAsNew;
   $('#leAddLayout').onclick = addLayout;
+  $('#stageLayout').onclick = openStageEditor;
+  $('#stageStandard').onclick = standardStage;
+  renderStageButtons();
   $('#leUndo').onclick = () => restore(hist.undo());
   $('#leRedo').onclick = () => restore(hist.redo());
   document.querySelectorAll('#layoutEditor [data-add]').forEach(b => b.onclick = () => {

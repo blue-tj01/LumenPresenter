@@ -1,7 +1,7 @@
 // The layout editor's working parts that need no page: new elements, snapping, moving, resizing and rotating
 // frames, finding the element under the pointer, arranging, colours, and undo. Tested under Node
 // (tests/layout.test.js); console/layout-editor.js is the screen around them.
-import { H, TEXT_STYLE, W } from './format.js';
+import { H, STAGE_BINDS, TEXT_STYLE, W } from './format.js';
 import { plainWords } from './words.js';
 
 // ---------- what a text box can show ----------
@@ -15,7 +15,7 @@ const KIND = { text: 'Text', image: 'Picture', video: 'Video', shape: 'Shape' };
 /** The name the layers list shows for an element: its own, else what it shows or what it is. */
 export function elementName(el) {
   if (el.name) return el.name;
-  if (el.type === 'text') return el.bind ? BINDS.find(([b]) => b === el.bind)?.[1] || 'Text'
+  if (el.type === 'text') return el.bind ? [...BINDS, ...STAGE_BINDS].find(([b]) => b === el.bind)?.[1] || 'Text'
     : plainWords(el.content).split('\n')[0].slice(0, 30) || 'Text';
   if (el.type === 'shape') return el.kind === 'ellipse' ? 'Circle' : el.kind === 'line' ? 'Line' : 'Box';
   return KIND[el.type] || el.type;
