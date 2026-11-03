@@ -1,10 +1,12 @@
 # Changelog
 
 What changed in each release of Lumen Presenter, newest first. Changes waiting for the next release are under
-**Unreleased**; when a version is tagged, they move under its number. Earlier releases are described on the
-[Releases page](https://github.com/blue-tj01/LumenPresenter/releases).
+**Unreleased**; when a version is tagged, they move under its number. 0.3.0 is the first release, and the installers
+for each release are on the [Releases page](https://github.com/blue-tj01/LumenPresenter/releases).
 
 ## Unreleased
+
+## 0.3.0 (2026-11-03)
 
 ### Changed
 - Saving sends only the songs, services and settings that changed, so a change takes the same time in a library of
