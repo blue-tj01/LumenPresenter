@@ -15,8 +15,21 @@ it('looks for NDI where NDI Tools puts it, then on the usual library path', () =
     throw new Error('ENOENT');
   };
   assert.deepEqual(candidates({ NDI_RUNTIME_DIR_V6: dir }, 'win32', none), [`${dir}\\${dll}`, dll]);
-  assert.deepEqual(candidates({}, 'linux'), ['libndi.so.6', 'libndi.so']);
+  assert.deepEqual(candidates({}, 'linux', none, null), ['libndi.so.6', 'libndi.so']);
   assert.deepEqual(candidates({ LUMEN_NDI_LIB: '/opt/ndi/libndi.so' }, 'linux'), ['/opt/ndi/libndi.so']);
+});
+
+it('on Linux, uses the NDI library packed with Lumen unless a folder is set', () => {
+  const none = () => [];
+  const res = '/opt/Lumen Presenter/resources/ndi';
+  assert.deepEqual(candidates({}, 'linux', none, res), [`${res}/libndi.so.6`, 'libndi.so.6', 'libndi.so']);
+  assert.deepEqual(candidates({ NDI_RUNTIME_DIR_V6: '/opt/ndi' }, 'linux', none, res), [
+    '/opt/ndi/libndi.so.6',
+    `${res}/libndi.so.6`,
+    'libndi.so.6',
+    'libndi.so',
+  ]);
+  assert.deepEqual(candidates({ LUMEN_NDI_LIB: '/x/libndi.so' }, 'linux', none, res), ['/x/libndi.so']);
 });
 
 it('finds NDI in its install folder when Lumen started before NDI was installed', () => {
@@ -319,7 +332,7 @@ it('shows the source name and how many receivers are watching', async () => {
   const status = () =>
     out
       .menu(() => {})
-      .submenu.filter(i => i.enabled === false)
+      .submenu.filter(i => i.enabled === false && !i.label.includes('trademark'))
       .map(i => i.label);
   assert.deepEqual(status(), ['Sending as STUDIO-PC (Lumen Presenter)', 'No receivers yet']);
   const before = changes();
@@ -352,6 +365,15 @@ it('offers the NDI SDK on Linux, where there is no NDI Tools', () => {
   assert.ok(menu.some(i => i.label === 'The NDI SDK isn’t installed on this computer'));
   menu.find(i => i.label === 'Get the NDI SDK…').click();
   assert.deepEqual(electron.external, ['https://ndi.video/for-developers/ndi-sdk/']);
+});
+
+it('links to ndi.video and gives the NDI trademark line, as the NDI SDK licence asks', () => {
+  const { out, electron } = output({ load: () => ({ error: 'Install NDI Tools to send over NDI', missing: true }) });
+  const menu = out.menu(() => {}).submenu;
+  menu.find(i => i.label === 'About NDI® (ndi.video)…').click();
+  assert.deepEqual(electron.external, ['https://ndi.video/']);
+  assert.equal(menu.at(-1).label, 'NDI® is a registered trademark of Vizrt NDI AB.');
+  assert.equal(menu.at(-1).enabled, false);
 });
 
 it('finds NDI installed while Lumen is open', async () => {

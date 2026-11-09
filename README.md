@@ -94,4 +94,6 @@ Lumen Presenter is free software: you can redistribute it and/or modify it under
 
 It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
+As an additional permission under section 7 of the GPL, Lumen may be combined with the NDI library from Vizrt NDI AB and conveyed that way; see [`NOTICE`](NOTICE). The Linux builds include that library (`libndi.so.6`), which stays under the NDI SDK License Agreement. More about NDI is at [ndi.video](https://ndi.video/).
+
 NDI® is a registered trademark of Vizrt NDI AB.

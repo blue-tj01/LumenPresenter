@@ -1,0 +1,22 @@
+Lumen Presenter
+Copyright (C) Tom and the Lumen Presenter contributors
+
+Lumen Presenter is free software: you can redistribute it and/or modify it under the terms of the GNU General
+Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option)
+any later version. See LICENSE for the full text.
+
+Additional permission under GNU GPL version 3 section 7
+
+If you modify this Program, or any covered work, by linking or combining it with the NDI library from Vizrt NDI AB
+(libndi.so, libndi.dylib or Processing.NDI.Lib.*.dll, or a modified version of that library), containing parts
+covered by the terms of the NDI SDK License Agreement, the licensors of this Program grant you additional
+permission to convey the resulting work. Corresponding Source for a non-source form of such a combination shall
+not include the source code for the parts of the NDI library used as well as that of the covered work.
+
+NDI
+
+The Linux builds include libndi.so.6 from the NDI SDK, in resources/ndi, under the NDI SDK License Agreement,
+which is included alongside it. The NDI library is not covered by the GNU General Public License. More about NDI
+is at https://ndi.video/.
+
+NDI® is a registered trademark of Vizrt NDI AB.

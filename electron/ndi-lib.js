@@ -1,6 +1,8 @@
 // @ts-check
-// The NDI library, called directly. Lumen doesn't ship it: it uses the NDI Runtime that NDI Tools (or the NDI
-// redistributable) installs, found as the NDI SDK says to, through the NDI_RUNTIME_DIR_V6 folder.
+// The NDI library, called directly. On Windows Lumen uses the NDI Runtime that NDI Tools (or the NDI redistributable)
+// installs, found as the NDI SDK says to, through the NDI_RUNTIME_DIR_V6 folder. The Linux builds carry their own
+// libndi.so.6 in resources/ndi, kept in Lumen's own folder as the NDI SDK licence asks, since on Linux the library
+// only comes in the NDI SDK, which needs an NDI account to download.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -12,8 +14,16 @@ function download(platform = process.platform) {
     : { name: 'NDI Tools', url: 'https://ndi.video/tools/' };
 }
 
+/** The folder of the NDI library packed with Lumen (resources/ndi), or null when Lumen isn't packaged. */
+const bundledDir = () => (process.resourcesPath ? path.join(process.resourcesPath, 'ndi') : null);
+
 /** Where the NDI library may be on this computer, most specific first. */
-function candidates(env = process.env, platform = process.platform, list = dir => fs.readdirSync(dir)) {
+function candidates(
+  env = process.env,
+  platform = process.platform,
+  list = dir => fs.readdirSync(dir),
+  bundled = bundledDir(),
+) {
   const dir = env.NDI_RUNTIME_DIR_V6;
   if (env.LUMEN_NDI_LIB) return [env.LUMEN_NDI_LIB];
   if (platform === 'win32') {
@@ -39,7 +49,13 @@ function candidates(env = process.env, platform = process.platform, list = dir =
       '/usr/local/lib/libndi.dylib',
     ];
   }
-  return [...(dir ? [path.join(dir, 'libndi.so.6')] : []), 'libndi.so.6', 'libndi.so'];
+  // A folder set on purpose comes first, then Lumen's own copy, then one installed where the system finds libraries.
+  return [
+    ...(dir ? [path.posix.join(dir, 'libndi.so.6')] : []),
+    ...(bundled ? [path.posix.join(bundled, 'libndi.so.6')] : []),
+    'libndi.so.6',
+    'libndi.so',
+  ];
 }
 
 /** Load NDI and return what Lumen uses of it, or throw an Error whose message suits the menu. */
@@ -148,4 +164,8 @@ function open({ env = process.env, koffi = require('koffi'), platform = process.
   };
 }
 
-module.exports = { open, candidates, download };
+/** What NDI asks to be shown wherever NDI is named: its trademark statement, and where to find out more. */
+const TRADEMARK = 'NDI® is a registered trademark of Vizrt NDI AB.';
+const HOME = 'https://ndi.video/';
+
+module.exports = { open, candidates, download, TRADEMARK, HOME };
