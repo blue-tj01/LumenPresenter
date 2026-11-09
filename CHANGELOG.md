@@ -6,6 +6,14 @@ for each release are on the [Releases page](https://github.com/blue-tj01/LumenPr
 
 ## Unreleased
 
+### Added
+- The Linux AppImage and deb include the NDI library (`libndi.so.6`), so NDI output works on Linux without
+  downloading the NDI SDK, which needs an NDI account. `NDI_RUNTIME_DIR_V6` still picks a different copy.
+- Help → About Lumen Presenter, and an About NDI® link in Screens → NDI Output, with NDI's trademark statement.
+
+### Changed
+- Lumen's licence adds a GPL section 7 permission to combine Lumen with the NDI library (see `NOTICE`).
+
 ## 0.3.0 (2026-11-03)
 
 ### Changed

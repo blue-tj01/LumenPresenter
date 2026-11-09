@@ -11,6 +11,7 @@ const { LumenServer } = require('../server.js');
 const { SCREENS, Screens } = require('./screens.js');
 const { Updates } = require('./updates.js');
 const { NdiOutput } = require('./ndi.js');
+const ndiLib = require('./ndi-lib.js');
 const { importDataFolder, isDataFolder } = require('./data.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -257,6 +258,28 @@ function setKeepAwake(on) {
 const loginItem = () => (app.isPackaged ? {} : { path: process.execPath, args: [ROOT] });
 const canStartAtLogin = process.platform === 'win32' || process.platform === 'darwin';
 
+// ---------- about ----------
+async function showAbout() {
+  /** @type {Electron.MessageBoxOptions} */
+  const box = {
+    type: 'info',
+    title: 'About Lumen Presenter',
+    message: `Lumen Presenter ${app.getVersion()}`,
+    detail:
+      'A presentation app for worship services and live events.\n\n' +
+      'Free software under the GNU General Public License, version 3 or later, with an additional permission to ' +
+      'use the NDI library. It comes with no warranty.\n\n' +
+      ndiLib.TRADEMARK,
+    buttons: ['OK', 'Lumen on GitHub', 'About NDI®'],
+    defaultId: 0,
+    cancelId: 0,
+  };
+  const win = consoleWin && !consoleWin.isDestroyed() ? consoleWin : null;
+  const { response } = await (win ? dialog.showMessageBox(win, box) : dialog.showMessageBox(box));
+  if (response === 1) shell.openExternal('https://github.com/blue-tj01/LumenPresenter');
+  if (response === 2) shell.openExternal(ndiLib.HOME);
+}
+
 // ---------- menus ----------
 function screensMenu() {
   return [
@@ -333,6 +356,8 @@ function buildMenus() {
           ...updates.menu(),
           { type: 'separator' },
           { label: 'Lumen on GitHub', click: () => shell.openExternal('https://github.com/blue-tj01/LumenPresenter') },
+          { type: 'separator' },
+          { label: 'About Lumen Presenter', click: showAbout },
         ],
       },
     ]),

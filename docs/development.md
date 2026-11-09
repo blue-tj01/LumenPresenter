@@ -46,7 +46,7 @@ Run the tests with:
 npm test
 ```
 
-The NDI tests use a stand-in for NDI. To also send real frames, set `LUMEN_NDI_LIB` to the NDI library (for example `libndi.so.6`, or `Processing.NDI.Lib.x64.dll` in the NDI Runtime folder on Windows) before running them.
+The Linux builds pack the NDI library from `third_party/ndi/linux-x64` (see the README there for adding or updating it). The NDI tests use a stand-in for NDI. To also send real frames, set `LUMEN_NDI_LIB` to the NDI library (for example `libndi.so.6`, or `Processing.NDI.Lib.x64.dll` in the NDI Runtime folder on Windows) before running them.
 
 The console is also tested in a real browser (Chromium, through Playwright): writing a song and putting it on the audience output, two operators changing songs at once, starting over and restoring a backup, and the layout editor. Install Chromium once with `npx playwright install chromium`, then:
 

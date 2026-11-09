@@ -10,12 +10,10 @@ The desktop app can send the audience output over the network as an [NDI®](http
 
 NDI carries the picture only. Video sound plays from the computer running Lumen, as it does now. NDI stays on, and comes back on the next time Lumen starts, until it's turned off. The first time, Windows may ask whether Lumen can use the network: allow it on private networks so receivers can find the source.
 
-**On Linux.** NDI Tools isn't made for Linux, so step 1 is different: download the [NDI SDK for Linux](https://ndi.video/for-developers/ndi-sdk/) and run its installer, which unpacks a `NDI SDK for Linux` folder. Lumen needs `libndi.so.6` from its `lib/x86_64-linux-gnu` folder. Either copy it to where the system finds libraries:
-
-```bash
-sudo cp -P "NDI SDK for Linux/lib/x86_64-linux-gnu/"libndi.so* /usr/local/lib/ && sudo ldconfig
-```
-
-or set `NDI_RUNTIME_DIR_V6` to that folder before starting Lumen. NDI Studio Monitor isn't made for Linux either: to watch the source on the same computer, use OBS with the DistroAV plugin, or watch from a Windows or Mac computer on the network. Receivers find the source only on the same network segment, so guest Wi-Fi or a router that keeps devices apart can hide it.
+**On Linux.** NDI Tools isn't made for Linux, so the Linux AppImage and deb come with the NDI library (`libndi.so.6`) built in, and step 1 can be skipped. To use a different copy, such as a newer one from the [NDI SDK for Linux](https://ndi.video/for-developers/ndi-sdk/) (its `lib/x86_64-linux-gnu` folder), set `NDI_RUNTIME_DIR_V6` to its folder before starting Lumen. Running Lumen from source, put `libndi.so.6` where the system finds libraries (`/usr/local/lib`, then `sudo ldconfig`) or set `NDI_RUNTIME_DIR_V6`. NDI Studio Monitor isn't made for Linux either: to watch the source on the same computer, use OBS with the DistroAV plugin, or watch from a Windows or Mac computer on the network. Receivers find the source only on the same network segment, so guest Wi-Fi or a router that keeps devices apart can hide it.
 
 These choices belong to the computer, not the library, so they are kept in Lumen's own settings folder (`%APPDATA%\lumen-presenter\desktop.json` on Windows, `~/.config/lumen-presenter/desktop.json` on Linux) rather than in the data folder.
+
+More about NDI, and NDI's own tools, is at [ndi.video](https://ndi.video/). The NDI library included with the Linux builds is under the NDI SDK License Agreement, not Lumen's GPL; see [`NOTICE`](../NOTICE).
+
+NDI® is a registered trademark of Vizrt NDI AB.

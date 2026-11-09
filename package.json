@@ -52,6 +52,7 @@
     "files": [
       "package.json",
       "LICENSE",
+      "NOTICE",
       "server.js",
       "electron/**",
       "*.html",
@@ -106,6 +107,18 @@
         }
       ],
       "icon": "electron/icon.png",
+      "extraResources": [
+        {
+          "from": "third_party/ndi/linux-x64",
+          "to": "ndi",
+          "filter": [
+            "libndi.so.6",
+            "*License*",
+            "*LICENSE*",
+            "*licenses*"
+          ]
+        }
+      ],
       "category": "AudioVideo",
       "maintainer": "Tom",
       "artifactName": "Lumen-Presenter-${version}-${arch}.${ext}",

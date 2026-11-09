@@ -287,6 +287,10 @@ class NdiOutput {
           checked: this.config.fps === fps,
           click: then(() => this.configure({ fps })),
         })),
+        // The NDI SDK licence asks for a link to ndi.video beside wherever NDI is chosen, and its trademark line.
+        { type: 'separator' },
+        { label: 'About NDI® (ndi.video)…', click: () => this.electron.shell.openExternal(ndiLib.HOME) },
+        { label: ndiLib.TRADEMARK, enabled: false },
       ],
     };
   }
