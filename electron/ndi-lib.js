@@ -51,8 +51,8 @@ function candidates(
   }
   // A folder set on purpose comes first, then Lumen's own copy, then one installed where the system finds libraries.
   return [
-    ...(dir ? [path.join(dir, 'libndi.so.6')] : []),
-    ...(bundled ? [path.join(bundled, 'libndi.so.6')] : []),
+    ...(dir ? [path.posix.join(dir, 'libndi.so.6')] : []),
+    ...(bundled ? [path.posix.join(bundled, 'libndi.so.6')] : []),
     'libndi.so.6',
     'libndi.so',
   ];
